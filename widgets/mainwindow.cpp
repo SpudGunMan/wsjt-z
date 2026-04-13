@@ -13630,6 +13630,7 @@ int MainWindow::watchdog() {
     if (m_config.wd_Timer()) {
         if (m_mode == "FT8") return m_config.wd_FT8();
         if (m_mode == "FT4") return m_config.wd_FT4();
+        if (m_mode == "FT2") return m_config.wd_FT2();
     }
     return m_config.watchdog();
 }

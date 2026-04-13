@@ -3835,6 +3835,16 @@ Right click for insert and delete options.</string>
           <item row="1" column="1">
            <widget class="QSpinBox" name="sb_WD_FT4"/>
           </item>
+          <item row="2" column="0">
+           <widget class="QLabel" name="label_WD_FT2">
+            <property name="text">
+             <string>FT2</string>
+            </property>
+           </widget>
+          </item>
+          <item row="2" column="1">
+           <widget class="QSpinBox" name="sb_WD_FT2"/>
+          </item>
          </layout>
         </widget>
        </item>

@@ -220,6 +220,7 @@ public:
   bool wdResetAnywhere() const;
   int wd_FT8() const ;
   int wd_FT4() const;
+  int wd_FT2() const;
   bool wd_Timer() const;
   bool processTailenders() const;
   QString permIgnoreList() const;

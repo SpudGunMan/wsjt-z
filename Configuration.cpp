@@ -806,6 +806,7 @@ private:
   int padding_;
   int wd_FT8_;
   int wd_FT4_;
+  int wd_FT2_;
   bool wd_Timer_;
   bool processTailenders_;
   QString permIgnoreList_;
@@ -953,6 +954,7 @@ bool Configuration::wdResetAnywhere() const {return m_->wdResetAnywhere_;}
 int Configuration::padding() const {return m_->padding_;}
 int Configuration::wd_FT8() const {return m_->wd_FT8_;}
 int Configuration::wd_FT4() const {return m_->wd_FT4_;}
+int Configuration::wd_FT2() const {return m_->wd_FT2_;}
 bool Configuration::wd_Timer() const {return m_->wd_Timer_;}
 bool Configuration::processTailenders() const {return m_->processTailenders_;}
 QString Configuration::permIgnoreList() const {return m_->permIgnoreList_;}
@@ -1723,6 +1725,7 @@ void Configuration::impl::initialize_models ()
   ui_->sb_padding->setValue(padding_);
   ui_->sb_WD_FT8->setValue(wd_FT8_);
   ui_->sb_WD_FT4->setValue(wd_FT4_);
+  ui_->sb_WD_FT2->setValue(wd_FT2_);
   ui_->gb_WD_Timer->setChecked(wd_Timer_);
   ui_->te_permIgnoreList->setText(permIgnoreList_);
   ui_->cb_processTailenders->setChecked(processTailenders_);
@@ -1994,6 +1997,7 @@ void Configuration::impl::read_settings ()
   padding_ = settings_->value("padding",42).toInt ();
   wd_FT8_ = settings_->value("wd_FT8",2).toInt ();
   wd_FT4_ = settings_->value("wd_FT4",1).toInt ();
+  wd_FT2_ = settings_->value("wd_FT2",1).toInt ();
   wd_Timer_ = settings_->value("wd_Timer", false).toBool();
   processTailenders_ = settings_->value("processTailenders", false).toBool();
   permIgnoreList_ = settings_->value("permIgnoreList").toString();
@@ -2172,6 +2176,7 @@ void Configuration::impl::write_settings ()
   settings_->setValue("padding", padding_);
   settings_->setValue("wd_FT8", wd_FT8_);
   settings_->setValue("wd_FT4", wd_FT4_);
+  settings_->setValue("wd_FT2", wd_FT2_);
   settings_->setValue("wd_Timer", wd_Timer_);
   settings_->setValue("processTailenders", processTailenders_);
   settings_->setValue("permIgnoreList", permIgnoreList_);
@@ -2708,6 +2713,7 @@ void Configuration::impl::accept ()
   padding_ = ui_->sb_padding->value();
   wd_FT4_ = ui_->sb_WD_FT4->value();
   wd_FT8_ = ui_->sb_WD_FT8->value();
+  wd_FT2_ = ui_->sb_WD_FT2->value();
   wd_Timer_ = ui_->gb_WD_Timer->isChecked();
   processTailenders_ = ui_->cb_processTailenders->isChecked();
   permIgnoreList_ = ui_->te_permIgnoreList->toPlainText();
