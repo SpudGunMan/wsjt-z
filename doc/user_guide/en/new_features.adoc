@@ -1,0 +1,70 @@
+[[NEW_FEATURES]]
+=== New in Version {VERSION_MAJOR}.{VERSION_MINOR}
+
+_WSJT-X 2.7_ introduces a new program called *QMAP*, new Special
+Operating Activities *Q65 Pileup* and *SuperFox mode*, an option to
+*Update Hamlib* at the click of a button, and a number of other
+enhancements and bug fixes.
+
+- *QMAP* and *Q65 Pileup* mode are of particular interest to those engaged
+  in Earth-Moon-Earth (EME) communication, but other applications may
+  be found for them as well.  QMAP is currently available for Windows
+  only; it is derived from MAP65, an older program used since 2007 for
+  EME. QMAP provides single-polarization receive-only capabilities for
+  any one of the 60-second submodes of Q65. It allows you to monitor
+  all traffic in a 90 kHz sub-band while conducting EME QSOs in the
+  usual way with _WSJT-X_.  Q65 Pileup mode helps DX operators using
+  Q65 in pileup circumstances with many simultaneous callers and very
+  weak signals, such as those experienced by 6-meter EME DXpeditions.
+  Further details on QMAP and Q65 Pileup mode are available in a
+  Quick-Start guide posted here:
+  https://wsjt.sourceforge.io/Quick_Start_WSJT-X_2.7_QMAP.pdf
+
+- *SuperFox mode* behaves operationally like the old-style Fox and
+  Hounds mode but uses a new constant envelope waveform for Fox's
+  transmissions. Messages can be transmitted simultaneously to as many
+  as 9 Hounds with no signal-strength penalty, resulting in a system
+  gain of about +10 dB compared to the older Fox-and-Hound operation
+  with 5 slots.  Further details on SuperFox mode can be found in the
+  Quick-Start guide posted here:
+  https://wsjt.sourceforge.io/SuperFox_User_Guide.pdf
+
+- A button *Update Hamlib* now appears on the *Settings -> Radio* tab.
+  On Windows it allows the user to automatically download and install
+  the latest version of the rig-control features in Hamlib.  The
+  previously used version is backed up, so you can easily revert the
+  procedure if necessary. Names and dates of the active and backup
+  versions are clearly displayed.
+
+- Spotting to *PSK Reporter* has been made more efficient.  Redundant
+  spots are omitted, and all posts are spread more widely in time. If
+  your station locator is changed, for example during portable
+  operations, your new locator will be sent automatically to PSK
+  Reporter.
+
+- *Fox* mode now provides more convenient handling of the two callsign
+  queues, and Fox's Log window displays statistical data on recent QSO
+  rate.  Multi-streamed messages transmitted by _MSHV_ are now handled
+  properly when _WSJT-X_ is in *Hound* mode.
+
+- The cty.dat file can now be updated by clicking a button on the
+  *Settings -> Colors* tab.
+
+- The FT Roundup message protocol now allows the exchange of static
+  4-digit numbers in place of serial numbers. This extends the
+  usability of the FT RU protocol for other contest types.
+
+- Features for main-window switching between modes have been enhanced
+  so that submode and status of the *Sh* and *Fast* checkboxes are
+  saved and restored by mode.  Right-click events were made more
+  intuitive and consistent.  Right-clicking the Q65 button enables Q65
+  Pileup mode, and a left-click brings you back to the normal Q65
+  mode.  Right-click on the JT65 button switches to JT9 mode.
+
+- Message averaging is now allowed only when *VHF features* are
+  enabled.  Main window text box labels are changed to read "`Single
+  Period Decodes`" and "`Average Decodes`" when averaging is enabled.
+
+Further details on minor changes can be found in the Release Notes,
+accessible from the _WSJT-X_ *Help* menu.
+
