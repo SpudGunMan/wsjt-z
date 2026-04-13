@@ -175,10 +175,9 @@ subroutine ft8b(dd0,newdat,nQSOProgress,nfqso,nftx,ndepth,nzhsym,lapon,     &
   enddo
 ! hard sync sum - max is 21
   nsync=is1+is2+is3
-! Weak-signal tweak: each notch lower lets ~1 dB more weak candidates attempt decode.
-  syncmin=5
-  if(imetric.eq.2) syncmin=6
-  if(ndepth.le.2) syncmin=7
+  syncmin=6
+  if(imetric.eq.2) syncmin=7
+  if(ndepth.le.2) syncmin=8
   if(nsync.le.syncmin) then ! bail out
     nbadcrc=1
     return
@@ -428,7 +427,7 @@ subroutine ft8b(dd0,newdat,nQSOProgress,nfqso,nftx,ndepth,nzhsym,lapon,     &
      norder=2
      maxosd=2
      if(ndepth.eq.1) maxosd=-1  ! BP only
-     if(ndepth.eq.2) maxosd=0   ! uncoupled BP+OSD (enabled: ~1 dB sensitivity recovery)
+!     if(ndepth.eq.2) maxosd=0   ! reverted: caused false decodes under busy conditions
      if(ndepth.eq.3 .and.         &
         (abs(nfqso-f1).le.napwid .or. abs(nftx-f1).le.napwid .or. ncontest.eq.7)) then
         maxosd=2
