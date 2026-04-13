@@ -2003,9 +2003,10 @@ void MainWindow::dataSink(qint64 frames)
   // pass and produces duplicates at cycle end.
   bool const mtft8_on = ui->actionUse_multithreaded_FT8_decoder->isChecked();
   if(m_mode=="FT8" and !m_diskData) {
-    // In MTD + Normal start, skip both early decode triggers entirely so decoder
-    // only runs once per cycle (at hsymStop). Prevents duplicate decode passes.
-    if(m_ihsym==m_earlyDecode && !mtft8_on) bCallDecoder=true;
+    // Match wsjtx-orig: m_earlyDecode always triggers; m_earlyDecode2 is
+    // skipped only when MTD is active with Normal/Late start (prevents
+    // the duplicate decode the original FT4/FT8 path produces).
+    if(m_ihsym==m_earlyDecode) bCallDecoder=true;
     if(m_ihsym==m_earlyDecode2 && !mtft8_on) bCallDecoder=true;
   }
   if(bCallDecoder) {
@@ -9526,6 +9527,16 @@ void MainWindow::transmit (double snr)
     toneSpacing=-2.0;                     //Transmit a pre-computed, filtered waveform.
     Q_EMIT sendMessage (m_mode, NUM_FT4_SYMBOLS,
            576.0, ui->TxFreqSpinBox->value() - m_XIT,
+           toneSpacing, m_soundOutput, m_config.audio_output_channel(),
+           true, false, snr, m_TRperiod);
+  }
+
+  if (m_mode == "FT2") {
+    // FT2 TX: 105 symbols at 288 samples/symbol (2x FT4 tone spacing, half duration).
+    m_dateTimeSentTx3=QDateTime::currentDateTimeUtc();
+    toneSpacing=-2.0;
+    Q_EMIT sendMessage (m_mode, NUM_FT2_SYMBOLS,
+           288.0, ui->TxFreqSpinBox->value() - m_XIT,
            toneSpacing, m_soundOutput, m_config.audio_output_channel(),
            true, false, snr, m_TRperiod);
   }
