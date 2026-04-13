@@ -33,7 +33,7 @@ program jt9
        bLowSidelobes = .false., nexp_decode_set = .false.,                   &
        have_ntol = .false.,multift8 = .false.,hidedupes = .false.,           &
        lft8lowth = .true.,lft8subpass = .true.,lwidedxcsearch = .true.
-  type (option) :: long_options(41) = [                                      &
+  type (option) :: long_options(42) = [                                      &
     option ('help', .false., 'h', 'Display this help message', ''),          &
     option ('shmem',.true.,'s','Use shared memory for sample data','KEY'),   &
     option ('tr-period', .true., 'p', 'Tx/Rx period, default SECONDS=60',    &
@@ -84,6 +84,7 @@ program jt9
     option ('q65', .false., '3', 'Q65 mode', ''),                            &
     option ('jt4', .false., '4', 'JT4 mode', ''),                            &
     option ('ft4', .false., '5', 'FT4 mode', ''),                            &
+    option ('ft2', .false., '2', 'FT2 mode', ''),                            &
     option ('jt65', .false.,'6', 'JT65 mode', ''),                           &
     option ('fst4', .false., '7', 'FST4 mode', ''),                          &
     option ('fst4w', .false., 'W', 'FST4W mode', ''),                        &
@@ -183,6 +184,8 @@ program jt9
            mode = 4
         case ('5')
            mode = 5
+        case ('2')
+           mode = 52
         case ('6')
            if (mode.lt.65) mode = mode + 65
         case ('7')
