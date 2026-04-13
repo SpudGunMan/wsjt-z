@@ -3979,8 +3979,9 @@ void MainWindow::decode()                                       //decode()
   if(m_mode=="FT8") dec_data.params.napwid=50;
   if(m_mode=="FT2") {
     dec_data.params.nmode=52;                // FT2 = nmode 52 (reuses FT4 decoder with stretch)
+    m_BestCQpriority="";
   }
-  if((m_mode=="FT4" or m_mode=="FT2")) {
+  if(m_mode=="FT4") {                        // DON'T widen: FT2 has different nmode
     dec_data.params.nmode=5;
     m_BestCQpriority="";
   }
