@@ -680,6 +680,7 @@ MainWindow::MainWindow(QDir const& temp_directory, bool multiple,
   ui->actionFST4->setActionGroup(modeGroup);
   ui->actionFST4W->setActionGroup(modeGroup);
   ui->actionFT4->setActionGroup(modeGroup);
+  ui->actionFT2->setActionGroup(modeGroup);
   ui->actionFT8->setActionGroup(modeGroup);
   ui->actionJT9->setActionGroup(modeGroup);
   ui->actionJT65->setActionGroup(modeGroup);
@@ -781,7 +782,7 @@ MainWindow::MainWindow(QDir const& temp_directory, bool multiple,
       if (m_pskReporterView) m_pskReporterView->setFont(font);
     });
 
-  setWindowTitle (program_title () +  " (WSJT-Z MOD v2.0.1 by SQ9FVE)") ;
+  setWindowTitle (program_title () +  " (WSJT-Z MOD v2.0.3 by SQ9FVE)") ;
 
 
   connect(&proc_jt9, &QProcess::readyReadStandardOutput, this, &MainWindow::readFromStdout);
@@ -1166,7 +1167,7 @@ MainWindow::MainWindow(QDir const& temp_directory, bool multiple,
 
   ui->labDXped->setVisible(SpecOp::NONE != m_specOp);
   ui->labDXped->setStyleSheet("QLabel {background-color: red; color: white;}");
-  ui->pbBestSP->setVisible(m_mode=="FT4");
+  ui->pbBestSP->setVisible((m_mode=="FT4" or m_mode=="FT2"));
  // Z
 
   ui->pb_WDReset->setVisible(!m_config.wdResetAnywhere());
@@ -1873,7 +1874,9 @@ void MainWindow::fixStop()
     m_hsymStop=((int(m_TRperiod/0.288))/8)*8;
   } else if (m_mode=="FT8") {
     m_hsymStop=50;
-  } else if (m_mode=="FT4") {
+  } else if ((m_mode=="FT4" or m_mode=="FT2")) {
+  m_hsymStop=21;
+  } else if (m_mode=="FT2") {
   m_hsymStop=21;
   } else if(m_mode=="FST4" or m_mode=="FST4W") {
     int stop[] = {39,85,187,387,1003,3107,6232};
@@ -2000,9 +2003,10 @@ void MainWindow::dataSink(qint64 frames)
   // pass and produces duplicates at cycle end.
   bool const mtft8_on = ui->actionUse_multithreaded_FT8_decoder->isChecked();
   if(m_mode=="FT8" and !m_diskData) {
-    // In MTD + Normal start, skip both early decode triggers entirely so decoder
-    // only runs once per cycle (at hsymStop). Prevents duplicate decode passes.
-    if(m_ihsym==m_earlyDecode && !mtft8_on) bCallDecoder=true;
+    // Match wsjtx-orig: m_earlyDecode always triggers; m_earlyDecode2 is
+    // skipped only when MTD is active with Normal/Late start (prevents
+    // the duplicate decode the original FT4/FT8 path produces).
+    if(m_ihsym==m_earlyDecode) bCallDecoder=true;
     if(m_ihsym==m_earlyDecode2 && !mtft8_on) bCallDecoder=true;
   }
   if(bCallDecoder) {
@@ -2104,7 +2108,8 @@ void MainWindow::dataSink(qint64 frames)
         m_fnameWE=m_config.save_directory ().absoluteFilePath (period_start.toString ("yyMMdd_hhmm"));
       }
       int samples=m_TRperiod*12000;
-      if(m_mode=="FT4") samples=21*3456;
+      if((m_mode=="FT4" or m_mode=="FT2")) samples=21*3456;
+      if(m_mode=="FT2") samples=21*1728;    // FT2: 12 kHz * 15 s = 180000, but only 21*1728 filled for decoder
 
       // the following is potential a threading hazard - not a good
       // idea to pass pointer to be processed in another thread
@@ -2581,7 +2586,7 @@ void MainWindow::keyPressEvent (QKeyEvent * e)
     }
   return;
   case Qt::Key_B:
-    if(m_mode=="FT4" && e->modifiers() & Qt::AltModifier) {
+    if((m_mode=="FT4" or m_mode=="FT2") && e->modifiers() & Qt::AltModifier) {
       on_pbBestSP_clicked();
     }
   return;
@@ -2670,7 +2675,7 @@ void MainWindow::keyPressEvent (QKeyEvent * e)
         if(e->modifiers() & Qt::ControlModifier) n+=100;
         if(e->modifiers() & Qt::ShiftModifier) {
           int offset=60;
-          if(m_mode=="FT4") offset=90;
+          if((m_mode=="FT4" or m_mode=="FT2")) offset=90;
           ui->TxFreqSpinBox->setValue(ui->TxFreqSpinBox->value()-offset);
         } else{
           bumpFqso(n);
@@ -2686,7 +2691,7 @@ void MainWindow::keyPressEvent (QKeyEvent * e)
         if(e->modifiers() & Qt::ControlModifier) n+=100;
         if(e->modifiers() & Qt::ShiftModifier) {
           int offset=60;
-          if(m_mode=="FT4") offset=90;
+          if((m_mode=="FT4" or m_mode=="FT2")) offset=90;
           ui->TxFreqSpinBox->setValue(ui->TxFreqSpinBox->value()+offset);
         } else {
           bumpFqso(n);
@@ -3972,7 +3977,11 @@ void MainWindow::decode()                                       //decode()
   if(m_mode=="FT8") dec_data.params.lft8apon = ui->actionEnable_AP_FT8->isVisible () &&
       ui->actionEnable_AP_FT8->isChecked ();
   if(m_mode=="FT8") dec_data.params.napwid=50;
-  if(m_mode=="FT4") {
+  if(m_mode=="FT2") {
+    dec_data.params.nmode=52;                // FT2 = nmode 52 (reuses FT4 decoder with stretch)
+    m_BestCQpriority="";
+  }
+  if(m_mode=="FT4") {                        // DON'T widen: FT2 has different nmode
     dec_data.params.nmode=5;
     m_BestCQpriority="";
   }
@@ -4062,7 +4071,7 @@ void MainWindow::decode()                                       //decode()
         decodeBusy(true);
       }
     }
-  if((m_mode=="FT4" or (m_mode=="FT8" and m_ihsym==41) or m_diskData) and
+  if(((m_mode=="FT4" or m_mode=="FT2") or (m_mode=="FT8" and m_ihsym==41) or m_diskData) and
      m_ActiveStationsWidget != NULL) {
     if(m_mode!="Q65") m_ActiveStationsWidget->erase();  //TEMP
   }
@@ -4171,7 +4180,7 @@ void MainWindow::decodeDone ()
     m_bNoMoreFiles=false;
   }
 
-  if((m_mode=="FT4" or m_mode=="FT8")
+  if((m_mode=="FT4" or m_mode=="FT8" or m_mode=="FT2")
      and m_latestDecodeTime>=0 and m_ActiveStationsWidget!=NULL) {
     if(!m_diskData and (m_nDecodes==0)) {
       m_latestDecodeTime = (QDateTime::currentMSecsSinceEpoch()/1000) % 86400;
@@ -4537,7 +4546,7 @@ void MainWindow::readFromStdout()                             //readFromStdout
   filtered = false;
   QString all_decodes;
   if(m_ActiveStationsWidget!=NULL) {
-    bDisplayPoints=(m_mode=="FT4" or m_mode=="FT8") and
+    bDisplayPoints=(m_mode=="FT4" or m_mode=="FT8" or m_mode=="FT2") and
       (m_specOp==SpecOp::ARRL_DIGI or m_ActiveStationsWidget->isVisible());
   }
   // Per-call config cache. my_call etc. were called 18+ times
@@ -4726,7 +4735,7 @@ void MainWindow::readFromStdout()                             //readFromStdout
           }
 #endif
           DecodedText decodedtext1 = decodedtext0;
-          if ((m_mode == "FT4" or m_mode == "FT8") and bDisplayPoints and decodedtext1.isStandardMessage()) {
+          if ((m_mode=="FT4" or m_mode=="FT8" or m_mode=="FT2") and bDisplayPoints and decodedtext1.isStandardMessage()) {
             ARRL_Digi_Update(decodedtext1);
           }
 
@@ -4872,7 +4881,7 @@ void MainWindow::readFromStdout()                             //readFromStdout
           }
 
             }
-            if ((m_mode == "FT4" or m_mode == "FT8") and bDisplayPoints and decodedtext1.isStandardMessage()) {
+            if ((m_mode=="FT4" or m_mode=="FT8" or m_mode=="FT2") and bDisplayPoints and decodedtext1.isStandardMessage()) {
               QString deCall, deGrid;
               decodedtext.deCallAndGrid(/*out*/deCall, deGrid);
               bool bWorkedOnBand = (ui->decodedTextBrowser->CQPriority() != "New Call on Band") and
@@ -4902,7 +4911,7 @@ void MainWindow::readFromStdout()                             //readFromStdout
                                                          true); // highlight dxGridEntry
             }
 
-            if (m_bBestSPArmed && m_mode == "FT4" && CALLING == m_QSOProgress) {
+            if (m_bBestSPArmed && (m_mode=="FT4" or m_mode=="FT2") && CALLING == m_QSOProgress) {
               QString messagePriority = ui->decodedTextBrowser->CQPriority();
               if (messagePriority != "") {
                 if (messagePriority == "New Call on Band"
@@ -4928,7 +4937,7 @@ void MainWindow::readFromStdout()                             //readFromStdout
 //Right (Rx Frequency) window
       bool bDisplayRight=bAvgMsg;
       int audioFreq=decodedtext.frequencyOffset();
-      if(m_mode=="FT8" or m_mode=="FT4" or m_mode=="FST4" or m_mode=="Q65") {
+      if(m_mode=="FT8" or m_mode=="FT4" or m_mode=="FT2" or m_mode=="FST4" or m_mode=="Q65") {
         int ftol=10;
         if(m_mode=="Q65") ftol=ui->sbFtol->value();
         auto const& parts = decodedtext.string().remove("<").remove(">")
@@ -5022,12 +5031,12 @@ void MainWindow::readFromStdout()                             //readFromStdout
       }
       if(m_mode=="Q65" and !bAvgMsg and !decodedtext.string().contains(m_baseCall)) bDisplayRight=false;
       if((m_mode=="JT4" or m_mode=="Q65" or m_mode=="JT65") and decodedtext.string().contains(m_baseCall) && ui->actionInclude_averaging->isVisible() && !ui->actionInclude_averaging->isChecked()) bDisplayRight=true;
-      if((m_mode=="FT8" or m_mode=="FT4") and SpecOp::FOX!=m_specOp && decodedtext0.string().replace("<","").replace(">","").contains(m_baseCall + " " + m_hisCall)) bDisplayRight=true;  // really all messages for us
+      if((m_mode=="FT8" or m_mode=="FT4" or m_mode=="FT2") and SpecOp::FOX!=m_specOp && decodedtext0.string().replace("<","").replace(">","").contains(m_baseCall + " " + m_hisCall)) bDisplayRight=true;  // really all messages for us
 
       if (bDisplayRight) {
         // This msg is within 10 hertz of our tuned frequency, or a JT4 or JT65 avg,
         // or contains MyCall
-        if(!m_bBestSPArmed or m_mode!="FT4") {
+        if(!m_bBestSPArmed or (m_mode!="FT4" and m_mode!="FT2")) {
           ui->decodedTextBrowser2->displayDecodedText (decodedtext0, my_call, m_mode, dxcc,
                 m_logBook, m_currentBand, m_config.ppfx (), false, false, 0.0, bDisplayPoints, m_points, false, false, "", "", isFiltered);
         }
@@ -5086,7 +5095,7 @@ void MainWindow::readFromStdout()                             //readFromStdout
       // Z
       if (!(isFiltered && (ui->cbAutoCQ->isChecked() || ui->cbAutoCall->isChecked()) && m_config.autoCQfiltering()))
       if(m_mode!="FT8" or (SpecOp::HOUND != m_specOp) or (SpecOp::HOUND == m_specOp and sfox)) {
-        if(m_mode=="FT8" or m_mode=="FT4" or m_mode=="Q65"
+        if(m_mode=="FT8" or m_mode=="FT4" or m_mode=="FT2" or m_mode=="Q65"
            or m_mode=="JT4" or m_mode=="JT65" or m_mode=="JT9" or m_mode=="FST4") {
           auto_sequence (decodedtext, 25, 50);
         }
@@ -5278,7 +5287,7 @@ void MainWindow::pskPost (DecodedText const& decodedtext)
   QString grid;
   decodedtext.deCallAndGrid(/*out*/deCall,grid);
   int audioFrequency = decodedtext.frequencyOffset();
-  if(m_mode=="FT8" or m_mode=="MSK144" or m_mode=="FT4") {
+  if(m_mode=="FT8" or m_mode=="MSK144" or (m_mode=="FT4" or m_mode=="FT2")) {
     audioFrequency=decodedtext.string().mid(16,4).toInt();
   }
   int snr = decodedtext.snr();
@@ -5364,7 +5373,7 @@ void MainWindow::guiUpdate()
   // qDebug () << "DEBUG SF " << m_mode << m_TRperiod << m_nsps << (SpecOp::FOX==m_specOp) << sfox << txDuration;
   double tx1=0.0;
   double tx2=txDuration;
-  if(m_mode=="FT8" or m_mode=="FT4") icw[0]=0;              //No CW ID in FT4 or FT8 mode
+  if(m_mode=="FT8" or m_mode=="FT4" or m_mode=="FT2") icw[0]=0;              //No CW ID in FT4 or FT8 mode
   if((icw[0]>0) and (!m_bFast9)) tx2 += icw[0]*2560.0/48000.0;  //Full length including CW ID
   if(tx2>m_TRperiod) tx2=m_TRperiod;
   if(!m_txFirst and m_mode!="WSPR" and m_mode!="FST4W") {
@@ -5530,7 +5539,7 @@ void MainWindow::guiUpdate()
       m_config.transceiver_ptt (true); //Assert the PTT
       m_tx_when_ready = true;
     }
-//    if(!m_bTxTime and !m_tune and m_mode!="FT4") m_btxok=false;       //Time to stop transmitting
+//    if(!m_bTxTime and !m_tune and (m_mode!="FT4" and m_mode!="FT2")) m_btxok=false;       //Time to stop transmitting
     if(!m_bTxTime and !m_tune) m_btxok=false;       //Time to stop transmitting
   }
 
@@ -5565,7 +5574,7 @@ void MainWindow::guiUpdate()
         ui->txrb1->setChecked(true);
       }
 
-      if(m_mode=="FT4" and m_bBestSPArmed) {
+      if((m_mode=="FT4" or m_mode=="FT2") and m_bBestSPArmed) {
         m_BestCQpriority="";
         m_bBestSPArmed=false;
         ui->pbBestSP->setStyleSheet ("");
@@ -5601,7 +5610,7 @@ void MainWindow::guiUpdate()
                                   &m_currentMessageType);
       if(m_mode=="WSPR") genwspr_(message, msgsent, const_cast<int *> (itone),
                                     (FCL)22, (FCL)22);
-      if(m_mode=="MSK144" or m_mode=="FT8" or m_mode=="FT4"
+      if(m_mode=="MSK144" or m_mode=="FT8" or m_mode=="FT4" or m_mode=="FT2"
          or m_mode=="FST4" or m_mode=="FST4W" || "Q65" == m_mode) {
         if(m_mode=="MSK144") {
           genmsk_128_90_(message, &ichk, msgsent, const_cast<int *> (itone),
@@ -5653,13 +5662,14 @@ void MainWindow::guiUpdate()
             }
           }
         }
-        if(m_mode=="FT4") {
+        if(m_mode=="FT4" or m_mode=="FT2") {
           int ichk=0;
           char ft4msgbits[77];
           genft4_(message, &ichk, msgsent, const_cast<char *> (ft4msgbits),
                   const_cast<int *>(itone), (FCL)37, (FCL)37);
           int nsym=103;
           int nsps=4*576;
+          if(m_mode=="FT2") nsps=4*288;     // FT2 tones are 2x wider, half the samples per symbol
           float fsample=48000.0;
           float f0=ui->TxFreqSpinBox->value() - m_XIT;
           int nwave=(nsym+2)*nsps;
@@ -5910,7 +5920,7 @@ void MainWindow::guiUpdate()
     }
   }
 
-  if(m_mode=="FT8" or m_mode=="MSK144" or m_mode=="FT4" or m_mode=="Q65") {
+  if(m_mode=="FT8" or m_mode=="MSK144" or (m_mode=="FT4" or m_mode=="FT2") or m_mode=="Q65") {
     if(ui->txrb1->isEnabled() and
        (SpecOp::NA_VHF==m_specOp or
         SpecOp::FIELD_DAY==m_specOp or
@@ -6033,7 +6043,7 @@ void MainWindow::guiUpdate()
           if(SpecOp::FOX==m_specOp and ui->tabWidget->currentIndex()==1 and foxcom_.nslots==1) {
               t=m_fm1.trimmed();
           }
-          if(m_mode=="FT4") t="Tx: "+ m_currentMessage;
+          if((m_mode=="FT4" or m_mode=="FT2")) t="Tx: "+ m_currentMessage;
           tx_status_label.setText(t.trimmed());
         }
       }
@@ -6262,7 +6272,7 @@ void MainWindow::on_txrb4_doubleClicked ()
   auto const& my_callsign = m_config.my_callsign ();
   auto is_compound = my_callsign != m_baseCall;
   m_send_RR73 = !((is_compound && !shortList (my_callsign)) || m_send_RR73);
-  if(m_mode=="FT4") m_send_RR73=true;
+  if((m_mode=="FT4" or m_mode=="FT2")) m_send_RR73=true;
   genStdMsgs (m_rpt);
 }
 
@@ -6339,7 +6349,7 @@ void MainWindow::on_txb4_doubleClicked()
   auto const& my_callsign = m_config.my_callsign ();
   auto is_compound = my_callsign != m_baseCall;
   m_send_RR73 = !((is_compound && !shortList (my_callsign)) || m_send_RR73);
-  if(m_mode=="FT4") m_send_RR73=true;
+  if((m_mode=="FT4" or m_mode=="FT2")) m_send_RR73=true;
   genStdMsgs (m_rpt);
 }
 
@@ -6476,7 +6486,13 @@ void MainWindow::processMessage (DecodedText const& message, Qt::KeyboardModifie
     }
   }
 
-  int nmod = fmod(double(message.timeInSeconds()),2.0*m_TRperiod);
+  int nmod;
+  if(m_mode=="FT2") {
+    int period = (int)round(double(message.timeInSeconds()) / m_TRperiod);
+    nmod = period % 2;
+  } else {
+    nmod = fmod(double(message.timeInSeconds()),2.0*m_TRperiod);
+  } // #FT2-PATCHED
   m_txFirst=(nmod!=0);
   if( SpecOp::HOUND == m_specOp ) m_txFirst=false;          //Hound must not transmit first
   if( SpecOp::FOX == m_specOp ) m_txFirst=true;             //Fox must always transmit first
@@ -6535,7 +6551,7 @@ void MainWindow::processMessage (DecodedText const& message, Qt::KeyboardModifie
 
   QString firstcall = message.call();
   if(firstcall.length()>=4 and firstcall.mid(0,3)=="CQ ") firstcall="CQ";
-  if(!m_bFastMode and (!m_config.enable_VHF_features() or m_mode=="FT8" or m_mode=="FT4" or m_mode=="FST4")) {
+  if(!m_bFastMode and (!m_config.enable_VHF_features() or m_mode=="FT8" or m_mode=="FT4" or m_mode=="FT2" or m_mode=="FST4")) {
     // Don't change Tx freq if in a fast mode, or VHF features enabled; also not if a
     // station is calling me, unless CTRL or SHIFT is held down.
     if ((Radio::is_callsign (firstcall)
@@ -6547,7 +6563,7 @@ void MainWindow::processMessage (DecodedText const& message, Qt::KeyboardModifie
         ui->TxFreqSpinBox->setValue(frequency);
       }
       if(m_mode != "JT4" && m_mode != "JT65" && !m_mode.startsWith ("JT9") &&
-         m_mode != "Q65" && m_mode!="FT8" && m_mode!="FT4" && m_mode!="FST4") {
+         m_mode != "Q65" && m_mode!="FT8" && (m_mode!="FT4" and m_mode!="FT2") && m_mode!="FST4") {
         return;
       }
     }
@@ -6616,7 +6632,7 @@ void MainWindow::processMessage (DecodedText const& message, Qt::KeyboardModifie
       return;
     }
 
-    bool bContestOK=(m_mode=="FT4" or m_mode=="FT8" or m_mode=="Q65" or m_mode=="MSK144");
+    bool bContestOK=(m_mode=="FT4" or m_mode=="FT8" or m_mode=="FT2" or m_mode=="Q65" or m_mode=="MSK144");
     if(message_words.size () > 4   // enough fields for a normal message
        && (message_words.at(2).contains(m_baseCall) || "DE" == message_words.at(2))
        && (message_words.at(3).contains(qso_partner_base_call) or m_bDoubleClicked
@@ -6674,7 +6690,7 @@ void MainWindow::processMessage (DecodedText const& message, Qt::KeyboardModifie
              || (word_3_as_number == 73 && ROGERS == m_QSOProgress)
              || "RR73" == word_3
              || ("R" == word_3 && m_QSOProgress != REPORT))) {
-          if(m_mode=="FT4" and "RR73" == word_3) m_dateTimeRcvdRR73=QDateTime::currentDateTimeUtc();
+          if((m_mode=="FT4" or m_mode=="FT2") and "RR73" == word_3) m_dateTimeRcvdRR73=QDateTime::currentDateTimeUtc();
           m_bTUmsg=false;
           m_nextCall="";   //### Temporary: disable use of "TU;" message
           if(SpecOp::RTTY == m_specOp and m_nextCall!="") {
@@ -6745,7 +6761,7 @@ void MainWindow::processMessage (DecodedText const& message, Qt::KeyboardModifie
             }
         } else if((m_QSOProgress >= REPORT
                    || (m_QSOProgress >= REPLYING &&
-                   (m_mode=="MSK144" or m_mode=="FT8" or m_mode=="FT4" || "Q65" == m_mode)))
+                   (m_mode=="MSK144" or m_mode=="FT8" or m_mode=="FT4" or m_mode=="FT2" || "Q65" == m_mode)))
                   && word_3.startsWith ('R')) {
           m_ntx=4;
           m_QSOProgress = ROGERS;
@@ -6928,7 +6944,7 @@ void MainWindow::processMessage (DecodedText const& message, Qt::KeyboardModifie
     genStdMsgs (QString::number (ui->rptSpinBox->value ()));
   }
   if(m_transmitting) m_restart=true;
-  if (auto_seq && !m_bDoubleClicked && m_mode!="FT4") {
+  if (auto_seq && !m_bDoubleClicked && (m_mode!="FT4" and m_mode!="FT2")) {
     return;
   }
   if(m_config.quick_call() && m_bDoubleClicked) auto_tx_mode(true);
@@ -6986,7 +7002,7 @@ void MainWindow::genCQMsg ()
 
     QString t=ui->tx6->text();
     QStringList tlist=t.split(" ");
-    if((m_mode=="FT4" or m_mode=="FT8" or m_mode=="MSK144" || "Q65" == m_mode) and
+    if((m_mode=="FT4" or m_mode=="FT8" or m_mode=="FT2" or m_mode=="MSK144" || "Q65" == m_mode) and
        SpecOp::NONE != m_specOp and SpecOp::HOUND != m_specOp and SpecOp::Q65_PILEUP != m_specOp and
        ( tlist.at(1)==my_callsign or
          tlist.at(2)==my_callsign ) and
@@ -7036,7 +7052,7 @@ bool MainWindow::stdCall(QString const& w)
 
 bool MainWindow::is77BitMode () const
 {
-  return "FT8" == m_mode || "FT4" == m_mode || "MSK144" == m_mode
+  return "FT8" == m_mode || "FT2" == m_mode || "FT4" == m_mode || "MSK144" == m_mode
     || "FST4" == m_mode || "Q65" == m_mode;
 }
 
@@ -7135,7 +7151,7 @@ void MainWindow::genStdMsgs(QString rpt, bool unconditional)
       msgtype(t + sent, ui->tx2);
       if(sent==rpt) msgtype(t + "R" + sent, ui->tx3);
       if(sent!=rpt) msgtype(t + "R " + sent, ui->tx3);
-      if(m_mode=="FT4" and SpecOp::RTTY==m_specOp) {
+      if((m_mode=="FT4" or m_mode=="FT2") and SpecOp::RTTY==m_specOp) {
         QDateTime now=QDateTime::currentDateTimeUtc();
         int sinceTx3 = m_dateTimeSentTx3.secsTo(now);
         int sinceRR73 = m_dateTimeRcvdRR73.secsTo(now);
@@ -7177,7 +7193,7 @@ void MainWindow::genStdMsgs(QString rpt, bool unconditional)
     }
 
     t=t0 + (m_send_RR73 ? "RR73" : "RRR");
-    if((m_mode=="MSK144" and !m_bShMsgs) or m_mode=="FT8" or m_mode=="FT4" || m_mode == "FST4" || m_mode == "Q65") {
+    if((m_mode=="MSK144" and !m_bShMsgs) or m_mode=="FT8" or m_mode=="FT4" or m_mode=="FT2" || m_mode == "FST4" || m_mode == "Q65") {
       if(!bHisCall and bMyCall) t=hisCall + " <" + my_callsign + "> " + (m_send_RR73 ? "RR73" : "RRR");
       if(bHisCall and !bMyCall) t="<" + hisCall + "> " + my_callsign + " " + (m_send_RR73 ? "RR73" : "RRR");
     }
@@ -7185,7 +7201,7 @@ void MainWindow::genStdMsgs(QString rpt, bool unconditional)
     msgtype(t, ui->tx4);
 
     t=t0 + "73";
-    if((m_mode=="MSK144" and !m_bShMsgs) or m_mode=="FT8" or m_mode=="FT4" || m_mode == "FST4" || m_mode == "Q65") {
+    if((m_mode=="MSK144" and !m_bShMsgs) or m_mode=="FT8" or m_mode=="FT4" or m_mode=="FT2" || m_mode == "FST4" || m_mode == "Q65") {
       if(!bHisCall and bMyCall) t=hisCall + " <" + my_callsign + "> 73";
       if(bHisCall and !bMyCall) t="<" + hisCall + "> " + my_callsign + " 73";
     }
@@ -7468,7 +7484,7 @@ void MainWindow::msgtype(QString t, QLineEdit* tx)               //msgtype()
 //### Check this stuff ###
   if(itype==7 and m_config.enable_VHF_features() and m_mode=="JT65") shortMsg=true;
   if(m_mode=="MSK144" and t.mid(0,1)=="<") text=false;
-  if((m_mode=="MSK144" or m_mode=="FT8" or m_mode=="FT4" || "Q65" == m_mode) and
+  if((m_mode=="MSK144" or m_mode=="FT8" or m_mode=="FT4" or m_mode=="FT2" || "Q65" == m_mode) and
      SpecOp::NA_VHF==m_specOp) {
     int i0=t.trimmed().length()-7;
     if(t.mid(i0,3)==" R ") text=false;
@@ -7913,9 +7929,9 @@ void MainWindow::displayWidgets(qint64 n)
     if(i==37) ui->sbMaxDrift->setVisible(b);
     j=j>>1;
   }
-  ui->pbBestSP->setVisible(m_mode=="FT4");
+  ui->pbBestSP->setVisible((m_mode=="FT4" or m_mode=="FT2"));
   b=false;
-  if(m_mode=="FT4" or m_mode=="FT8" || "Q65" == m_mode) {
+  if(m_mode=="FT4" or m_mode=="FT8" or m_mode=="FT2" || "Q65" == m_mode) {
   b=SpecOp::EU_VHF==m_specOp or
     ( SpecOp::RTTY==m_specOp and
       (m_config.RTTY_Exchange()=="DX" or m_config.RTTY_Exchange()=="#") );
@@ -8013,6 +8029,67 @@ void MainWindow::on_actionFST4W_triggered()
   ui->sbFtol->setValue(100);
   switch_mode (Modes::FST4W);
   statusChanged();
+}
+
+void MainWindow::on_actionFT2_triggered()
+{
+  // FT2 = FAST FT4: 3.75 s T/R period, twice the tone spacing of FT4 (wider band,
+  // shorter cycle). Reuses FT4 decoder with audio stretched 2x (see lib/decoder.f90
+  // nmode=52). DT is halved and frequency doubled in the ft2_decoded callback.
+  // Guard against crashing when entering from MSK144.
+  monitor(false);
+  to_jt9(m_ihsym,-1,-1);
+  decodeDone();
+
+  if (m_mode=="MSK144") QTimer::singleShot (75, [=] {on_actionFT2_triggered();});
+  QTimer::singleShot (50, [=] {
+    ui->TxFreqSpinBox->setValue(m_settings->value("TxFreq_old",1500).toInt());
+    ui->RxFreqSpinBox->setValue(m_settings->value("RxFreq_old",1500).toInt());
+    on_sbSubmode_valueChanged(ui->sbSubmode->value());
+  });
+  m_mode="FT2";
+  if(m_specOp==SpecOp::HOUND) {
+    m_config.setSpecial_None();
+    m_specOp=m_config.special_op_id();
+  }
+  m_TRperiod=3.75;                 // half FT4's 7.5 s
+  bool bVHF=m_config.enable_VHF_features();
+  m_bFast9=false;
+  m_bFastMode=false;
+  WSPR_config(false);
+  switch_mode (Modes::FT2);
+  m_nsps=3456;                    // half FT4's 6912 (for widegraph speed)
+  m_FFTSize = m_nsps/2;
+  Q_EMIT FFTSize (m_FFTSize);
+  m_hsymStop=21;
+  setup_status_bar (bVHF);
+  m_toneSpacing=12000.0/288.0;    // 2x FT4's tone spacing
+  ui->actionFT2->setChecked(true);
+  m_wideGraph->setMode(m_mode);
+  m_send_RR73=true;
+  VHF_features_enabled(bVHF);
+  ui->cbAutoSeq->setChecked(true);
+  m_fastGraph->hide();
+  m_wideGraph->show();
+  ui->rh_decodes_headings_label->setText("  UTC   dB   DT Freq    " + tr ("Message"));
+  m_wideGraph->setPeriod(m_TRperiod,m_nsps);
+  m_modulator->setTRPeriod(m_TRperiod);
+  m_detector->setTRPeriod(m_TRperiod);
+  ui->rh_decodes_title_label->setText(tr ("Rx Frequency"));
+  ui->lh_decodes_title_label->setText(tr ("Band Activity"));
+  ui->lh_decodes_headings_label->setText( "  UTC   dB   DT Freq    " + tr ("Message"));
+  displayWidgets(nWidgets("11101000010011100001000000011000100000"));
+  ui->txrb2->setEnabled(true);
+  ui->txrb4->setEnabled(true);
+  ui->txrb5->setEnabled(true);
+  ui->txrb6->setEnabled(true);
+  ui->txb2->setEnabled(true);
+  ui->txb4->setEnabled(true);
+  ui->txb5->setEnabled(true);
+  ui->txb6->setEnabled(true);
+  ui->txFirstCheckBox->setEnabled(true);
+  statusChanged();
+  monitor(true);
 }
 
 void MainWindow::on_actionFT4_triggered()
@@ -9220,7 +9297,7 @@ void MainWindow::setXIT(int n, Frequency base)
   if (!(m_bSimplex || (SpecOp::FOX==m_specOp && m_config.superFox()))) {
     // m_bSimplex is false, so we can use split mode if requested
     if (m_config.split_mode () && (!m_config.enable_VHF_features () ||
-        m_mode=="FT4" || m_mode == "FT8" || m_mode=="FST4")) {
+        (m_mode=="FT4" or m_mode=="FT2") || m_mode == "FT8" || m_mode=="FST4")) {
       // Don't use XIT for VHF & up
       m_XIT=(n/500)*500 - 1500;
     }
@@ -9258,7 +9335,7 @@ void MainWindow::setFreq4(int rxFreq, int txFreq)
   } else {
     if (ui->TxFreqSpinBox->isEnabled ()) {
       ui->TxFreqSpinBox->setValue(txFreq);
-      if ("FT8" == m_mode || "FT4" == m_mode || m_mode=="FST4")
+      if ("FT8" == m_mode || "FT2" == m_mode || "FT4" == m_mode || m_mode=="FST4")
         {
           // we need to regenerate the current transmit waveform for
           // GFSK modulated modes
@@ -9286,7 +9363,7 @@ void MainWindow::handle_transceiver_update (Transceiver::TransceiverState const&
                                         // (caveat - DX Lab Suite Commander)
     if (m_tx_when_ready && g_iptt) {    // waiting to Tx and still needed
       int ms_delay=1000*m_config.txDelay();
-      if(m_mode=="FT4") ms_delay=20;
+      if((m_mode=="FT4" or m_mode=="FT2")) ms_delay=20;
       ptt1Timer.start(ms_delay); //Start-of-transmission sequencer delay
       m_tx_when_ready = false;
     }
@@ -9421,7 +9498,7 @@ void MainWindow::transmit (double snr)
            true, false, snr, m_TRperiod);
   }
 
-  if((m_mode=="FT4" or m_mode=="FT8") and m_maxPoints>0 and SpecOp::ARRL_DIGI==m_specOp) {
+  if((m_mode=="FT4" or m_mode=="FT8" or m_mode=="FT2") and m_maxPoints>0 and SpecOp::ARRL_DIGI==m_specOp) {
     ui->dxCallEntry->setText(m_deCall);
     ui->dxGridEntry->setText(m_deGrid);
     genStdMsgs("-10");
@@ -9446,11 +9523,21 @@ void MainWindow::transmit (double snr)
     }
   }
 
-  if (m_mode == "FT4") {
+  if ((m_mode=="FT4" or m_mode=="FT2")) {
     m_dateTimeSentTx3=QDateTime::currentDateTimeUtc();
     toneSpacing=-2.0;                     //Transmit a pre-computed, filtered waveform.
     Q_EMIT sendMessage (m_mode, NUM_FT4_SYMBOLS,
            576.0, ui->TxFreqSpinBox->value() - m_XIT,
+           toneSpacing, m_soundOutput, m_config.audio_output_channel(),
+           true, false, snr, m_TRperiod);
+  }
+
+  if (m_mode == "FT2") {
+    // FT2 TX: 105 symbols at 288 samples/symbol (2x FT4 tone spacing, half duration).
+    m_dateTimeSentTx3=QDateTime::currentDateTimeUtc();
+    toneSpacing=-2.0;
+    Q_EMIT sendMessage (m_mode, NUM_FT2_SYMBOLS,
+           288.0, ui->TxFreqSpinBox->value() - m_XIT,
            toneSpacing, m_soundOutput, m_config.audio_output_channel(),
            true, false, snr, m_TRperiod);
   }
@@ -10705,7 +10792,7 @@ void MainWindow::on_cbCQonly_toggled(bool)
 
 void MainWindow::on_cbAutoSeq_toggled(bool b)
 {
-  ui->respondComboBox->setVisible((m_mode=="FT8" or m_mode=="FT4" or m_mode=="FST4"
+  ui->respondComboBox->setVisible((m_mode=="FT8" or m_mode=="FT4" or m_mode=="FT2" or m_mode=="FST4"
                            or m_mode=="Q65") and b);
 }
 
@@ -11892,7 +11979,7 @@ void MainWindow::write_all(QString txRx, QString message)
 
 void MainWindow::chkFT4()
 {
-  if(m_mode!="FT4") return;
+  if((m_mode!="FT4" and m_mode!="FT2")) return;
   ui->cbAutoSeq->setEnabled(true);
   ui->respondComboBox->setVisible(true);
   ui->respondComboBox->setEnabled(true);
@@ -11934,6 +12021,7 @@ void MainWindow::on_pbBestSP_clicked()
 void MainWindow::set_mode (QString const& mode)
 {
     if ("FT4" == mode) on_actionFT4_triggered ();
+    else if ("FT2" == mode) on_actionFT2_triggered ();
     else if ("FST4" == mode) on_actionFST4_triggered ();
     else if ("FST4W" == mode) on_actionFST4W_triggered ();
     else if ("FT8" == mode) on_actionFT8_triggered ();
@@ -11949,7 +12037,7 @@ void MainWindow::set_mode (QString const& mode)
 
 void MainWindow::configActiveStations()
 {
-  if (m_ActiveStationsWidget != NULL and (m_mode == "Q65" or m_mode == "FT4" or m_mode == "FT8")) {
+  if (m_ActiveStationsWidget != NULL and (m_mode == "Q65" or m_mode=="FT4" or m_mode=="FT8" or m_mode=="FT2")) {
     if (m_specOp == SpecOp::Q65_PILEUP) {
       m_ActiveStationsWidget->displayRecentStations("Q65-pileup", "");
     } else {
@@ -12256,7 +12344,13 @@ bool MainWindow::callsignFiltered(DecodedText dt)
     if (m_zdebug) log("message:" + dt.string());
     dt.deCallAndGrid (/*out*/ dxCall, dxGrid);
     if (m_zdebug) log("dxCall: " + dxCall);
-    int nmod = fmod(double(dt.timeInSeconds()),2.0*m_TRperiod);
+    int nmod;
+    if(m_mode=="FT2") {
+      int period = (int)round(double(dt.timeInSeconds()) / m_TRperiod);
+      nmod = period % 2;
+    } else {
+      nmod = fmod(double(dt.timeInSeconds()),2.0*m_TRperiod);
+    } // #FT2-PATCHED
     auto m_txFirst=(nmod!=0);
 
     if (!dxCall.contains(kReDigit) || dxCall.length() < 3) {
@@ -12641,7 +12735,13 @@ bool MainWindow::callsignFiltered(DecodedText dt)
         m_priorityCall = dxCall;
         m_prioFreq = dt.frequencyOffset();
         m_nextRpt = dt.report();
-        int nmod = fmod(double(dt.timeInSeconds()),2.0*m_TRperiod);
+        int nmod;
+        if(m_mode=="FT2") {
+          int period = (int)round(double(dt.timeInSeconds()) / m_TRperiod);
+          nmod = period % 2;
+        } else {
+          nmod = fmod(double(dt.timeInSeconds()),2.0*m_TRperiod);
+        } // #FT2-PATCHED
         m_prioTxFirst=(nmod!=0);
         m_prioGrid  = dxGrid;
     }
@@ -12708,7 +12808,13 @@ void MainWindow::on_actionCall_next_triggered() {
     m_nextRpt = message.report();
     ui->rptSpinBox->setValue(m_nextRpt.toInt());
 
-    int nmod = fmod(double(message.timeInSeconds()),2.0*m_TRperiod);
+    int nmod;
+    if(m_mode=="FT2") {
+      int period = (int)round(double(message.timeInSeconds()) / m_TRperiod);
+      nmod = period % 2;
+    } else {
+      nmod = fmod(double(message.timeInSeconds()),2.0*m_TRperiod);
+    } // #FT2-PATCHED
     auto m_txFirst=(nmod!=0);
     if (!m_TxFirstLock)
         ui->txFirstCheckBox->setChecked(m_txFirst);
@@ -13332,7 +13438,7 @@ void MainWindow::toggleBands() {
     m_lastBand = newBand;
     Mode mode;
     if (m_mode == "FT8") mode = Mode::FT8;
-    else if (m_mode == "FT4") mode = Mode::FT4;
+    else if ((m_mode=="FT4" or m_mode=="FT2")) mode = Mode::FT4;
     else return;
 
     m_config.frequencies ()->filter (m_config.region (), mode, false);
@@ -13524,7 +13630,8 @@ void MainWindow::resetAutoSwitch() {
 int MainWindow::watchdog() {
     if (m_config.wd_Timer()) {
         if (m_mode == "FT8") return m_config.wd_FT8();
-        if (m_mode == "FT4") return m_config.wd_FT4();
+        if ((m_mode=="FT4" or m_mode=="FT2")) return m_config.wd_FT4();
+        if (m_mode == "FT2") return m_config.wd_FT2();
     }
     return m_config.watchdog();
 }
@@ -13744,7 +13851,7 @@ bool MainWindow::setFreeFreq() {
 bool MainWindow::isSlotFree(int f) {
     int width;
 
-    if (m_mode=="FT4")
+    if ((m_mode=="FT4" or m_mode=="FT2"))
         width = 80;
     else
         width = 50;

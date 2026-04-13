@@ -261,6 +261,7 @@ void CPlotter::draw(float swide[], bool bScroll, bool bRed)
 
   if(swide[0]>1.0e29) m_line=0;
   if(m_mode=="FT4" and m_line==34) m_line=0;
+  if(m_mode=="FT2" and m_line==17) m_line=0;
   if(m_line == painter1.fontMetrics ().height ()) {
     painter1.setPen(Qt::white);
     QString t;
@@ -497,6 +498,7 @@ void CPlotter::DrawOverlay()                   //DrawOverlay()
 
   float bw=9.0*12000.0/m_nsps;               //JT9
   if(m_mode=="FT4") bw=3*12000.0/576.0;      //FT4  ### (3x, or 4x???) ###
+  if(m_mode=="FT2") bw=3*12000.0/288.0;      //FT2 (2x FT4 tone spacing → 2x waterfall marker)
   if(m_mode=="FT8") {
     bw=7*12000.0/1920.0;     //FT8
   }

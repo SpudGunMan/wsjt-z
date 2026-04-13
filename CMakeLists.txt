@@ -1093,7 +1093,9 @@ if (Fortran_COMPILER_NAME MATCHES "gfortran.*")
   # -mtune=native (no -march=native): enables tuning for the build host's CPU without
   # generating new instructions. -march=native triggers a gfortran 8.1 ICE on sync9.f90,
   # and even with workarounds emits invalid SEH unwind directives. Upgrade mingw to fix.
-  set (CMAKE_Fortran_FLAGS_RELEASE "${CMAKE_Fortran_FLAGS_RELEASE} -funroll-all-loops -mtune=native -ffast-math -fno-f2c -ffpe-summary=invalid,zero,overflow,underflow ${General_FFLAGS}")
+  # Reverted -ffast-math (could relax FP reassociation in decoder correlations and
+  # produce false decodes). Kept -mtune=native (scheduling only, no FP change).
+  set (CMAKE_Fortran_FLAGS_RELEASE "${CMAKE_Fortran_FLAGS_RELEASE} -funroll-all-loops -mtune=native -fno-f2c -ffpe-summary=invalid,zero,overflow,underflow ${General_FFLAGS}")
 
 ### TEMPORARY: Let Fortran use RElEASE flags for DEBUG builds
 #set (CMAKE_Fortran_FLAGS_DEBUG   "${CMAKE_Fortran_FLAGS_DEBUG} -g -fbacktrace -fbounds-check -fno-f2c -ffpe-summary=invalid,zero,overflow,underflow ${General_FFLAGS}")
@@ -1896,7 +1898,7 @@ set (CPACK_PACKAGE_DESCRIPTION_FILE "${CMAKE_SOURCE_DIR}/package_description.txt
 set (CPACK_MONOLITHIC_INSTALL 1)
 ## Z
 set (CPACK_PACKAGE_NAME "wsjtz")
-set (CPACK_PACKAGE_VERSION_Z "2.0.1")
+set (CPACK_PACKAGE_VERSION_Z "2.0.3")
 set (CPACK_PACKAGE_VERSION_MAJOR ${PROJECT_VERSION_MAJOR})
 set (CPACK_PACKAGE_VERSION_MINOR ${PROJECT_VERSION_MINOR})
 set (CPACK_PACKAGE_VERSION_PATCH "${PROJECT_VERSION_PATCH}-${CPACK_PACKAGE_VERSION_Z}")

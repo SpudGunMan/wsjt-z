@@ -55,6 +55,7 @@
 #define NUM_FT8_SYMBOLS 79
 #define NUM_SUPERFOX_SYMBOLS 153         //24 sync + 127 data + 2 ramp up/down
 #define NUM_FT4_SYMBOLS 105
+#define NUM_FT2_SYMBOLS 105
 #define NUM_FST4_SYMBOLS 160             //240/2 data + 5*8 sync
 #define NUM_CW_SYMBOLS 250
 #define MAX_NUM_SYMBOLS 250
@@ -237,6 +238,7 @@ private slots:
   void on_actionJT65_triggered();
   void on_actionJT4_triggered();
   void on_actionFT4_triggered();
+  void on_actionFT2_triggered();
   void on_actionFT8_triggered();
   void on_actionFST4_triggered();
   void on_actionFST4W_triggered();

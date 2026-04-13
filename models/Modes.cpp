@@ -23,6 +23,7 @@ namespace
     "FreqCal",
     "FT8",
     "FT4",
+    "FT2",
     "FST4",
     "FST4W",
     "Q65"
