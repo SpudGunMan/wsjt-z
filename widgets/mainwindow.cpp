@@ -4910,7 +4910,7 @@ void MainWindow::readFromStdout()                             //readFromStdout
                                                          true); // highlight dxGridEntry
             }
 
-            if (m_bBestSPArmed && m_mode == "FT4" && CALLING == m_QSOProgress) {
+            if (m_bBestSPArmed && (m_mode=="FT4" or m_mode=="FT2") && CALLING == m_QSOProgress) {
               QString messagePriority = ui->decodedTextBrowser->CQPriority();
               if (messagePriority != "") {
                 if (messagePriority == "New Call on Band"
@@ -5035,7 +5035,7 @@ void MainWindow::readFromStdout()                             //readFromStdout
       if (bDisplayRight) {
         // This msg is within 10 hertz of our tuned frequency, or a JT4 or JT65 avg,
         // or contains MyCall
-        if(!m_bBestSPArmed or m_mode!="FT4") {
+        if(!m_bBestSPArmed or (m_mode!="FT4" and m_mode!="FT2")) {
           ui->decodedTextBrowser2->displayDecodedText (decodedtext0, my_call, m_mode, dxcc,
                 m_logBook, m_currentBand, m_config.ppfx (), false, false, 0.0, bDisplayPoints, m_points, false, false, "", "", isFiltered);
         }
@@ -5538,7 +5538,7 @@ void MainWindow::guiUpdate()
       m_config.transceiver_ptt (true); //Assert the PTT
       m_tx_when_ready = true;
     }
-//    if(!m_bTxTime and !m_tune and m_mode!="FT4") m_btxok=false;       //Time to stop transmitting
+//    if(!m_bTxTime and !m_tune and (m_mode!="FT4" and m_mode!="FT2")) m_btxok=false;       //Time to stop transmitting
     if(!m_bTxTime and !m_tune) m_btxok=false;       //Time to stop transmitting
   }
 
@@ -6562,7 +6562,7 @@ void MainWindow::processMessage (DecodedText const& message, Qt::KeyboardModifie
         ui->TxFreqSpinBox->setValue(frequency);
       }
       if(m_mode != "JT4" && m_mode != "JT65" && !m_mode.startsWith ("JT9") &&
-         m_mode != "Q65" && m_mode!="FT8" && m_mode!="FT4" && m_mode!="FST4") {
+         m_mode != "Q65" && m_mode!="FT8" && (m_mode!="FT4" and m_mode!="FT2") && m_mode!="FST4") {
         return;
       }
     }
@@ -6943,7 +6943,7 @@ void MainWindow::processMessage (DecodedText const& message, Qt::KeyboardModifie
     genStdMsgs (QString::number (ui->rptSpinBox->value ()));
   }
   if(m_transmitting) m_restart=true;
-  if (auto_seq && !m_bDoubleClicked && m_mode!="FT4") {
+  if (auto_seq && !m_bDoubleClicked && (m_mode!="FT4" and m_mode!="FT2")) {
     return;
   }
   if(m_config.quick_call() && m_bDoubleClicked) auto_tx_mode(true);
@@ -7051,7 +7051,7 @@ bool MainWindow::stdCall(QString const& w)
 
 bool MainWindow::is77BitMode () const
 {
-  return "FT8" == m_mode || "FT4" == m_mode || "MSK144" == m_mode
+  return "FT8" == m_mode || "FT2" == m_mode || "FT4" == m_mode || "MSK144" == m_mode
     || "FST4" == m_mode || "Q65" == m_mode;
 }
 
@@ -9334,7 +9334,7 @@ void MainWindow::setFreq4(int rxFreq, int txFreq)
   } else {
     if (ui->TxFreqSpinBox->isEnabled ()) {
       ui->TxFreqSpinBox->setValue(txFreq);
-      if ("FT8" == m_mode || "FT4" == m_mode || m_mode=="FST4")
+      if ("FT8" == m_mode || "FT2" == m_mode || "FT4" == m_mode || m_mode=="FST4")
         {
           // we need to regenerate the current transmit waveform for
           // GFSK modulated modes
@@ -9522,7 +9522,7 @@ void MainWindow::transmit (double snr)
     }
   }
 
-  if (m_mode == "FT4") {
+  if ((m_mode=="FT4" or m_mode=="FT2")) {
     m_dateTimeSentTx3=QDateTime::currentDateTimeUtc();
     toneSpacing=-2.0;                     //Transmit a pre-computed, filtered waveform.
     Q_EMIT sendMessage (m_mode, NUM_FT4_SYMBOLS,
@@ -11978,7 +11978,7 @@ void MainWindow::write_all(QString txRx, QString message)
 
 void MainWindow::chkFT4()
 {
-  if(m_mode!="FT4") return;
+  if((m_mode!="FT4" and m_mode!="FT2")) return;
   ui->cbAutoSeq->setEnabled(true);
   ui->respondComboBox->setVisible(true);
   ui->respondComboBox->setEnabled(true);
@@ -13437,7 +13437,7 @@ void MainWindow::toggleBands() {
     m_lastBand = newBand;
     Mode mode;
     if (m_mode == "FT8") mode = Mode::FT8;
-    else if (m_mode == "FT4") mode = Mode::FT4;
+    else if ((m_mode=="FT4" or m_mode=="FT2")) mode = Mode::FT4;
     else return;
 
     m_config.frequencies ()->filter (m_config.region (), mode, false);
@@ -13629,7 +13629,7 @@ void MainWindow::resetAutoSwitch() {
 int MainWindow::watchdog() {
     if (m_config.wd_Timer()) {
         if (m_mode == "FT8") return m_config.wd_FT8();
-        if (m_mode == "FT4") return m_config.wd_FT4();
+        if ((m_mode=="FT4" or m_mode=="FT2")) return m_config.wd_FT4();
         if (m_mode == "FT2") return m_config.wd_FT2();
     }
     return m_config.watchdog();
