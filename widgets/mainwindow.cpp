@@ -680,6 +680,7 @@ MainWindow::MainWindow(QDir const& temp_directory, bool multiple,
   ui->actionFST4->setActionGroup(modeGroup);
   ui->actionFST4W->setActionGroup(modeGroup);
   ui->actionFT4->setActionGroup(modeGroup);
+  ui->actionFT2->setActionGroup(modeGroup);
   ui->actionFT8->setActionGroup(modeGroup);
   ui->actionJT9->setActionGroup(modeGroup);
   ui->actionJT65->setActionGroup(modeGroup);
@@ -2105,6 +2106,7 @@ void MainWindow::dataSink(qint64 frames)
       }
       int samples=m_TRperiod*12000;
       if(m_mode=="FT4") samples=21*3456;
+      if(m_mode=="FT2") samples=21*1728;    // FT2: 12 kHz * 15 s = 180000, but only 21*1728 filled for decoder
 
       // the following is potential a threading hazard - not a good
       // idea to pass pointer to be processed in another thread
@@ -3972,6 +3974,9 @@ void MainWindow::decode()                                       //decode()
   if(m_mode=="FT8") dec_data.params.lft8apon = ui->actionEnable_AP_FT8->isVisible () &&
       ui->actionEnable_AP_FT8->isChecked ();
   if(m_mode=="FT8") dec_data.params.napwid=50;
+  if(m_mode=="FT2") {
+    dec_data.params.nmode=52;                // FT2 = nmode 52 (reuses FT4 decoder with stretch)
+  }
   if(m_mode=="FT4") {
     dec_data.params.nmode=5;
     m_BestCQpriority="";
@@ -8015,6 +8020,59 @@ void MainWindow::on_actionFST4W_triggered()
   statusChanged();
 }
 
+void MainWindow::on_actionFT2_triggered()
+{
+  // FT2 = slowed-down FT4: 15 s T/R period, 6 kHz bandwidth. Reuses FT4 decoder
+  // with audio stretched 2x (handled in lib/decoder.f90, nmode=52).
+  QTimer::singleShot (50, [=] {
+    ui->TxFreqSpinBox->setValue(m_settings->value("TxFreq_old",1500).toInt());
+    ui->RxFreqSpinBox->setValue(m_settings->value("RxFreq_old",1500).toInt());
+    on_sbSubmode_valueChanged(ui->sbSubmode->value());
+  });
+  m_mode="FT2";
+  if(m_specOp==SpecOp::HOUND) {
+    m_config.setSpecial_None();
+    m_specOp=m_config.special_op_id();
+  }
+  m_TRperiod=15.0;                 // FT2 cycle: 2x FT4's 7.5 s
+  bool bVHF=m_config.enable_VHF_features();
+  m_bFast9=false;
+  m_bFastMode=false;
+  WSPR_config(false);
+  switch_mode (Modes::FT4);        // share FT4 infrastructure
+  m_nsps=6912;
+  m_FFTSize = m_nsps/2;
+  Q_EMIT FFTSize (m_FFTSize);
+  m_hsymStop=21;                    // same frame count as FT4 (but each is 2x longer)
+  setup_status_bar (bVHF);
+  m_toneSpacing=0.5*12000.0/576.0;  // half the FT4 tone spacing
+  ui->actionFT2->setChecked(true);
+  m_wideGraph->setMode(m_mode);
+  m_send_RR73=true;
+  VHF_features_enabled(bVHF);
+  ui->cbAutoSeq->setChecked(true);
+  m_fastGraph->hide();
+  m_wideGraph->show();
+  ui->rh_decodes_headings_label->setText("  UTC   dB   DT Freq    " + tr ("Message"));
+  m_wideGraph->setPeriod(m_TRperiod,m_nsps);
+  m_modulator->setTRPeriod(m_TRperiod);
+  m_detector->setTRPeriod(m_TRperiod);
+  ui->rh_decodes_title_label->setText(tr ("Rx Frequency"));
+  ui->lh_decodes_title_label->setText(tr ("Band Activity"));
+  ui->lh_decodes_headings_label->setText( "  UTC   dB   DT Freq    " + tr ("Message"));
+  displayWidgets(nWidgets("11101000010011100001000000011000100000"));
+  ui->txrb2->setEnabled(true);
+  ui->txrb4->setEnabled(true);
+  ui->txrb5->setEnabled(true);
+  ui->txrb6->setEnabled(true);
+  ui->txb2->setEnabled(true);
+  ui->txb4->setEnabled(true);
+  ui->txb5->setEnabled(true);
+  ui->txb6->setEnabled(true);
+  ui->txFirstCheckBox->setEnabled(true);
+  statusChanged();
+}
+
 void MainWindow::on_actionFT4_triggered()
 {
   QTimer::singleShot (50, [=] {
@@ -11934,6 +11992,7 @@ void MainWindow::on_pbBestSP_clicked()
 void MainWindow::set_mode (QString const& mode)
 {
     if ("FT4" == mode) on_actionFT4_triggered ();
+    else if ("FT2" == mode) on_actionFT2_triggered ();
     else if ("FST4" == mode) on_actionFST4_triggered ();
     else if ("FST4W" == mode) on_actionFST4W_triggered ();
     else if ("FT8" == mode) on_actionFT8_triggered ();
