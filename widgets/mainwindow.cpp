@@ -782,7 +782,7 @@ MainWindow::MainWindow(QDir const& temp_directory, bool multiple,
       if (m_pskReporterView) m_pskReporterView->setFont(font);
     });
 
-  setWindowTitle (program_title () +  " (WSJT-Z MOD v2.0.1 by SQ9FVE)") ;
+  setWindowTitle (program_title () +  " (WSJT-Z MOD v2.0.2 by SQ9FVE)") ;
 
 
   connect(&proc_jt9, &QProcess::readyReadStandardOutput, this, &MainWindow::readFromStdout);
@@ -8022,8 +8022,15 @@ void MainWindow::on_actionFST4W_triggered()
 
 void MainWindow::on_actionFT2_triggered()
 {
-  // FT2 = slowed-down FT4: 15 s T/R period, 6 kHz bandwidth. Reuses FT4 decoder
-  // with audio stretched 2x (handled in lib/decoder.f90, nmode=52).
+  // FT2 = FAST FT4: 3.75 s T/R period, twice the tone spacing of FT4 (wider band,
+  // shorter cycle). Reuses FT4 decoder with audio stretched 2x (see lib/decoder.f90
+  // nmode=52). DT is halved and frequency doubled in the ft2_decoded callback.
+  // Guard against crashing when entering from MSK144.
+  monitor(false);
+  to_jt9(m_ihsym,-1,-1);
+  decodeDone();
+
+  if (m_mode=="MSK144") QTimer::singleShot (75, [=] {on_actionFT2_triggered();});
   QTimer::singleShot (50, [=] {
     ui->TxFreqSpinBox->setValue(m_settings->value("TxFreq_old",1500).toInt());
     ui->RxFreqSpinBox->setValue(m_settings->value("RxFreq_old",1500).toInt());
@@ -8034,18 +8041,18 @@ void MainWindow::on_actionFT2_triggered()
     m_config.setSpecial_None();
     m_specOp=m_config.special_op_id();
   }
-  m_TRperiod=15.0;                 // FT2 cycle: 2x FT4's 7.5 s
+  m_TRperiod=3.75;                 // half FT4's 7.5 s
   bool bVHF=m_config.enable_VHF_features();
   m_bFast9=false;
   m_bFastMode=false;
   WSPR_config(false);
-  switch_mode (Modes::FT4);        // share FT4 infrastructure
-  m_nsps=6912;
+  switch_mode (Modes::FT2);
+  m_nsps=3456;                    // half FT4's 6912 (for widegraph speed)
   m_FFTSize = m_nsps/2;
   Q_EMIT FFTSize (m_FFTSize);
-  m_hsymStop=21;                    // same frame count as FT4 (but each is 2x longer)
+  m_hsymStop=21;
   setup_status_bar (bVHF);
-  m_toneSpacing=0.5*12000.0/576.0;  // half the FT4 tone spacing
+  m_toneSpacing=12000.0/288.0;    // 2x FT4's tone spacing
   ui->actionFT2->setChecked(true);
   m_wideGraph->setMode(m_mode);
   m_send_RR73=true;
@@ -8071,6 +8078,7 @@ void MainWindow::on_actionFT2_triggered()
   ui->txb6->setEnabled(true);
   ui->txFirstCheckBox->setEnabled(true);
   statusChanged();
+  monitor(true);
 }
 
 void MainWindow::on_actionFT4_triggered()

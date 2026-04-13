@@ -69,7 +69,8 @@ subroutine multimode_decoder(ss,id2,params,nfsample)
   real ss(184,NSMAX)
   logical baddata,newdat65,newdat9,single_decode,bVHF,bad0,newdat,ex
   logical lprinthash22
-  ! FT2: slowed-down FT4. Stretch 12 kHz samples 2x and reuse FT4 decoder.
+  ! FT2: FAST FT4 (3.75 s T/R, 2x tone spacing). Upsample captured audio 2x
+  ! so it looks like an FT4 frame to the decoder, then scale DT/freq back.
   integer, parameter :: FT2_NMAX=21*1728
   integer, parameter :: FT4_NMAX=21*3456
   integer, parameter :: FT2_STRETCH=2
@@ -1204,8 +1205,9 @@ subroutine multimode_decoder(ss,id2,params,nfsample)
      go to 800
   endif
 
-  ! FT2 = slowed-down FT4 (nmode=52). Half audio bandwidth, double duration.
-  ! We upsample the samples by FT2_STRETCH=2 and feed them through FT4 decoder.
+  ! FT2 = FAST FT4 (nmode=52). Half T/R period (3.75 s), 2x tone spacing.
+  ! Upsample the captured samples by FT2_STRETCH=2 so FT4 decoder sees a
+  ! standard-length FT4 frame; decoded DT/freq are scaled back in ft2_decoded.
   if(params%nmode.eq.52) then
      nfa_ft2=max(0,params%nfa/FT2_STRETCH)
      nfb_ft2=max(nfa_ft2+1,params%nfb/FT2_STRETCH)

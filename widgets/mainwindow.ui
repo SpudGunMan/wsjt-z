@@ -5312,7 +5312,7 @@ list. The list can be maintained in Settings (F2).</string>
   <action name="actionFT2">
    <property name="checkable"><bool>true</bool></property>
    <property name="text"><string>FT2</string></property>
-   <property name="toolTip"><string>FT2: slowed-down FT4 for weak-signal work (15 s T/R)</string></property>
+   <property name="toolTip"><string>FT2: fast FT4 (3.75 s T/R, 2x tone spacing)</string></property>
   </action>
   <action name="actionIgnore_station">
    <property name="text">
