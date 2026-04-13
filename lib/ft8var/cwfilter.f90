@@ -20,7 +20,7 @@ subroutine cwfilter(first)
     ! Use data_dir from prog_args so we read the user's actual ALLCALL7.TXT instead of
     ! creating an empty stub in CWD. status='old' so a missing file errors loudly via
     ! iostat rather than silently producing a 0-byte file that breaks future runs.
-    open(24,file=trim(data_dir)//'/ALLCALL7.TXT',status='old',iostat=ios)
+    open(24,file=trim(data_dir)//'/ALLCALL7.TXT',status='old',action='read',iostat=ios)
     if(ios.ne.0) then
       ldbvalid=.false.
       write(*,'(a)') 'ALLCALL7.TXT not found in data dir: '//trim(data_dir)
