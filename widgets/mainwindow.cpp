@@ -1876,6 +1876,8 @@ void MainWindow::fixStop()
     m_hsymStop=50;
   } else if (m_mode=="FT4") {
   m_hsymStop=21;
+  } else if (m_mode=="FT2") {
+  m_hsymStop=21;
   } else if(m_mode=="FST4" or m_mode=="FST4W") {
     int stop[] = {39,85,187,387,1003,3107,6232};
     int stop_EME[] = {48,95,197,396,1012,3107,6232};
@@ -5658,13 +5660,14 @@ void MainWindow::guiUpdate()
             }
           }
         }
-        if(m_mode=="FT4") {
+        if(m_mode=="FT4" or m_mode=="FT2") {
           int ichk=0;
           char ft4msgbits[77];
           genft4_(message, &ichk, msgsent, const_cast<char *> (ft4msgbits),
                   const_cast<int *>(itone), (FCL)37, (FCL)37);
           int nsym=103;
           int nsps=4*576;
+          if(m_mode=="FT2") nsps=4*288;     // FT2 tones are 2x wider, half the samples per symbol
           float fsample=48000.0;
           float f0=ui->TxFreqSpinBox->value() - m_XIT;
           int nwave=(nsym+2)*nsps;
@@ -6481,7 +6484,13 @@ void MainWindow::processMessage (DecodedText const& message, Qt::KeyboardModifie
     }
   }
 
-  int nmod = fmod(double(message.timeInSeconds()),2.0*m_TRperiod);
+  int nmod;
+  if(m_mode=="FT2") {
+    int period = (int)round(double(message.timeInSeconds()) / m_TRperiod);
+    nmod = period % 2;
+  } else {
+    nmod = fmod(double(message.timeInSeconds()),2.0*m_TRperiod);
+  } // #FT2-PATCHED
   m_txFirst=(nmod!=0);
   if( SpecOp::HOUND == m_specOp ) m_txFirst=false;          //Hound must not transmit first
   if( SpecOp::FOX == m_specOp ) m_txFirst=true;             //Fox must always transmit first
@@ -12323,7 +12332,13 @@ bool MainWindow::callsignFiltered(DecodedText dt)
     if (m_zdebug) log("message:" + dt.string());
     dt.deCallAndGrid (/*out*/ dxCall, dxGrid);
     if (m_zdebug) log("dxCall: " + dxCall);
-    int nmod = fmod(double(dt.timeInSeconds()),2.0*m_TRperiod);
+    int nmod;
+    if(m_mode=="FT2") {
+      int period = (int)round(double(dt.timeInSeconds()) / m_TRperiod);
+      nmod = period % 2;
+    } else {
+      nmod = fmod(double(dt.timeInSeconds()),2.0*m_TRperiod);
+    } // #FT2-PATCHED
     auto m_txFirst=(nmod!=0);
 
     if (!dxCall.contains(kReDigit) || dxCall.length() < 3) {
@@ -12708,7 +12723,13 @@ bool MainWindow::callsignFiltered(DecodedText dt)
         m_priorityCall = dxCall;
         m_prioFreq = dt.frequencyOffset();
         m_nextRpt = dt.report();
-        int nmod = fmod(double(dt.timeInSeconds()),2.0*m_TRperiod);
+        int nmod;
+        if(m_mode=="FT2") {
+          int period = (int)round(double(dt.timeInSeconds()) / m_TRperiod);
+          nmod = period % 2;
+        } else {
+          nmod = fmod(double(dt.timeInSeconds()),2.0*m_TRperiod);
+        } // #FT2-PATCHED
         m_prioTxFirst=(nmod!=0);
         m_prioGrid  = dxGrid;
     }
@@ -12775,7 +12796,13 @@ void MainWindow::on_actionCall_next_triggered() {
     m_nextRpt = message.report();
     ui->rptSpinBox->setValue(m_nextRpt.toInt());
 
-    int nmod = fmod(double(message.timeInSeconds()),2.0*m_TRperiod);
+    int nmod;
+    if(m_mode=="FT2") {
+      int period = (int)round(double(message.timeInSeconds()) / m_TRperiod);
+      nmod = period % 2;
+    } else {
+      nmod = fmod(double(message.timeInSeconds()),2.0*m_TRperiod);
+    } // #FT2-PATCHED
     auto m_txFirst=(nmod!=0);
     if (!m_TxFirstLock)
         ui->txFirstCheckBox->setChecked(m_txFirst);
