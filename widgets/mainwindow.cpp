@@ -1167,7 +1167,7 @@ MainWindow::MainWindow(QDir const& temp_directory, bool multiple,
 
   ui->labDXped->setVisible(SpecOp::NONE != m_specOp);
   ui->labDXped->setStyleSheet("QLabel {background-color: red; color: white;}");
-  ui->pbBestSP->setVisible(m_mode=="FT4");
+  ui->pbBestSP->setVisible((m_mode=="FT4" or m_mode=="FT2"));
  // Z
 
   ui->pb_WDReset->setVisible(!m_config.wdResetAnywhere());
@@ -1874,7 +1874,7 @@ void MainWindow::fixStop()
     m_hsymStop=((int(m_TRperiod/0.288))/8)*8;
   } else if (m_mode=="FT8") {
     m_hsymStop=50;
-  } else if (m_mode=="FT4") {
+  } else if ((m_mode=="FT4" or m_mode=="FT2")) {
   m_hsymStop=21;
   } else if (m_mode=="FT2") {
   m_hsymStop=21;
@@ -2107,7 +2107,7 @@ void MainWindow::dataSink(qint64 frames)
         m_fnameWE=m_config.save_directory ().absoluteFilePath (period_start.toString ("yyMMdd_hhmm"));
       }
       int samples=m_TRperiod*12000;
-      if(m_mode=="FT4") samples=21*3456;
+      if((m_mode=="FT4" or m_mode=="FT2")) samples=21*3456;
       if(m_mode=="FT2") samples=21*1728;    // FT2: 12 kHz * 15 s = 180000, but only 21*1728 filled for decoder
 
       // the following is potential a threading hazard - not a good
@@ -2585,7 +2585,7 @@ void MainWindow::keyPressEvent (QKeyEvent * e)
     }
   return;
   case Qt::Key_B:
-    if(m_mode=="FT4" && e->modifiers() & Qt::AltModifier) {
+    if((m_mode=="FT4" or m_mode=="FT2") && e->modifiers() & Qt::AltModifier) {
       on_pbBestSP_clicked();
     }
   return;
@@ -2674,7 +2674,7 @@ void MainWindow::keyPressEvent (QKeyEvent * e)
         if(e->modifiers() & Qt::ControlModifier) n+=100;
         if(e->modifiers() & Qt::ShiftModifier) {
           int offset=60;
-          if(m_mode=="FT4") offset=90;
+          if((m_mode=="FT4" or m_mode=="FT2")) offset=90;
           ui->TxFreqSpinBox->setValue(ui->TxFreqSpinBox->value()-offset);
         } else{
           bumpFqso(n);
@@ -2690,7 +2690,7 @@ void MainWindow::keyPressEvent (QKeyEvent * e)
         if(e->modifiers() & Qt::ControlModifier) n+=100;
         if(e->modifiers() & Qt::ShiftModifier) {
           int offset=60;
-          if(m_mode=="FT4") offset=90;
+          if((m_mode=="FT4" or m_mode=="FT2")) offset=90;
           ui->TxFreqSpinBox->setValue(ui->TxFreqSpinBox->value()+offset);
         } else {
           bumpFqso(n);
@@ -3979,7 +3979,7 @@ void MainWindow::decode()                                       //decode()
   if(m_mode=="FT2") {
     dec_data.params.nmode=52;                // FT2 = nmode 52 (reuses FT4 decoder with stretch)
   }
-  if(m_mode=="FT4") {
+  if((m_mode=="FT4" or m_mode=="FT2")) {
     dec_data.params.nmode=5;
     m_BestCQpriority="";
   }
@@ -4069,7 +4069,7 @@ void MainWindow::decode()                                       //decode()
         decodeBusy(true);
       }
     }
-  if((m_mode=="FT4" or (m_mode=="FT8" and m_ihsym==41) or m_diskData) and
+  if(((m_mode=="FT4" or m_mode=="FT2") or (m_mode=="FT8" and m_ihsym==41) or m_diskData) and
      m_ActiveStationsWidget != NULL) {
     if(m_mode!="Q65") m_ActiveStationsWidget->erase();  //TEMP
   }
@@ -5285,7 +5285,7 @@ void MainWindow::pskPost (DecodedText const& decodedtext)
   QString grid;
   decodedtext.deCallAndGrid(/*out*/deCall,grid);
   int audioFrequency = decodedtext.frequencyOffset();
-  if(m_mode=="FT8" or m_mode=="MSK144" or m_mode=="FT4") {
+  if(m_mode=="FT8" or m_mode=="MSK144" or (m_mode=="FT4" or m_mode=="FT2")) {
     audioFrequency=decodedtext.string().mid(16,4).toInt();
   }
   int snr = decodedtext.snr();
@@ -5572,7 +5572,7 @@ void MainWindow::guiUpdate()
         ui->txrb1->setChecked(true);
       }
 
-      if(m_mode=="FT4" and m_bBestSPArmed) {
+      if((m_mode=="FT4" or m_mode=="FT2") and m_bBestSPArmed) {
         m_BestCQpriority="";
         m_bBestSPArmed=false;
         ui->pbBestSP->setStyleSheet ("");
@@ -5918,7 +5918,7 @@ void MainWindow::guiUpdate()
     }
   }
 
-  if(m_mode=="FT8" or m_mode=="MSK144" or m_mode=="FT4" or m_mode=="Q65") {
+  if(m_mode=="FT8" or m_mode=="MSK144" or (m_mode=="FT4" or m_mode=="FT2") or m_mode=="Q65") {
     if(ui->txrb1->isEnabled() and
        (SpecOp::NA_VHF==m_specOp or
         SpecOp::FIELD_DAY==m_specOp or
@@ -6041,7 +6041,7 @@ void MainWindow::guiUpdate()
           if(SpecOp::FOX==m_specOp and ui->tabWidget->currentIndex()==1 and foxcom_.nslots==1) {
               t=m_fm1.trimmed();
           }
-          if(m_mode=="FT4") t="Tx: "+ m_currentMessage;
+          if((m_mode=="FT4" or m_mode=="FT2")) t="Tx: "+ m_currentMessage;
           tx_status_label.setText(t.trimmed());
         }
       }
@@ -6270,7 +6270,7 @@ void MainWindow::on_txrb4_doubleClicked ()
   auto const& my_callsign = m_config.my_callsign ();
   auto is_compound = my_callsign != m_baseCall;
   m_send_RR73 = !((is_compound && !shortList (my_callsign)) || m_send_RR73);
-  if(m_mode=="FT4") m_send_RR73=true;
+  if((m_mode=="FT4" or m_mode=="FT2")) m_send_RR73=true;
   genStdMsgs (m_rpt);
 }
 
@@ -6347,7 +6347,7 @@ void MainWindow::on_txb4_doubleClicked()
   auto const& my_callsign = m_config.my_callsign ();
   auto is_compound = my_callsign != m_baseCall;
   m_send_RR73 = !((is_compound && !shortList (my_callsign)) || m_send_RR73);
-  if(m_mode=="FT4") m_send_RR73=true;
+  if((m_mode=="FT4" or m_mode=="FT2")) m_send_RR73=true;
   genStdMsgs (m_rpt);
 }
 
@@ -6688,7 +6688,7 @@ void MainWindow::processMessage (DecodedText const& message, Qt::KeyboardModifie
              || (word_3_as_number == 73 && ROGERS == m_QSOProgress)
              || "RR73" == word_3
              || ("R" == word_3 && m_QSOProgress != REPORT))) {
-          if(m_mode=="FT4" and "RR73" == word_3) m_dateTimeRcvdRR73=QDateTime::currentDateTimeUtc();
+          if((m_mode=="FT4" or m_mode=="FT2") and "RR73" == word_3) m_dateTimeRcvdRR73=QDateTime::currentDateTimeUtc();
           m_bTUmsg=false;
           m_nextCall="";   //### Temporary: disable use of "TU;" message
           if(SpecOp::RTTY == m_specOp and m_nextCall!="") {
@@ -7149,7 +7149,7 @@ void MainWindow::genStdMsgs(QString rpt, bool unconditional)
       msgtype(t + sent, ui->tx2);
       if(sent==rpt) msgtype(t + "R" + sent, ui->tx3);
       if(sent!=rpt) msgtype(t + "R " + sent, ui->tx3);
-      if(m_mode=="FT4" and SpecOp::RTTY==m_specOp) {
+      if((m_mode=="FT4" or m_mode=="FT2") and SpecOp::RTTY==m_specOp) {
         QDateTime now=QDateTime::currentDateTimeUtc();
         int sinceTx3 = m_dateTimeSentTx3.secsTo(now);
         int sinceRR73 = m_dateTimeRcvdRR73.secsTo(now);
@@ -7927,7 +7927,7 @@ void MainWindow::displayWidgets(qint64 n)
     if(i==37) ui->sbMaxDrift->setVisible(b);
     j=j>>1;
   }
-  ui->pbBestSP->setVisible(m_mode=="FT4");
+  ui->pbBestSP->setVisible((m_mode=="FT4" or m_mode=="FT2"));
   b=false;
   if(m_mode=="FT4" or m_mode=="FT8" or m_mode=="FT2" || "Q65" == m_mode) {
   b=SpecOp::EU_VHF==m_specOp or
@@ -9295,7 +9295,7 @@ void MainWindow::setXIT(int n, Frequency base)
   if (!(m_bSimplex || (SpecOp::FOX==m_specOp && m_config.superFox()))) {
     // m_bSimplex is false, so we can use split mode if requested
     if (m_config.split_mode () && (!m_config.enable_VHF_features () ||
-        m_mode=="FT4" || m_mode == "FT8" || m_mode=="FST4")) {
+        (m_mode=="FT4" or m_mode=="FT2") || m_mode == "FT8" || m_mode=="FST4")) {
       // Don't use XIT for VHF & up
       m_XIT=(n/500)*500 - 1500;
     }
@@ -9361,7 +9361,7 @@ void MainWindow::handle_transceiver_update (Transceiver::TransceiverState const&
                                         // (caveat - DX Lab Suite Commander)
     if (m_tx_when_ready && g_iptt) {    // waiting to Tx and still needed
       int ms_delay=1000*m_config.txDelay();
-      if(m_mode=="FT4") ms_delay=20;
+      if((m_mode=="FT4" or m_mode=="FT2")) ms_delay=20;
       ptt1Timer.start(ms_delay); //Start-of-transmission sequencer delay
       m_tx_when_ready = false;
     }
@@ -13838,7 +13838,7 @@ bool MainWindow::setFreeFreq() {
 bool MainWindow::isSlotFree(int f) {
     int width;
 
-    if (m_mode=="FT4")
+    if ((m_mode=="FT4" or m_mode=="FT2"))
         width = 80;
     else
         width = 50;

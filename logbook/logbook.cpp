@@ -84,7 +84,7 @@ QByteArray LogBook::QSOToADIF (QString const& hisCall, QString const& hisGrid, Q
   QString t;
   t = "<call:" + QString::number(hisCall.size()) + ">" + hisCall;
   t += " <gridsquare:" + QString::number(hisGrid.size()) + ">" + hisGrid;
-  if (mode != "FT4" && mode != "FST4" && mode != "Q65")
+  if (mode != "FT2" && mode != "FT4" && mode != "FST4" && mode != "Q65")
     {
       t += " <mode:" + QString::number(mode.size()) + ">" + mode;
     }

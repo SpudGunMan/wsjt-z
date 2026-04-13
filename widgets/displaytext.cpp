@@ -558,6 +558,7 @@ void DisplayText::displayTransmittedText(QString text, QString modeTx, qint32 tx
 {
     QString t1=" @  ";
     if(modeTx=="FT4") t1=" +  ";
+    if(modeTx=="FT2") t1=" *  ";
     if(modeTx.contains("FT8")) t1=" ~  ";
     if(modeTx=="JT4") t1=" $  ";
     if(modeTx=="Q65") t1=" :  ";
