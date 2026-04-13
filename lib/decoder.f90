@@ -1209,6 +1209,9 @@ subroutine multimode_decoder(ss,id2,params,nfsample)
   ! Upsample the captured samples by FT2_STRETCH=2 so FT4 decoder sees a
   ! standard-length FT4 frame; decoded DT/freq are scaled back in ft2_decoded.
   if(params%nmode.eq.52) then
+     print*,'[wsjtz-dbg] FT2 decoder entered: nfa=',params%nfa,' nfb=',params%nfb,&
+            ' nfqso=',params%nfqso,' nzhsym=',params%nzhsym,' FT2_NMAX=',FT2_NMAX
+     call flush(6)
      nfa_ft2=max(0,params%nfa/FT2_STRETCH)
      nfb_ft2=max(nfa_ft2+1,params%nfb/FT2_STRETCH)
      nfqso_ft2=max(0,params%nfqso/FT2_STRETCH)
