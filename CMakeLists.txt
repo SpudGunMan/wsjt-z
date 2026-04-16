@@ -73,7 +73,7 @@ message (STATUS "******************************************************")
 
 include (set_build_type)
 # RC 0 or omitted is a development build, GA is a General Availability release build
-set_build_type (RC 7)
+set_build_type (GA)
 set (wsjtx_VERSION "${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}.${PROJECT_VERSION_PATCH}${BUILD_TYPE_REVISION}")
 
 #
@@ -1898,7 +1898,7 @@ set (CPACK_PACKAGE_DESCRIPTION_FILE "${CMAKE_SOURCE_DIR}/package_description.txt
 set (CPACK_MONOLITHIC_INSTALL 1)
 ## Z
 set (CPACK_PACKAGE_NAME "wsjtz")
-set (CPACK_PACKAGE_VERSION_Z "2.0.3")
+set (CPACK_PACKAGE_VERSION_Z "2.0.5")
 set (CPACK_PACKAGE_VERSION_MAJOR ${PROJECT_VERSION_MAJOR})
 set (CPACK_PACKAGE_VERSION_MINOR ${PROJECT_VERSION_MINOR})
 set (CPACK_PACKAGE_VERSION_PATCH "${PROJECT_VERSION_PATCH}-${CPACK_PACKAGE_VERSION_Z}")

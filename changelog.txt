@@ -1,0 +1,275 @@
+== Changelog
+V2.0.5
+[fixes]
+- Fixed FT2 decoded-line display: SNR digits were split (e.g. "-15" rendered as "-              15Spain") because FT2 was missing from the 22→37-char message-padding exclusion list (mainwindow.cpp:4721)
+- Fixed ARRL Digi crash on QSO confirm: hardened activeWorked() against missing m_activeCall entries (compound calls like W1AW/5 default-constructed an empty bands buffer that crashed on QByteArray write); also wrapped CabrilloLog::add_QSO in try/catch so SQL failures show a warning instead of silently terminating the process
+- Restored full m_ft8DecoderStart-conditional MTD early-decode guards (previously simplified for the hardcoded ndecoderstart=3 path)
+- Fixed FT2 fixStop() so m_hsymStop and m_earlyDecode2 follow the Decoder start setting
+
+[features]
+- Bumped to GA release (was RC7)
+- Upgraded bundled Hamlib from 4.5.5 to 4.7.1 (both 32-bit and 64-bit installers)
+- Ported the full wsjtx-improved Decode menu:
+  - New "Parameters" submenu containing:
+    * Decoder sensitivity (Minimum / Use low thresholds / Use subpass)
+    * Decoder start (2-Stage / 3-Stage / Early / Normal / Late)
+    * Number of FT8 threads (moved here from top-level)
+    * QSO RX freq sensitivity (Low / Medium / High)
+    * Decoding cycles (1 / 2 / 3)
+  - New top-level toggles: Hide AP information, Disable clicks on waterfall, Reduce false decodes, Wideband DX Call search, Hide FT8 dupe messages, Skip a8 decodes, Full Duplex Mode
+  - All toggles persist via QSettings; Hide FT8 dupes is on by default
+
+[security]
+- Added bounds checks in Hound foxRxSequencer (mainwindow.cpp:5215), EU_VHF processMessage (6798), and Field Day exchange parser (6773) — a crafted/malformed signal with too few words could previously crash wsjtx via uncaught std::out_of_range from a Qt slot
+- Replaced naive chained .replace("a1","")…replace("a9","") in Hide AP info with an anchored regex (\s+(?:\?\s+)?(?:a[1-9]|q[1-9][0-9*]?)\b) — the old chain mangled callsigns like PA1ABC, LA2XYZ
+- Sanitize control chars ([\x00-\x1F\x7F]) from every text field at the QSO-accept boundary before they hit wsjtx.log CSV / ADIF / UDP qso_logged broadcast — closes log-injection vector via newlines/tabs in callsign/grid/comments
+
+V1.48
+[fixes]
+- Fixed an issue where multiple consecutive QSOs with the same station on different bands would not be logged
+- Fixed an issue where Z would stop sending RR73 and move on to the next caller if a late decode occurs
+- Fixed Z not able to answer to combined messages
+- Minor fixes 
+
+[features]
+- Renamed app, installer, modified default install path to wsjtz
+- Automatically hiding/showing Raw view and PSK Reporter window when hiding/showing Z
+- Added an option to show vertical bars in Wide Graph - checkbox in the Wide Graph Controls ( Thanks Uwe! :) )
+- Added an option to automatically clear Wide Graph on band change - checkbox in the Wide Graph Controls
+- Added button to clear Wide Graph ( X button in the top left of Wide Graph)
+- Added an option to freeze Band Activity on mouse hover over (Settings -> WSJT-Z -> Freeze Band Activity on mouse hover)
+- Added an option to remove extra characters from decodes (?, a1/a2/...) (Settings -> WSJT-Z -> Remove extra characters from decodes)
+- Added a button to refresh PSKReporter window ("R" in the top left corner)
+- Added option to set padding for the country column
+
+V1.43
+- Merged X 2.7.0 rc7
+- Moved back to 1.22 code base
+- Minor fixes and cleanup
+
+V1.35
+- Merged X 2.7.0 rc2
+- Minor fixes and cleanup
+
+V1.32
+- Merged X 2.6.1
+- Upgraded hamlib
+- Upgraded to QT 5.15.2 (fixed issues with rearranging colors)
+- Added the ability to hide/show columns in Band Activity and Rx Frequency (Settings->WSJT-Z->Columns)
+- Minor fixes
+
+V1.22
+- Added option to execute command when custom alert is triggered (Settings->WSJT-Z->Custom alert command line)
+- Added option to hold tx frequency in hound mode (Settings->WSJT-Z->No frequency changes for HOUND mode)
+- Merged 2.5.4
+- Added a button to automatically select a free frequency for TX (based on last few cycles)
+- Added an option to automatically select a free frequency for TX after band or mode change (Settings->WSJT-Z->Find free TX freq after auto band change)
+- Many fixes
+
+V1.10
+- Merged 2.5.0
+- Added option to clear ignore list periodically
+- Added total QSO counter in the status bar
+- Added the ability to lock "TX even/1st" 
+- Added the ability to set color of the separator line
+- Minor fixes
+
+V1.09
+- Added PSKReporter feed (View->PSKReporter view)
+- Added configuration option to show the bearing in the RX Window
+- Added configuration option to clear RX windows when band change
+- Added Raw View (View->Raw View) that displays unfiltered messages
+- Fix for ACLog callbook lookup
+- Minor adjustments to the layout to allow for better RX window resizing
+- Other minor fixes
+
+v0.95
+- Added US state filtering/display (Settings->WSJT-Z->Show state for US callsigns)
+- Fixed band selector colour in dark mode
+- Fixed display issues in dark mode
+- Merged 2.5.0 RC5
+- Custom alerts will now show band and date
+- UDP reply message will always force "Enable TX"
+- Fixed an issue with DX fields not being cleared when re-sending RR73 to a station mulitple times
+
+v0.81
+- Added tooltips to various elements of the UI
+- Added CQ Targets filtering "Show only" option to only show CQ messages with the specified targets
+- Ignore list clear button resets the list using permanent ignore list
+- Added option to Auto Tune after band change - for automatic antenna tuners
+- Fixed Z not resetting ignore list properly when band hopping enabled
+- Additional callsign validation before auto-calling (must contain a number, minimum length  3 characters)
+- Added option to show distance on messages containing locator
+- Added Permanent ignore list in Settings
+- Pounce ehnancement - you can now type in the callsign, instead of having to right-click a message on the screen
+- Added option to enable/disable responding to tailenders
+- Locator from *Call Info* will be used when logging, if station didn't provide locator
+- Locator from *Call Info* will be used when logging, if we have qrz.com integration enabled and locator retrieved is 6 characters
+
+v0.74
+- Ignore list cleared when band changed (with band hopping enabled)
+- Special callsigns not sending the locator are used as priority when distance priority is selected
+- Added ability to set WD timer per mode
+- Added ability to write debug output to a file
+- Added Reset WD button and option to disable resetting WD when clicking anywhere
+- Added configuration option to highlight currently worked station
+- Allow Z to respond to second station as soon as the last QSO is finished
+- Show all messages directed to our callsign on the left pane
+- Added option to enable/disable UDP filtering
+- Increased number of decoder threads to 32
+- Mulitple fixes
+
+
+v0.57
+- Added configuration option to apply filtering when using AutoCQ
+- Added configuration option to set RX freq to TX freq when logged a QSO, WD timer expires or Halt TX button pressed
+- Fixed WD not working in autocq mode
+- Added Z information message
+- Added a possibility to exclude or include specific CQ Targets
+
+v0.52
+- Fixed waterfall geometry issues
+- Fixed AutoCall not working with INCLUDE filter
+- Fixed AutoCQ responding to filtered callsigns
+- Filtering now applies to UDP messages
+
+v0.51
+- Fixed 0.50 cosmetic issues
+- Fixed "Treat 73's as CQ"
+- Fixed colouring of 73/RR73 
+- Other minor fixes
+
+
+v0.50
+- Merged wsjtx 2.3.0 
+- fixed dark mode issues
+- fixed AutoCQ filtering
+- RXFreq now set to TXFreq when QSO logged or HALT pressed
+- JTAlert 2.16.17 now working
+
+v0.44
+- Band hopping - Z will change bands baseed on time of day and number of CQ/AutoCall attempts on a band; sample configuration (HOUR:BAND1,BAND2,BAND3...):
+	12:20m,40m
+	18:80m,40m,15m
+	22:160m
+- Automatic mode switching - Z will switch between Auto Call / Auto CQ modes after trying N times
+
+v0.39
+- AutoCall priority: Z can now select the station to call by the signal strength or the distance
+- Fixed Z unchecking "Hold TX Freq" under some circumstances
+
+v0.37
+- Merged 2.2.1 
+
+v0.36
+- Removed dependency on "Blank line between decoding periods" for AutoCall
+
+v0.35
+- Updated code base to wsjtx 2.2
+
+v0.32
+- Pounce ignores TX watchdog
+- Changing to hound mode does not reset frequency
+- Fixed colouring of messages sent to our callsign
+
+
+V0.31
+- (Fixed) You can now manually enter a call in Call Info and push a button to do a lookup
+- Yet another fix for silly JTAlert code blocking wsjt-z ;) Simplistic approach shows level of coding skills of the developer and their ignorance. 
+- Ported fix from WSJT-X v.2.1.1 to resolve <...> showing up for some stations
+
+V0.30
+- You can now manually enter a call in Call Info and push a button to do a lookup
+- Fix for silly JTAlert code blocking wsjt-z ;)
+
+
+V0.29
+- F/H dropdown
+- RaspberryPi package (Hit F12 or select Mini checkbox for the best layout on RPi) 
+- Minor UI tweaks to accomodate RPi touchscreen size
+
+V0.28
+- Filtering bypass (Bottom-right corner -> Filtering checkbox)
+- Show colours for all messages (Settings->WSJT-Z)
+- Compiled with QT 5.5 - Windows XP support
+
+
+V0.27.1
+- QRZ.COM issue fix
+
+V0.27
+- Moved "Dock" option to View menu 
+- Added Call Info section (View->Call info) - Ctrl+click on a callsign to trigger it manually
+- Added QRZ.COM integration (Needs to be set up in settings->WSJT-Z)
+- Fixed the CQ Target filter to allow for filtering "CQ TEST" calls
+- Coloured the Azimuth / distance label in the status bar for Steve ;)
+- WSJT-Z will not be saving *.wav files when Save->None is selected (less I/O)
+- Added option to disable saving ALL.TXT and FoxQSO.log (less I/O) (In settings->WSJT-Z)
+
+
+V0.26
+- Added Date to status bar
+
+V0.25
+- UI Layout changes to optimize space of the RX Frequency area
+- Azimuth / distance moved to Status bar
+
+V0.24
+- Clear DX: Double-click on tx6 radio button clears the TX fields
+- Progress bar will turn red when transmitting
+- Right-click menu: Copy row option
+
+
+V0.23
+- Minor UI fixes for docking
+- Wide-Graph: single click changes TX&RX freq
+- Wide-Graph: Ctrl+click changes RX freq
+- Wide-Graph: Shift+click changes TX freq
+
+V0.22
+- Waterfall window can now be docked to WSJT-Z (using dock checkbox)
+
+V0.21
+- Preventing switching to contest modes in Auto CQ mode
+
+V0.20
+- Fixed the JTAlert connection issue
+
+V0.19
+- Auto Call forces "New call on band" (due to high number of 'it calls the same station multiple times' emails) 
+- Auto CQ forces "Call 1st" and "Auto Seq" 
+
+V0.18
+- Cosmetical changes
+
+V0.17
+- Preventing duplicate log entries (for mulitple RR73 etc)
+
+V0.16
+- Added custom alerts
+- Added tooltips for all functions of wsjt-z
+
+V0.15
+- Added alerting
+
+V0.14
+- Fixed right-click issue
+- Fixed AutoCQ
+
+V0.12
+- Added QRZ Lookup right-click option
+- Fixed some filtering issues
+- Minor bugfixes
+
+V0.11.1
+- Moved F/H indicator and RX All Freq to main screen
+
+V0.11
+- Merged RC7
+- Preventing switching to contest modes in Auto Call
+
+V0.10 
+- Prefixes filter now allows to exclude/include all prefixes from a particular dxcc
+- Treat 73's as CQ - this will show all stations transmitting 73/RR73 in CQ Only mode, it will also colour that row accordingly and display DXCC for it. In this mode WSJTX will force the user to lock the TX Freq, to make sure they don't transmit over the final 73
+- Mini mode - see few posts above - a mini UI useful for small screens (RPi etc)
+- minor fixes

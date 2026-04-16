@@ -723,6 +723,29 @@ MainWindow::MainWindow(QDir const& temp_directory, bool multiple,
   ui->actionMT11->setActionGroup(FT8threadsGroup);
   ui->actionMT12->setActionGroup(FT8threadsGroup);
 
+  // FT8 decoder sensitivity radio group
+  QActionGroup* FT8SensGroup = new QActionGroup(this);
+  ui->actionFT8SensMin->setActionGroup(FT8SensGroup);
+  ui->actionlowFT8thresholds->setActionGroup(FT8SensGroup);
+  ui->actionFT8subpass->setActionGroup(FT8SensGroup);
+  // FT8 decoder start radio group
+  QActionGroup* FT8StartGroup = new QActionGroup(this);
+  ui->actionStartTwoStage->setActionGroup(FT8StartGroup);
+  ui->actionStartThreeStage->setActionGroup(FT8StartGroup);
+  ui->actionStartEarly->setActionGroup(FT8StartGroup);
+  ui->actionStartNormal->setActionGroup(FT8StartGroup);
+  ui->actionStartLate->setActionGroup(FT8StartGroup);
+  // QSO RX freq sensitivity radio group
+  QActionGroup* RXfSensGroup = new QActionGroup(this);
+  ui->actionRXfLow->setActionGroup(RXfSensGroup);
+  ui->actionRXfMedium->setActionGroup(RXfSensGroup);
+  ui->actionRXfHigh->setActionGroup(RXfSensGroup);
+  // FT8 decoding cycles radio group
+  QActionGroup* FT8CyclesGroup = new QActionGroup(this);
+  ui->actionDecFT8cycles1->setActionGroup(FT8CyclesGroup);
+  ui->actionDecFT8cycles2->setActionGroup(FT8CyclesGroup);
+  ui->actionDecFT8cycles3->setActionGroup(FT8CyclesGroup);
+
   connect (ui->download_samples_action, &QAction::triggered, [this] () {
       if (!m_sampleDownloader)
         {
@@ -782,7 +805,7 @@ MainWindow::MainWindow(QDir const& temp_directory, bool multiple,
       if (m_pskReporterView) m_pskReporterView->setFont(font);
     });
 
-  setWindowTitle (program_title () +  " (WSJT-Z MOD v2.0.3 by SQ9FVE)") ;
+  setWindowTitle (program_title () +  " (WSJT-Z MOD v2.0.5 by SQ9FVE)") ;
 
 
   connect(&proc_jt9, &QProcess::readyReadStandardOutput, this, &MainWindow::readFromStdout);
@@ -1371,6 +1394,18 @@ void MainWindow::writeSettings()
   m_settings->setValue("FT8threads", m_ft8threads);
   m_settings->setValue("UseMultithreadedFT8",
                        ui->actionUse_multithreaded_FT8_decoder->isChecked());
+  // Decode > Parameters and related FT8 toggles
+  m_settings->setValue("FT8Sensitivity", m_ft8Sensitivity);
+  m_settings->setValue("FT8DecoderStart", m_ft8DecoderStart);
+  m_settings->setValue("NFT8QSORXfreqSensitivity", m_nFT8RXfSens);
+  m_settings->setValue("NFT8Cycles", m_nFT8Cycles);
+  m_settings->setValue("FT8WideDXCallSearch", m_FT8WideDxCallSearch);
+  m_settings->setValue("HideFT8Dupes", ui->actionHide_FT8_dupe_messages->isChecked());
+  m_settings->setValue("DisableClicksOnWaterfall", ui->actionDisable_clicks_on_waterfall->isChecked());
+  m_settings->setValue("reduceFalseDecodes", ui->actionReduce_false_decodes->isChecked());
+  m_settings->setValue("HideAPInfo", ui->actionHide_AP_info->isChecked());
+  m_settings->setValue("NoMTDa8Decodes", ui->actionNo_MTD_a8_decodes->isChecked());
+  m_settings->setValue("FullDuplexMode", ui->actionFull_Duplex_Mode->isChecked());
   m_settings->setValue("SaveNone",ui->actionNone->isChecked());
   m_settings->setValue("SaveDecoded",ui->actionSave_decoded->isChecked());
   m_settings->setValue("SaveAll",ui->actionSave_all->isChecked());
@@ -1556,6 +1591,23 @@ void MainWindow::readSettings()
   if (m_ft8threads < 0 || m_ft8threads > 12) m_ft8threads = 0;
   ui->actionUse_multithreaded_FT8_decoder->setChecked(
       m_settings->value("UseMultithreadedFT8", true).toBool());
+  // Decode > Parameters and related FT8 toggles
+  m_ft8Sensitivity = m_settings->value("FT8Sensitivity", 3).toInt();
+  if (m_ft8Sensitivity < 1 || m_ft8Sensitivity > 3) m_ft8Sensitivity = 3;
+  m_ft8DecoderStart = m_settings->value("FT8DecoderStart", 3).toInt();
+  if (m_ft8DecoderStart < 0 || m_ft8DecoderStart > 4) m_ft8DecoderStart = 3;
+  m_nFT8RXfSens = m_settings->value("NFT8QSORXfreqSensitivity", 2).toInt();
+  if (m_nFT8RXfSens < 1 || m_nFT8RXfSens > 3) m_nFT8RXfSens = 2;
+  m_nFT8Cycles = m_settings->value("NFT8Cycles", 3).toInt();
+  if (m_nFT8Cycles < 1 || m_nFT8Cycles > 3) m_nFT8Cycles = 3;
+  m_FT8WideDxCallSearch = m_settings->value("FT8WideDXCallSearch", false).toBool();
+  ui->actionFT8WidebandDXCallSearch->setChecked(m_FT8WideDxCallSearch);
+  ui->actionHide_FT8_dupe_messages->setChecked(m_settings->value("HideFT8Dupes", true).toBool());
+  ui->actionDisable_clicks_on_waterfall->setChecked(m_settings->value("DisableClicksOnWaterfall", false).toBool());
+  ui->actionReduce_false_decodes->setChecked(m_settings->value("reduceFalseDecodes", false).toBool());
+  ui->actionHide_AP_info->setChecked(m_settings->value("HideAPInfo", false).toBool());
+  ui->actionNo_MTD_a8_decodes->setChecked(m_settings->value("NoMTDa8Decodes", false).toBool());
+  ui->actionFull_Duplex_Mode->setChecked(m_settings->value("FullDuplexMode", false).toBool());
   m_settings->endGroup();
 
   // Reflect current m_ft8threads in the radio menu
@@ -1573,6 +1625,28 @@ void MainWindow::readSettings()
     case 10: ui->actionMT10->setChecked(true);   break;
     case 11: ui->actionMT11->setChecked(true);   break;
     case 12: ui->actionMT12->setChecked(true);   break;
+  }
+  switch (m_ft8Sensitivity) {
+    case 1: ui->actionFT8SensMin->setChecked(true);        break;
+    case 2: ui->actionlowFT8thresholds->setChecked(true);  break;
+    case 3: ui->actionFT8subpass->setChecked(true);        break;
+  }
+  switch (m_ft8DecoderStart) {
+    case 0: ui->actionStartTwoStage->setChecked(true);   break;
+    case 1: ui->actionStartThreeStage->setChecked(true); break;
+    case 2: ui->actionStartEarly->setChecked(true);      break;
+    case 3: ui->actionStartNormal->setChecked(true);     break;
+    case 4: ui->actionStartLate->setChecked(true);       break;
+  }
+  switch (m_nFT8RXfSens) {
+    case 1: ui->actionRXfLow->setChecked(true);    break;
+    case 2: ui->actionRXfMedium->setChecked(true); break;
+    case 3: ui->actionRXfHigh->setChecked(true);   break;
+  }
+  switch (m_nFT8Cycles) {
+    case 1: ui->actionDecFT8cycles1->setChecked(true); break;
+    case 2: ui->actionDecFT8cycles2->setChecked(true); break;
+    case 3: ui->actionDecFT8cycles3->setChecked(true); break;
   }
 
   // do this outside of settings group because it uses groups internally
@@ -1873,7 +1947,19 @@ void MainWindow::fixStop()
   } else if (m_mode=="FreqCal"){
     m_hsymStop=((int(m_TRperiod/0.288))/8)*8;
   } else if (m_mode=="FT8") {
-    m_hsymStop=50;
+    // Mirror wsjtx-improved 2197-2210: hsymStop and earlyDecode2 depend on
+    // MTD-on and the Decode > Parameters > Decoder start setting.
+    if (ui->actionUse_multithreaded_FT8_decoder->isChecked()
+        && !(m_specOp==SpecOp::HOUND && m_config.superFox())) {
+      if      (m_ft8DecoderStart==0) m_hsymStop=49;
+      else if (m_ft8DecoderStart==1) { m_hsymStop=50; m_earlyDecode2=46; }
+      else if (m_ft8DecoderStart==2) m_hsymStop=48;
+      else if (m_ft8DecoderStart==3) m_hsymStop=49;
+      else if (m_ft8DecoderStart==4) m_hsymStop=50;
+    } else {
+      m_hsymStop=50;
+      m_earlyDecode2=47;
+    }
   } else if ((m_mode=="FT4" or m_mode=="FT2")) {
   m_hsymStop=21;
   } else if (m_mode=="FT2") {
@@ -2003,11 +2089,11 @@ void MainWindow::dataSink(qint64 frames)
   // pass and produces duplicates at cycle end.
   bool const mtft8_on = ui->actionUse_multithreaded_FT8_decoder->isChecked();
   if(m_mode=="FT8" and !m_diskData) {
-    // Match wsjtx-orig: m_earlyDecode always triggers; m_earlyDecode2 is
-    // skipped only when MTD is active with Normal/Late start (prevents
-    // the duplicate decode the original FT4/FT8 path produces).
+    // Mirror wsjtx-improved 2369-2370: early-decode always triggers; second
+    // early trigger is skipped only when MTD is active and decoder start is
+    // not 3-Stage (prevents the duplicate decode in Normal/Late paths).
     if(m_ihsym==m_earlyDecode) bCallDecoder=true;
-    if(m_ihsym==m_earlyDecode2 && !mtft8_on) bCallDecoder=true;
+    if(m_ihsym==m_earlyDecode2 && !(mtft8_on && m_ft8DecoderStart!=1)) bCallDecoder=true;
   }
   if(bCallDecoder) {
     if(m_mode=="Echo") {
@@ -2083,15 +2169,16 @@ void MainWindow::dataSink(qint64 frames)
     dec_data.params.newdat=1;
     dec_data.params.nagain=0;
     dec_data.params.nzhsym=m_hsymStop;
-    // With MTD+Normal start (our hardcoded config), don't override nzhsym to
-    // the early value. Mirrors wsjtx-orig lines 2459-2460 with m_ft8DecoderStart=3.
-    if(m_mode=="FT8" and m_ihsym==m_earlyDecode and !m_diskData && !mtft8_on) dec_data.params.nzhsym=m_earlyDecode;
-    if(m_mode=="FT8" and m_ihsym==m_earlyDecode2 and !m_diskData && !mtft8_on) dec_data.params.nzhsym=m_earlyDecode2;
+    // Mirror wsjtx-improved 2468-2469: skip the early nzhsym override only when
+    // MTD is active and the decoder start setting requires it.
+    if(m_mode=="FT8" and m_ihsym==m_earlyDecode and !m_diskData && !(mtft8_on && m_ft8DecoderStart>1)) dec_data.params.nzhsym=m_earlyDecode;
+    if(m_mode=="FT8" and m_ihsym==m_earlyDecode2 and !m_diskData && !(mtft8_on && m_ft8DecoderStart!=1)) dec_data.params.nzhsym=m_earlyDecode2;
     QDateTime now {QDateTime::currentDateTimeUtc ()};
     m_dateTime = now.toString ("yyyy-MMM-dd hh:mm");
     if(m_mode!="WSPR") decode(); //Start decoder
 
-    if(m_mode=="FT8" and !m_diskData and (m_ihsym==m_earlyDecode or m_ihsym==m_earlyDecode2)) return;
+    // Mirror wsjtx-improved 2477: bail out only when not in MTD-with-early-start mode.
+    if(m_mode=="FT8" and !(m_diskData or (mtft8_on && m_ft8DecoderStart<2)) and (m_ihsym==m_earlyDecode or m_ihsym==m_earlyDecode2)) return;
     if (!m_diskData)
       {
         Q_EMIT reset_audio_input_stream (true); // reports dropped samples
@@ -2495,6 +2582,30 @@ void MainWindow::on_actionMT10_triggered()   { m_ft8threads = 10; }
 void MainWindow::on_actionMT11_triggered()   { m_ft8threads = 11; }
 void MainWindow::on_actionMT12_triggered()   { m_ft8threads = 12; }
 void MainWindow::on_actionUse_multithreaded_FT8_decoder_toggled(bool /*b*/) {}
+
+// Decode > Parameters > Decoder sensitivity (FT8 weak-signal aggressiveness)
+void MainWindow::on_actionFT8SensMin_toggled(bool checked)       { if (checked) m_ft8Sensitivity = 1; }
+void MainWindow::on_actionlowFT8thresholds_toggled(bool checked) { if (checked) m_ft8Sensitivity = 2; }
+void MainWindow::on_actionFT8subpass_toggled(bool checked)       { if (checked) m_ft8Sensitivity = 3; }
+
+// Decode > Parameters > Decoder start time (FT8 first-pass start symbol)
+void MainWindow::on_actionStartTwoStage_toggled(bool checked)   { if (checked) m_ft8DecoderStart = 0; }
+void MainWindow::on_actionStartThreeStage_toggled(bool checked) { if (checked) m_ft8DecoderStart = 1; }
+void MainWindow::on_actionStartEarly_toggled(bool checked)      { if (checked) m_ft8DecoderStart = 2; }
+void MainWindow::on_actionStartNormal_toggled(bool checked)     { if (checked) m_ft8DecoderStart = 3; }
+void MainWindow::on_actionStartLate_toggled(bool checked)       { if (checked) m_ft8DecoderStart = 4; }
+
+// Decode > Parameters > QSO RX freq sensitivity
+void MainWindow::on_actionRXfLow_triggered()    { m_nFT8RXfSens = 1; ui->actionRXfLow->setChecked(true); }
+void MainWindow::on_actionRXfMedium_triggered() { m_nFT8RXfSens = 2; ui->actionRXfMedium->setChecked(true); }
+void MainWindow::on_actionRXfHigh_triggered()   { m_nFT8RXfSens = 3; ui->actionRXfHigh->setChecked(true); }
+
+// Decode > Parameters > Decoding cycles
+void MainWindow::on_actionDecFT8cycles1_triggered() { m_nFT8Cycles = 1; ui->actionDecFT8cycles1->setChecked(true); }
+void MainWindow::on_actionDecFT8cycles2_triggered() { m_nFT8Cycles = 2; ui->actionDecFT8cycles2->setChecked(true); }
+void MainWindow::on_actionDecFT8cycles3_triggered() { m_nFT8Cycles = 3; ui->actionDecFT8cycles3->setChecked(true); }
+
+void MainWindow::on_actionFT8WidebandDXCallSearch_toggled(bool checked) { m_FT8WideDxCallSearch = checked; }
 
 void MainWindow::on_autoButton_clicked (bool checked)
 {
@@ -3888,7 +3999,7 @@ void MainWindow::decode()                                       //decode()
   // Wsjtz lacks UI for most JTDX-specific knobs; using sensible defaults from wsjtx-orig.
   dec_data.params.nmt = m_ft8threads;
   dec_data.params.lmultift8 = ui->actionUse_multithreaded_FT8_decoder->isChecked();
-  dec_data.params.lhideft8dupes = true;       // dedup parallel-path duplicates
+  dec_data.params.lhideft8dupes = ui->actionHide_FT8_dupe_messages->isChecked();
   dec_data.params.nstophint = false;          // false = don't truncate decode early on hints
   // FT8 AP decoding bandwidth — narrow on HF, wider on VHF/UHF
   if (m_freqNominal < 30000000)       dec_data.params.napwid = 5;
@@ -3896,11 +4007,12 @@ void MainWindow::decode()                                       //decode()
   else                                 dec_data.params.napwid = 50;
   dec_data.params.ncandthin = 100;            // matches jt9 CLI default; 0 = no decodes
   dec_data.params.ndtcenter = 0;
-  dec_data.params.nft8cycles = 3;             // standard 3 FT8 cycles
-  dec_data.params.nft8rxfsens = 1;            // QSO RX freq sensitivity (1=Medium)
+  dec_data.params.nft8cycles = m_nFT8Cycles;
+  dec_data.params.nft8rxfsens = m_nFT8RXfSens;
   dec_data.params.nft4depth = 3;
-  dec_data.params.lft8lowth = true;           // low thresholds (more weak decodes)
-  dec_data.params.lft8subpass = false;        // sub-pass off (would be slower)
+  // Decoder sensitivity radio: 1=Min (no low thresholds), 2=low thresholds, 3=subpass.
+  dec_data.params.lft8lowth   = (m_ft8Sensitivity != 1);
+  dec_data.params.lft8subpass = (m_ft8Sensitivity == 3);
   dec_data.params.ltxing = false;
   dec_data.params.lhound = false;
   dec_data.params.lcommonft8b = true;         // common ft8b path
@@ -3912,7 +4024,7 @@ void MainWindow::decode()                                       //decode()
   dec_data.params.lmultinst = false;
   dec_data.params.lskiptx1 = false;
   dec_data.params.nlasttx = 0;
-  dec_data.params.ndecoderstart = 3;          // Normal start time
+  dec_data.params.ndecoderstart = m_ft8DecoderStart;
   dec_data.params.nsecbandchanged = 0;
   dec_data.params.nhint = false;
   dec_data.params.ndelay = 0;
@@ -3923,7 +4035,7 @@ void MainWindow::decode()                                       //decode()
   dec_data.params.ntopfreq65 = 3000;
   dec_data.params.nsdecatt = 1;
   dec_data.params.fmaskact = true;
-  dec_data.params.lwidedxcsearch = false;
+  dec_data.params.lwidedxcsearch = m_FT8WideDxCallSearch;
   dec_data.params.lenabledxcsearch = false;
   dec_data.params.nagainfil = false;
   // mybcall / hisbcall: derive from mycall/hiscall (base callsign before /portable)
@@ -3975,7 +4087,8 @@ void MainWindow::decode()                                       //decode()
   }
   if(m_mode=="FT8") dec_data.params.nmode=8;
   if(m_mode=="FT8") dec_data.params.lft8apon = ui->actionEnable_AP_FT8->isVisible () &&
-      ui->actionEnable_AP_FT8->isChecked ();
+      ui->actionEnable_AP_FT8->isChecked () &&
+      !(ui->actionUse_multithreaded_FT8_decoder->isChecked() && ui->actionNo_MTD_a8_decodes->isChecked());
   if(m_mode=="FT8") dec_data.params.napwid=50;
   if(m_mode=="FT2") {
     dec_data.params.nmode=52;                // FT2 = nmode 52 (reuses FT4 decoder with stretch)
@@ -4528,6 +4641,14 @@ void MainWindow::callSandP2(int n)
 
 void MainWindow::activeWorked(QString call, QString band)
 {
+  // Ensure an entry exists with the 7-dot placeholder. ARRL_Digi_Update only
+  // adds a call when its grid was decoded; compound calls like "W1AW/5" or
+  // hash-only forms may bypass that path and leave bands empty, which crashes
+  // the QByteArray write below on shared-null buffers.
+  if (!m_activeCall.contains(call) || m_activeCall[call].bands.size() < 7) {
+    auto& ac = m_activeCall[call];
+    if (ac.bands.size() < 7) ac.bands = ".......";
+  }
   QString bands=m_activeCall[call].bands;
   QByteArray ba=bands.toLatin1();
   if(band=="160m") ba[0]='a';
@@ -4562,7 +4683,7 @@ void MainWindow::readFromStdout()                             //readFromStdout
   // append happens here too (orig appends after display; we do it inline).
   bool const mtft8 = (m_mode == "FT8")
       && ui->actionUse_multithreaded_FT8_decoder->isChecked();
-  bool const dedup_on = mtft8 && (m_freqNominal > 45000000);  // ndecoderstart wired to 3, so 3<2 path is off
+  bool const dedup_on = mtft8 && (m_ft8DecoderStart < 2 || m_freqNominal > 45000000);
   while(proc_jt9.canReadLine()) {
     auto line_read = proc_jt9.readLine ();
     if (dedup_on && line_read.size() >= 42
@@ -4605,8 +4726,8 @@ void MainWindow::readFromStdout()                             //readFromStdout
     // Don't allow a7 decodes during the first period because they can be leftovers from the previous band
     if (!(no_a7_decodes && line_read.contains("a7"))) {
 
-    if (m_mode!="FT8" and m_mode!="FT4" and !m_mode.startsWith ("FST4") and m_mode!="Q65") {
-      //Pad 22-char msg to at least 37 chars
+    if (m_mode!="FT8" and m_mode!="FT4" and m_mode!="FT2" and !m_mode.startsWith ("FST4") and m_mode!="Q65") {
+      //Pad 22-char msg to at least 37 chars. FT2 already uses a37 in lib/decoder.f90:1908.
       line_read = line_read.left(44) + "              " + line_read.mid(44);
     }
     bool bAvgMsg=false;
@@ -4690,6 +4811,33 @@ void MainWindow::readFromStdout()                             //readFromStdout
         }
       DecodedText decodedtext0 {QString::fromUtf8(line_read.constData())};
       DecodedText decodedtext {QString::fromUtf8(line_read.constData()).remove("TU; ")};
+      // Decode > Reduce false decodes (FDR step 2, ported from wsjtx-improved 6208-6224).
+      // Drop FT8 messages that match known false-decode signatures at low SNR. Only in
+      // SpecOp::NONE (regular QSO mode) — leaves contests/Fox/Hound paths untouched.
+      if (m_mode=="FT8" && m_specOp==SpecOp::NONE
+          && ui->actionReduce_false_decodes->isChecked()) {
+        QString const& m0 = decodedtext.string();
+        int const snr = decodedtext.snr();
+        bool const drop_far_dt   = (m0.contains("3.") || m0.contains("2."));   // |dt| > 1.9
+        bool const fdr_step2 =
+            (((m0.contains("/P ") && m0.contains(" R "))                       // /P and R
+              || (m0.contains(";")    && m0.contains("/R "))                   // ; and /R
+              || (m0.contains(";")    && m0.contains("/P "))                   // ; and /P
+              || (m0.contains("<...>") && m0.contains(" R "))                  // hash and R
+              || (m0.contains("<...>") && m0.contains("/P "))                  // hash and /P
+              || (m0.contains("<...>") && m0.contains(";"))                    // hash and ;
+              || m0.contains(QRegularExpression {"\\w\\w\\w\\w\\w\\w\\w\\w"})  // 8-char invalid call
+              || m0.contains(QRegularExpression {"\\d\\d\\d \\d\\d\\d"})       // contest msg
+              || drop_far_dt)
+             && (snr < -15))
+            || ((m0.contains("/R ") || m0.contains(" R ")) && snr < -18)       // /R / contest call
+            || (((m0.contains("<...>") || m0.contains(";")
+                  || m0.contains("? a")
+                  || m0.contains("/R ") || m0.contains(" R ")
+                  || snr < -20)
+                 && drop_far_dt));
+        if (fdr_step2) continue;
+      }
       // Z
       auto isFiltered = callsignFiltered(decodedtext0);
       addSlot(decodedtext.frequencyOffset());
@@ -4868,10 +5016,26 @@ void MainWindow::readFromStdout()                             //readFromStdout
                   state = stateLookup(deCall);
               }
 
-              ui->decodedTextBrowser->displayDecodedText(decodedtext1,m_baseCall,m_mode,dxcc,
-                                                         m_logBook,m_currentBand,m_config.ppfx(),
-                                                         ui->cbCQonly->isVisible() && ui->cbCQonly->isChecked(),
-                                                         haveFSpread, fSpread, bDisplayPoints, m_points, ui->cbCQonlyIncl73->isChecked(), m_config.colourAll(), distance, state, isFiltered);
+              // Decode > Hide AP information: strip AP markers ("a1".."a9", optional
+              // leading "? ", and Q65 "q1..q9[0-9*]?") before display. Anchored on a
+              // leading whitespace + word boundary so we do NOT mangle callsigns that
+              // happen to contain "a1".."a9" as a substring (e.g., PA1ABC, LA2XYZ).
+              if (ui->actionHide_AP_info->isVisible() && ui->actionHide_AP_info->isChecked()) {
+                  static QRegularExpression const kReAP {
+                      R"(\s+(?:\?\s+)?(?:a[1-9]|q[1-9][0-9*]?)\b)"};
+                  QString stripped = line_read;
+                  stripped.replace(kReAP, "");
+                  DecodedText decodedtextNoAP {stripped};
+                  ui->decodedTextBrowser->displayDecodedText(decodedtextNoAP,m_baseCall,m_mode,dxcc,
+                                                             m_logBook,m_currentBand,m_config.ppfx(),
+                                                             ui->cbCQonly->isVisible() && ui->cbCQonly->isChecked(),
+                                                             haveFSpread, fSpread, bDisplayPoints, m_points, ui->cbCQonlyIncl73->isChecked(), m_config.colourAll(), distance, state, isFiltered);
+              } else {
+                  ui->decodedTextBrowser->displayDecodedText(decodedtext1,m_baseCall,m_mode,dxcc,
+                                                             m_logBook,m_currentBand,m_config.ppfx(),
+                                                             ui->cbCQonly->isVisible() && ui->cbCQonly->isChecked(),
+                                                             haveFSpread, fSpread, bDisplayPoints, m_points, ui->cbCQonlyIncl73->isChecked(), m_config.colourAll(), distance, state, isFiltered);
+              }
 
               if (ui->dxCallEntry->text() == deCall && m_config.highlightDX())
               {
@@ -5049,6 +5213,10 @@ void MainWindow::readFromStdout()                             //readFromStdout
       if(m_mode=="FT8" and SpecOp::HOUND==m_specOp) {
         if(decodedtext.string().contains(";")) {
           QStringList w=decodedtext.string().mid(24).split(" ",SkipEmptyParts);
+          // Guard against crafted/short messages: indices 0..4 are accessed below.
+          // Without this, an OTA-decoded ";"-bearing message with <5 words throws
+          // std::out_of_range out of the Qt slot and terminates wsjtx.
+          if (w.size() < 5) return;
           QString foxCall=w.at(3);
           foxCall=foxCall.remove("<").remove(">");
           if(w.at(0)==my_call or w.at(0)==Radio::base_callsign(my_call)) {
@@ -6604,11 +6772,17 @@ void MainWindow::processMessage (DecodedText const& message, Qt::KeyboardModifie
 
     QStringList t=message.clean_string ().split(' ', SkipEmptyParts);
     int n=t.size();
-    QString t0=t.at(n-2);
-    QString t1=t0.right(1);
-    bool bFieldDay_msg = (t1>="A" and t1<="F" and t0.size()<=3 and n>=9);
-    int m=t0.remove(t1).toInt();
-    if(m < 1) bFieldDay_msg=false;
+    // Field Day exchange needs n>=9 (validated below), but the original code
+    // unconditionally accessed t.at(n-2) which crashes on a 0/1-word OTA message.
+    bool bFieldDay_msg = false;
+    QString t0;
+    if (n >= 2) {
+      t0=t.at(n-2);
+      QString t1=t0.right(1);
+      bFieldDay_msg = (t1>="A" and t1<="F" and t0.size()<=3 and n>=9);
+      int m=t0.remove(t1).toInt();
+      if(m < 1) bFieldDay_msg=false;
+    }
     if(bFieldDay_msg) {
       m_xRcvd=t.at(n-2) + " " + t.at(n-1);
       t0=t.at(n-3);
@@ -6627,7 +6801,10 @@ void MainWindow::processMessage (DecodedText const& message, Qt::KeyboardModifie
     if((SpecOp::EU_VHF==m_specOp or SpecOp::RTTY==m_specOp or SpecOp::FIELD_DAY==m_specOp)
         and message.string().contains("<...>")) return;
 
-    if(SpecOp::EU_VHF==m_specOp and message_words.at(2).contains(m_baseCall) and
+    // EU_VHF path accesses message_words.at(3); the only guarantee at this point
+    // is size>=3 (line 6670). A 3-word OTA message would crash here without this check.
+    if(SpecOp::EU_VHF==m_specOp and message_words.size() > 3
+       and message_words.at(2).contains(m_baseCall) and
        (!message_words.at(3).contains(qso_partner_base_call)) and (!m_bDoubleClicked)) {
       return;
     }
@@ -9319,6 +9496,10 @@ void MainWindow::setXIT(int n, Frequency base)
 
 void MainWindow::setFreq4(int rxFreq, int txFreq)
 {
+  // Decode > Disable clicks on waterfall (Q65 only). Alt-click bypasses the guard.
+  if (m_mode=="Q65" && ui->actionDisable_clicks_on_waterfall->isVisible()
+      && ui->actionDisable_clicks_on_waterfall->isChecked()
+      && !(Qt::AltModifier & QApplication::keyboardModifiers ())) return;
   if (m_mode=="ECHO") return; // we do not adjust rx/tx for echo mode -- always 1500Hz
 
   if(m_mode=="FT8" and m_config.superFox() and (m_specOp == SpecOp::HOUND) and
@@ -9758,7 +9939,8 @@ void MainWindow::transmitDisplay (bool transmitting)
   if (transmitting == m_transmitting) {
     if (transmitting) {
       ui->signal_meter_widget->setValue(0,0);
-      if (m_monitoring) monitor (false);
+      // Decode > Full Duplex Mode: keep monitoring while transmitting (allows RX during TX).
+      if (m_monitoring && !ui->actionFull_Duplex_Mode->isChecked()) monitor (false);
       m_btxok=true;
     }
 
@@ -13630,8 +13812,8 @@ void MainWindow::resetAutoSwitch() {
 int MainWindow::watchdog() {
     if (m_config.wd_Timer()) {
         if (m_mode == "FT8") return m_config.wd_FT8();
-        if ((m_mode=="FT4" or m_mode=="FT2")) return m_config.wd_FT4();
         if (m_mode == "FT2") return m_config.wd_FT2();
+        if (m_mode == "FT4") return m_config.wd_FT4();
     }
     return m_config.watchdog();
 }

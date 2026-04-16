@@ -386,6 +386,26 @@ private slots:
      void on_actionMT11_triggered();
      void on_actionMT12_triggered();
      void on_actionUse_multithreaded_FT8_decoder_toggled(bool b);
+     // Decode > Parameters > Decoder sensitivity (FT8): radio group, value 1/2/3
+     void on_actionFT8SensMin_toggled(bool checked);
+     void on_actionlowFT8thresholds_toggled(bool checked);
+     void on_actionFT8subpass_toggled(bool checked);
+     // Decode > Parameters > Decoder start (FT8): radio group, value 0..4
+     void on_actionStartTwoStage_toggled(bool checked);
+     void on_actionStartThreeStage_toggled(bool checked);
+     void on_actionStartEarly_toggled(bool checked);
+     void on_actionStartNormal_toggled(bool checked);
+     void on_actionStartLate_toggled(bool checked);
+     // Decode > Parameters > QSO RX freq sensitivity: radio group, value 1/2/3
+     void on_actionRXfLow_triggered();
+     void on_actionRXfMedium_triggered();
+     void on_actionRXfHigh_triggered();
+     // Decode > Parameters > Decoding cycles: radio group, value 1/2/3
+     void on_actionDecFT8cycles1_triggered();
+     void on_actionDecFT8cycles2_triggered();
+     void on_actionDecFT8cycles3_triggered();
+     // Decode > Wideband DX Call search
+     void on_actionFT8WidebandDXCallSearch_toggled(bool checked);
      void on_btn_addToIgnore_clicked();
      void on_btn_clearIgnore_clicked();
      void on_actionIgnore_station_triggered();
@@ -480,6 +500,20 @@ private:
   // Parallel FT8 decoder thread count (0 = OpenMP auto-detect; 1..12 = pinned).
   // Bound to the Decode > Parameters > Number of threads radio menu.
   int m_ft8threads = 0;
+
+  // FT8 decoder sensitivity (Decode > Parameters > Decoder sensitivity).
+  // 1 = Min (lft8lowth=false), 2 = low thresholds, 3 = subpass (default).
+  qint32 m_ft8Sensitivity = 3;
+  // FT8 decoder start time (Decode > Parameters > Decoder start).
+  // 0 = 2-Stage, 1 = 3-Stage, 2 = Early, 3 = Normal (default), 4 = Late.
+  qint32 m_ft8DecoderStart = 3;
+  // QSO RX frequency sensitivity (Decode > Parameters > QSO RX freq sensitivity).
+  // 1 = Low, 2 = Medium (default), 3 = High.
+  qint32 m_nFT8RXfSens = 2;
+  // FT8 decoding cycles (Decode > Parameters > Decoding cycles). 1, 2, or 3 (default).
+  qint32 m_nFT8Cycles = 3;
+  // Wideband DX call search (Decode > Wideband DX Call search). Drives dec_data.params.lwidedxcsearch.
+  bool m_FT8WideDxCallSearch = false;
 
   // Cached state of actionWSJT_Z_Debug to avoid widget lookup on every log() call.
   // Updated by the action's toggled signal in the ctor. Hot-path log() sites should

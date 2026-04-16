@@ -180,21 +180,30 @@ void LogQSO::initLogQSO(QString const& hisCall, QString const& hisGrid, QString 
 
 void LogQSO::accept()
 {
-  auto hisCall = ui->call->text ();
-  auto hisGrid = ui->grid->text ();
-  auto mode = ui->mode->text ();
-  auto rptSent = ui->sent->text ();
-  auto rptRcvd = ui->rcvd->text ();
+  // Strip CR/LF/TAB and other control chars from any text field that flows into
+  // the CSV log, ADIF record, or UDP broadcast. A decoded message (or pasted
+  // text) containing newlines would inject spurious CSV rows / ADIF records and
+  // corrupt downstream parsers (N1MM+, gridtracker). Apply at the boundary so
+  // every consumer sees clean data.
+  auto sanitize = [](QString s) {
+    static QRegularExpression const kReCtrl {QStringLiteral("[\\x00-\\x1F\\x7F]")};
+    return s.replace(kReCtrl, QString {});
+  };
+  auto hisCall = sanitize(ui->call->text ());
+  auto hisGrid = sanitize(ui->grid->text ());
+  auto mode = sanitize(ui->mode->text ());
+  auto rptSent = sanitize(ui->sent->text ());
+  auto rptRcvd = sanitize(ui->rcvd->text ());
   auto dateTimeOn = ui->start_date_time->dateTime ();
   auto dateTimeOff = ui->end_date_time->dateTime ();
-  auto band = ui->band->text ();
-  auto name = ui->name->text ();
-  m_txPower = ui->txPower->text ();
-  m_comments = ui->comments->text ();
+  auto band = sanitize(ui->band->text ());
+  auto name = sanitize(ui->name->text ());
+  m_txPower = sanitize(ui->txPower->text ());
+  m_comments = sanitize(ui->comments->text ());
   auto strDialFreq = QString::number (m_dialFreq / 1.e6,'f',6);
-  auto operator_call = ui->loggedOperator->text ();
-  auto xsent = ui->exchSent->text ();
-  auto xrcvd = ui->exchRcvd->text ();
+  auto operator_call = sanitize(ui->loggedOperator->text ());
+  auto xsent = sanitize(ui->exchSent->text ());
+  auto xrcvd = sanitize(ui->exchRcvd->text ());
 
   using SpOp = Configuration::SpecialOperatingActivity;
   auto special_op = m_config->special_op_id ();
@@ -231,7 +240,20 @@ void LogQSO::accept()
           return;               // without accepting
         }
 
-      if (!m_log->contest_log ()->add_QSO (m_dialFreq, mode, dateTimeOff, hisCall, xsent, xrcvd))
+      // qt_db_helpers SQL_error_check throws std::runtime_error on SQL failure;
+      // letting it propagate up through the Qt slot chain terminates the process
+      // (observed as: spinning cursor for ~1s then WSJT-Z disappears, jt9 kept
+      // running). Convert to a user-visible warning so the dialog stays alive.
+      bool added = false;
+      try {
+        added = m_log->contest_log ()->add_QSO (m_dialFreq, mode, dateTimeOff, hisCall, xsent, xrcvd);
+      } catch (std::exception const& e) {
+        show ();
+        MessageBox::warning_message (this, tr ("Contest Log Error"),
+                                     tr ("Failed to record QSO: %1").arg (e.what ()));
+        return;               // without accepting
+      }
+      if (!added)
         {
           show ();
           MessageBox::warning_message (this, tr ("Invalid QSO Data"),

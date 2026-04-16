@@ -4734,37 +4734,90 @@ list. The list can be maintained in Settings (F2).</string>
     <property name="title">
      <string>Decode</string>
     </property>
-    <widget class="QMenu" name="menuFT8_threads">
+    <widget class="QMenu" name="menuParameters">
      <property name="title">
-      <string>Number of FT8 threads</string>
+      <string>Parameters</string>
      </property>
-     <addaction name="actionMTAuto"/>
-     <addaction name="actionMT1"/>
-     <addaction name="actionMT2"/>
-     <addaction name="actionMT3"/>
-     <addaction name="actionMT4"/>
-     <addaction name="actionMT5"/>
-     <addaction name="actionMT6"/>
-     <addaction name="actionMT7"/>
-     <addaction name="actionMT8"/>
-     <addaction name="actionMT9"/>
-     <addaction name="actionMT10"/>
-     <addaction name="actionMT11"/>
-     <addaction name="actionMT12"/>
+     <widget class="QMenu" name="menuDecoder_sensitivity">
+      <property name="title">
+       <string>Decoder sensitivity</string>
+      </property>
+      <addaction name="actionFT8SensMin"/>
+      <addaction name="actionlowFT8thresholds"/>
+      <addaction name="actionFT8subpass"/>
+     </widget>
+     <widget class="QMenu" name="menuDecoder_start">
+      <property name="title">
+       <string>Decoder start</string>
+      </property>
+      <addaction name="actionStartTwoStage"/>
+      <addaction name="actionStartThreeStage"/>
+      <addaction name="actionStartEarly"/>
+      <addaction name="actionStartNormal"/>
+      <addaction name="actionStartLate"/>
+     </widget>
+     <widget class="QMenu" name="menuFT8_threads">
+      <property name="title">
+       <string>Number of FT8 threads</string>
+      </property>
+      <addaction name="actionMTAuto"/>
+      <addaction name="actionMT1"/>
+      <addaction name="actionMT2"/>
+      <addaction name="actionMT3"/>
+      <addaction name="actionMT4"/>
+      <addaction name="actionMT5"/>
+      <addaction name="actionMT6"/>
+      <addaction name="actionMT7"/>
+      <addaction name="actionMT8"/>
+      <addaction name="actionMT9"/>
+      <addaction name="actionMT10"/>
+      <addaction name="actionMT11"/>
+      <addaction name="actionMT12"/>
+     </widget>
+     <widget class="QMenu" name="menuQSO_RX_freq_sensitivity">
+      <property name="title">
+       <string>QSO RX freq sensitivity</string>
+      </property>
+      <addaction name="actionRXfLow"/>
+      <addaction name="actionRXfMedium"/>
+      <addaction name="actionRXfHigh"/>
+     </widget>
+     <widget class="QMenu" name="menuDecoding_cycles">
+      <property name="title">
+       <string>Decoding cycles</string>
+      </property>
+      <addaction name="actionDecFT8cycles1"/>
+      <addaction name="actionDecFT8cycles2"/>
+      <addaction name="actionDecFT8cycles3"/>
+     </widget>
+     <addaction name="menuDecoder_sensitivity"/>
+     <addaction name="menuDecoder_start"/>
+     <addaction name="menuFT8_threads"/>
+     <addaction name="menuQSO_RX_freq_sensitivity"/>
+     <addaction name="menuDecoding_cycles"/>
     </widget>
     <addaction name="actionQuickDecode"/>
     <addaction name="actionMediumDecode"/>
     <addaction name="actionDeepestDecode"/>
     <addaction name="separator"/>
     <addaction name="actionUse_multithreaded_FT8_decoder"/>
-    <addaction name="menuFT8_threads"/>
+    <addaction name="menuParameters"/>
     <addaction name="separator"/>
     <addaction name="actionInclude_averaging"/>
     <addaction name="actionInclude_correlation"/>
     <addaction name="actionEnable_AP_FT8"/>
     <addaction name="actionEnable_AP_JT65"/>
     <addaction name="actionEnable_AP_DXcall"/>
+    <addaction name="actionHide_AP_info"/>
     <addaction name="actionAuto_Clear_Avg"/>
+    <addaction name="actionDisable_clicks_on_waterfall"/>
+    <addaction name="actionReduce_false_decodes"/>
+    <addaction name="separator"/>
+    <addaction name="actionFT8WidebandDXCallSearch"/>
+    <addaction name="actionHide_FT8_dupe_messages"/>
+    <addaction name="actionNo_MTD_a8_decodes"/>
+    <addaction name="separator"/>
+    <addaction name="actionFull_Duplex_Mode"/>
    </widget>
    <widget class="QMenu" name="menuSave">
     <property name="title">
@@ -4882,6 +4935,27 @@ list. The list can be maintained in Settings (F2).</string>
   <action name="actionMT10"><property name="checkable"><bool>true</bool></property><property name="text"><string>10</string></property></action>
   <action name="actionMT11"><property name="checkable"><bool>true</bool></property><property name="text"><string>11</string></property></action>
   <action name="actionMT12"><property name="checkable"><bool>true</bool></property><property name="text"><string>12</string></property></action>
+  <action name="actionFT8SensMin"><property name="checkable"><bool>true</bool></property><property name="text"><string>Minimum</string></property></action>
+  <action name="actionlowFT8thresholds"><property name="checkable"><bool>true</bool></property><property name="text"><string>Use low thresholds</string></property></action>
+  <action name="actionFT8subpass"><property name="checkable"><bool>true</bool></property><property name="checked"><bool>true</bool></property><property name="text"><string>Use subpass</string></property></action>
+  <action name="actionStartTwoStage"><property name="checkable"><bool>true</bool></property><property name="text"><string>2-Stage</string></property></action>
+  <action name="actionStartThreeStage"><property name="checkable"><bool>true</bool></property><property name="text"><string>3-Stage</string></property></action>
+  <action name="actionStartEarly"><property name="checkable"><bool>true</bool></property><property name="text"><string>Early</string></property></action>
+  <action name="actionStartNormal"><property name="checkable"><bool>true</bool></property><property name="checked"><bool>true</bool></property><property name="text"><string>Normal</string></property></action>
+  <action name="actionStartLate"><property name="checkable"><bool>true</bool></property><property name="text"><string>Late</string></property></action>
+  <action name="actionRXfLow"><property name="checkable"><bool>true</bool></property><property name="text"><string>Low</string></property></action>
+  <action name="actionRXfMedium"><property name="checkable"><bool>true</bool></property><property name="checked"><bool>true</bool></property><property name="text"><string>Medium</string></property></action>
+  <action name="actionRXfHigh"><property name="checkable"><bool>true</bool></property><property name="text"><string>High</string></property></action>
+  <action name="actionDecFT8cycles1"><property name="checkable"><bool>true</bool></property><property name="text"><string>1</string></property></action>
+  <action name="actionDecFT8cycles2"><property name="checkable"><bool>true</bool></property><property name="text"><string>2</string></property></action>
+  <action name="actionDecFT8cycles3"><property name="checkable"><bool>true</bool></property><property name="checked"><bool>true</bool></property><property name="text"><string>3</string></property></action>
+  <action name="actionDisable_clicks_on_waterfall"><property name="checkable"><bool>true</bool></property><property name="text"><string>Disable clicks on waterfall</string></property></action>
+  <action name="actionReduce_false_decodes"><property name="checkable"><bool>true</bool></property><property name="text"><string>Reduce false decodes</string></property></action>
+  <action name="actionHide_AP_info"><property name="checkable"><bool>true</bool></property><property name="text"><string>Hide AP information</string></property></action>
+  <action name="actionFT8WidebandDXCallSearch"><property name="checkable"><bool>true</bool></property><property name="text"><string>Wideband DX Call search</string></property></action>
+  <action name="actionHide_FT8_dupe_messages"><property name="checkable"><bool>true</bool></property><property name="checked"><bool>true</bool></property><property name="text"><string>Hide FT8 dupe messages</string></property></action>
+  <action name="actionNo_MTD_a8_decodes"><property name="checkable"><bool>true</bool></property><property name="text"><string>Skip a8 decodes</string></property></action>
+  <action name="actionFull_Duplex_Mode"><property name="checkable"><bool>true</bool></property><property name="text"><string>Full Duplex Mode</string></property></action>
   <action name="actionWide_Waterfall">
    <property name="text">
     <string>Waterfall</string>
