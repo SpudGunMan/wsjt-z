@@ -4,6 +4,7 @@
 
 #include <QWidget>
 #include <QMap>
+#include <QTimer>
 
 class QSettings;
 class QFont;
@@ -55,6 +56,13 @@ private:
   QSettings * settings_;
   QString m_textbuffer="";                      // F/H mode band decodes
   QMap<int, QString> m_decodes_by_frequency;    // store decodes for F/H band awareness by frequency
+
+  // Coalesces redraws: on a busy band addLine() fires many times per second;
+  // doing a full rebuild + QTextEdit setPlainText() each call stalls the UI.
+  // The map is updated synchronously so reads are fresh; the display refresh
+  // is deferred to the next timer tick.
+  QTimer m_refreshTimer;
+  void flushDisplay();
 
   QScopedPointer<Ui::ActiveStations> ui;
 };

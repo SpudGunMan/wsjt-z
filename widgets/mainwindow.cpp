@@ -805,7 +805,7 @@ MainWindow::MainWindow(QDir const& temp_directory, bool multiple,
       if (m_pskReporterView) m_pskReporterView->setFont(font);
     });
 
-  setWindowTitle (program_title () +  " (WSJT-Z MOD v2.0.5 by SQ9FVE)") ;
+  setWindowTitle (program_title () +  " (WSJT-Z MOD v2.0.6 by SQ9FVE)") ;
 
 
   connect(&proc_jt9, &QProcess::readyReadStandardOutput, this, &MainWindow::readFromStdout);
@@ -3948,7 +3948,11 @@ void MainWindow::decode()                                       //decode()
 {
   if(m_decoderBusy) return;                          //Don't start decoder if it's already busy.
   m_fetched=0;
-  earlyDecodes = "";   // reset per-cycle dedup buffer for FT8 multi-thread output
+  // NOTE: earlyDecodes is intentionally NOT cleared here. decode() is called
+  // twice per cycle in MTD (at m_earlyDecode and again at m_hsymStop); clearing
+  // at entry wiped the buffer before the final pass could dedup against early-
+  // pass results. The buffer is now reset on 15-second period boundaries in
+  // guiUpdate() (mirrors wsjtx-improved:8296) and in read_wav_file().
   QDateTime now = QDateTime::currentDateTimeUtc ();
   if( m_dateTimeLastTX.isValid () ) {
     qint64 isecs_since_tx = m_dateTimeLastTX.secsTo(now);
@@ -4336,26 +4340,46 @@ void MainWindow::refreshPileupList()
 
 void MainWindow::read_log()
 {
-  static QFile f {QDir {QStandardPaths::writableLocation (QStandardPaths::DataLocation)}.absoluteFilePath ("wsjtx.log")};
-  f.open(QIODevice::ReadOnly);
-  if(f.isOpen()) {
-    QTextStream in(&f);
-    QString line,callsign;
-    for(int i=0; i<99999; i++) {
-      line=in.readLine();
-      if(line.length()<=0) break;
-      callsign=line.mid(40,6);
-      int n=callsign.indexOf(",");
-      if(n>0) callsign=callsign.left(n);
-      m_EMEworked[callsign]=true;
-      m_score++;
+  // Parse wsjtx.log off the UI thread. On accounts with years of QSOs this
+  // scan can stall startup for hundreds of ms; running it async lets the
+  // main window paint immediately and the score updates when results arrive.
+  // Called once from the ctor (Q65 mode only) before any QSO can be logged,
+  // so there is no writer racing us on m_EMEworked / m_score.
+  auto const path = QDir {QStandardPaths::writableLocation (QStandardPaths::DataLocation)}
+                    .absoluteFilePath ("wsjtx.log");
+  using Result = QPair<QHash<QString, bool>, int>;
+  auto * watcher = new QFutureWatcher<Result> (this);
+  connect (watcher, &QFutureWatcherBase::finished, this, [this, watcher] () {
+    auto const result = watcher->result ();
+    for (auto it = result.first.constBegin (); it != result.first.constEnd (); ++it) {
+      m_EMEworked[it.key ()] = it.value ();
     }
-    f.close();
-  }
-  if(m_ActiveStationsWidget!=NULL) {
-    m_ActiveStationsWidget->setScore(m_score);
-    if(m_mode=="Q65") m_ActiveStationsWidget->setRate(m_score);
-  }
+    m_score += result.second;
+    if (m_ActiveStationsWidget != NULL) {
+      m_ActiveStationsWidget->setScore (m_score);
+      if (m_mode == "Q65") m_ActiveStationsWidget->setRate (m_score);
+    }
+    watcher->deleteLater ();
+  });
+  watcher->setFuture (QtConcurrent::run ([path] () {
+    QHash<QString, bool> worked;
+    int score = 0;
+    QFile f {path};
+    if (f.open (QIODevice::ReadOnly)) {
+      QTextStream in (&f);
+      QString line, callsign;
+      for (int i = 0; i < 99999; ++i) {
+        line = in.readLine ();
+        if (line.length () <= 0) break;
+        callsign = line.mid (40, 6);
+        int n = callsign.indexOf (",");
+        if (n > 0) callsign = callsign.left (n);
+        worked[callsign] = true;
+        ++score;
+      }
+    }
+    return qMakePair (worked, score);
+  }));
 }
 
 void MainWindow::ARRL_Digi_Update(DecodedText dt)
@@ -5556,6 +5580,21 @@ void MainWindow::guiUpdate()
   m_s6=fmod(tsec,6.0);
   int nseq = fmod(double(nsec),m_TRperiod);
   m_tRemaining=m_TRperiod - fmod(tsec,m_TRperiod);
+
+  // Reset FT8 MTD dedup buffer on period boundaries (~2 s before the cycle's
+  // early decode fires). Mirrors wsjtx-improved:8296. Paired with removing the
+  // reset inside decode(), which was wiping the buffer between the early and
+  // final passes of the SAME cycle.
+  if (m_mode == "FT8") {
+    int const s_in_min = nsec % 60;
+    if (s_in_min == 10 || s_in_min == 25 || s_in_min == 40 || s_in_min == 55) {
+      static int s_lastReset = -1;
+      if (s_in_min != s_lastReset) {
+        earlyDecodes = "";
+        s_lastReset = s_in_min;
+      }
+    }
+  }
 
   if(m_mode=="Echo") {
     tx1=0.0;

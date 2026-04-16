@@ -24,6 +24,15 @@
 #include "qt_helpers.hpp"
 #include "moc_displaytext.cpp"
 
+// Regexes compiled once and reused across every decoded-line render. Constructing
+// QRegularExpression on each call of displayDecodedText() measurably dominates the
+// display hot path on busy FT8 bands.
+static QRegularExpression const kReGrid {
+    QStringLiteral("\\A(?![Rr]{2}73)[A-Ra-r]{2}[0-9]{2}([A-Xa-x]{2}){0,1}\\z")};
+static QRegularExpression const kReRemoveExtra {QStringLiteral(R"(\? a[1-9]|a[1-9])")};
+static QRegularExpression const kReAPPos {
+    QStringLiteral(R"((?:\?\s)?(?:a[0-9]|q[0-9][0-9*]?)$)")};
+
 DisplayText::DisplayText(QWidget *parent)
   : QTextEdit(parent)
   , m_config {nullptr}
@@ -483,15 +492,12 @@ void DisplayText::displayDecodedText(DecodedText const& decodedText, QString con
   QString dxCall;
   QString dxGrid;
   decodedText.deCallAndGrid (/*out*/ dxCall, dxGrid);
-  QRegularExpression grid_regexp {"\\A(?![Rr]{2}73)[A-Ra-r]{2}[0-9]{2}([A-Xa-x]{2}){0,1}\\z"};
-  if(!dxGrid.contains(grid_regexp)) dxGrid="";
+  if(!dxGrid.contains(kReGrid)) dxGrid="";
   message = message.left (message.indexOf (QChar::Nbsp)).trimmed ();
 
   // Z
   if (m_config->removeExtra()) {
-
-      QRegularExpression regexa(R"(\? a[1-9]|a[1-9])");
-      message.replace(regexa, "");
+      message.replace(kReRemoveExtra, "");
       message = message.trimmed();
   }
 
@@ -500,7 +506,7 @@ void DisplayText::displayDecodedText(DecodedText const& decodedText, QString con
     {
       extra += QString {"%1"}.arg (fSpread, 5, 'f', fSpread < 0.95 ? 3 : 2) + QChar {' '};
     }
-  auto ap_pos = message.lastIndexOf (QRegularExpression {R"((?:\?\s)?(?:a[0-9]|q[0-9][0-9*]?)$)"});
+  auto ap_pos = message.lastIndexOf (kReAPPos);
   if (ap_pos >= 0)
     {
       extra += message.mid (ap_pos) + QChar {' '};

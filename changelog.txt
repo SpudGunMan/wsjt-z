@@ -1,15 +1,27 @@
 == Changelog
+V2.0.6
+[fixes]
+- Fixed FT8 MTD duplicate decodes: the earlyDecodes dedup buffer was being cleared at the top of decode(), which runs twice per cycle in multi-threaded mode — wiping the buffer between the early-pass and final-pass, so dedup never worked. Reset moved to a period boundary in guiUpdate() (seconds 10/25/40/55, ~2s before the next cycle's early decode), matching wsjtx-improved
+- jt9 no longer survives a wsjtx crash on Windows: proc_jt9 is now assigned to a Job Object with JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE, so when wsjtx exits for any reason (clean, crash, Task Manager kill) Windows terminates jt9 automatically
+
+[performance]
+- Cached hot-path regexes in displaytext.cpp (grid_regexp, AP-info stripper, AP-position locator) as file-scope statics — previously recompiled on every decoded line
+- Cached " 30[ABCD] " regex in activeStations.cpp display loop
+- Batched ActiveStations redraws via a 300ms single-shot QTimer: addLine() now only updates the internal map; the full QTextEdit rebuild+repaint happens at most once per tick (previously every decoded line), fixing UI stalls on crowded FT8 bands. Also fixed a latent bug where addLine wrote to a local variable shadowing the member
+- read_log() (Q65 startup scan of wsjtx.log) moved to QtConcurrent so the main window paints immediately; results merged on the UI thread via QFutureWatcher
+
+[features]
+- Version bumped to 2.0.6
+
 V2.0.5
 [fixes]
-- Fixed FT2 decoded-line display: SNR digits were split (e.g. "-15" rendered as "-              15Spain") because FT2 was missing from the 22→37-char message-padding exclusion list (mainwindow.cpp:4721)
-- Fixed ARRL Digi crash on QSO confirm: hardened activeWorked() against missing m_activeCall entries (compound calls like W1AW/5 default-constructed an empty bands buffer that crashed on QByteArray write); also wrapped CabrilloLog::add_QSO in try/catch so SQL failures show a warning instead of silently terminating the process
-- Restored full m_ft8DecoderStart-conditional MTD early-decode guards (previously simplified for the hardcoded ndecoderstart=3 path)
+- Fixed FT2 decoded-line display: SNR digits were split (e.g. "-15" rendered as "-              15Spain") 
+- Fixed ARRL Digi crash on QSO confirm
 - Fixed FT2 fixStop() so m_hsymStop and m_earlyDecode2 follow the Decoder start setting
 
 [features]
-- Bumped to GA release (was RC7)
 - Upgraded bundled Hamlib from 4.5.5 to 4.7.1 (both 32-bit and 64-bit installers)
-- Ported the full wsjtx-improved Decode menu:
+- Ported the full Decode menu:
   - New "Parameters" submenu containing:
     * Decoder sensitivity (Minimum / Use low thresholds / Use subpass)
     * Decoder start (2-Stage / 3-Stage / Early / Normal / Late)
@@ -17,7 +29,7 @@ V2.0.5
     * QSO RX freq sensitivity (Low / Medium / High)
     * Decoding cycles (1 / 2 / 3)
   - New top-level toggles: Hide AP information, Disable clicks on waterfall, Reduce false decodes, Wideband DX Call search, Hide FT8 dupe messages, Skip a8 decodes, Full Duplex Mode
-  - All toggles persist via QSettings; Hide FT8 dupes is on by default
+
 
 [security]
 - Added bounds checks in Hound foxRxSequencer (mainwindow.cpp:5215), EU_VHF processMessage (6798), and Field Day exchange parser (6773) — a crafted/malformed signal with too few words could previously crash wsjtx via uncaught std::out_of_range from a Qt slot

@@ -5,12 +5,16 @@
 #include <QTextCharFormat>
 #include <QDateTime>
 #include <QDebug>
+#include <QRegularExpression>
 
 #include "SettingsGroup.hpp"
 #include "qt_helpers.hpp"
 #include "ui_activeStations.h"
 
 #include "moc_activeStations.cpp"
+
+// Highlight Q65-30 decodes — compile once, not per line.
+static QRegularExpression const kReQ65_30 {QStringLiteral(" 30[ABCD] ")};
 
 ActiveStations::ActiveStations(QSettings * settings, QFont const& font, QWidget *parent) :
   QWidget(parent),
@@ -26,6 +30,12 @@ ActiveStations::ActiveStations(QSettings * settings, QFont const& font, QWidget 
   connect(ui->cbReadyOnly, SIGNAL(toggled(bool)), this, SLOT(on_cbReadyOnly_toggled(bool)));
   connect(ui->cbWantedOnly, SIGNAL(toggled(bool)), this, SLOT(on_cbWantedOnly_toggled(bool)));
   connect(ui->RecentStationsPlainTextEdit, SIGNAL(cursorPositionChanged()), this, SLOT(on_textEdit_clicked()));
+
+  // Coalesce rapid addLine() calls into one redraw per tick. 300 ms keeps the
+  // window feeling live while collapsing bursts on crowded FT8 bands.
+  m_refreshTimer.setSingleShot (true);
+  m_refreshTimer.setInterval (300);
+  connect (&m_refreshTimer, &QTimer::timeout, this, &ActiveStations::flushDisplay);
 }
 
 ActiveStations::~ActiveStations()
@@ -41,23 +51,29 @@ void ActiveStations::changeFont (QFont const& font)
 }
 
 void ActiveStations::clearStations() {
+  m_refreshTimer.stop();  // drop any pending deferred redraw
   m_textbuffer.clear();
   m_decodes_by_frequency.clear();
 }
 
 void ActiveStations::addLine(QString line) {
-  QString m_textbuffer = "";
   // "012700  -1  0.2  210 ~  KJ7COA JA2HGF -14"
   unsigned freq = line.mid(16, 4).toUInt();
   m_decodes_by_frequency[freq] = line;
-  // show them in frequency order
-  QMap<int, QString>::const_iterator i = m_decodes_by_frequency.constBegin();
+  // Defer the rebuild+repaint: on a busy band this fires many times per second
+  // and the full QTextEdit re-render was stalling the UI. Coalesce into one
+  // refresh per timer tick. Timer is single-shot so rapid calls just extend
+  // the deadline slightly (only if not already pending).
+  if (!m_refreshTimer.isActive ()) m_refreshTimer.start ();
+}
+
+void ActiveStations::flushDisplay() {
   m_textbuffer.clear();
-  while (i != m_decodes_by_frequency.constEnd()) {
-    m_textbuffer.append(i.value());
-    ++i;
+  for (auto it = m_decodes_by_frequency.constBegin ();
+       it != m_decodes_by_frequency.constEnd (); ++it) {
+    m_textbuffer.append (it.value ());
   }
-  this->displayRecentStations(m_mode, m_textbuffer);
+  displayRecentStations (m_mode, m_textbuffer);
 }
 
 void ActiveStations::read_settings ()
@@ -134,7 +150,7 @@ void ActiveStations::displayRecentStations(QString mode, QString const& t)
   QTextCharFormat fmt;
   for(int i=0; i<nlines; i++) {
     i1=t.indexOf("\n",i0);
-    npos=t.indexOf(QRegularExpression(" 30[ABCD] "), i0);
+    npos=t.indexOf(kReQ65_30, i0);
     if(npos>0) {
       cursor.setPosition(npos);
       cursor.select(QTextCursor::LineUnderCursor);
