@@ -1783,15 +1783,11 @@ install (FILES
   )
 
 # ALLCALL7.TXT — JTDX callsign hash DB read by lib/ft8var/cwfilter.f90.
-# Ships to bin/ (jt9.exe's natural working dir) AND to the data dir so
-# data_dir-qualified opens resolve correctly.
+# Installed to bin/ only (matching wsjtx-orig). jt9's working directory is set
+# to m_appDir (bin/) by MainWindow so the bare-filename open resolves correctly.
 install (FILES
   ALLCALL7.TXT
   DESTINATION ${CMAKE_INSTALL_BINDIR}
-  )
-install (FILES
-  ALLCALL7.TXT
-  DESTINATION ${CMAKE_INSTALL_DATADIR}/${CMAKE_PROJECT_NAME}
   )
 
 install (DIRECTORY
@@ -1898,7 +1894,7 @@ set (CPACK_PACKAGE_DESCRIPTION_FILE "${CMAKE_SOURCE_DIR}/package_description.txt
 set (CPACK_MONOLITHIC_INSTALL 1)
 ## Z
 set (CPACK_PACKAGE_NAME "wsjtz")
-set (CPACK_PACKAGE_VERSION_Z "2.0.6")
+set (CPACK_PACKAGE_VERSION_Z "2.0.7")
 set (CPACK_PACKAGE_VERSION_MAJOR ${PROJECT_VERSION_MAJOR})
 set (CPACK_PACKAGE_VERSION_MINOR ${PROJECT_VERSION_MINOR})
 set (CPACK_PACKAGE_VERSION_PATCH "${PROJECT_VERSION_PATCH}-${CPACK_PACKAGE_VERSION_Z}")

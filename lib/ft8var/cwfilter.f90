@@ -17,13 +17,14 @@ subroutine cwfilter(first)
 !note that with new, larger ALLCALL7.TXT files, dimensions of various ncall arrays may need to be increased in jt65_mod9.f90
 !on 20250709 callj dim was increased from 9000 to 10000 when updated ALLCALL7.TXT file was added
   if(first) then
-    ! Use data_dir from prog_args so we read the user's actual ALLCALL7.TXT instead of
-    ! creating an empty stub in CWD. status='old' so a missing file errors loudly via
-    ! iostat rather than silently producing a 0-byte file that breaks future runs.
-    open(24,file=trim(data_dir)//'/ALLCALL7.TXT',status='old',action='read',iostat=ios)
+    ! Bare filename matches wsjtx-orig for merge compatibility. The C++ side
+    ! sets jt9's working directory to the install bin/ folder (m_appDir) so
+    ! this resolves to bin/ALLCALL7.TXT regardless of how wsjtx was launched.
+    ! status='old' prevents the 0-byte stub creation that status='unknown' caused.
+    open(24,file='ALLCALL7.TXT',status='old',action='read',iostat=ios)
     if(ios.ne.0) then
       ldbvalid=.false.
-      write(*,'(a)') 'ALLCALL7.TXT not found in data dir: '//trim(data_dir)
+      write(*,'(a)') 'ALLCALL7.TXT not found in working directory'
       call flush(6)
       return
     endif

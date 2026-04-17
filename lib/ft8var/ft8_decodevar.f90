@@ -322,7 +322,7 @@ contains
                 
                 if(.not.ldupe) then
                    if(.not.lFreeText .and. k.eq.1) call extract_callvar(msg37,call2)
-!!!$omp critical(update_arrays)
+!$omp critical(update_arrays)
                    ndecodes=ndecodes+1
                    allmessages(ndecodes)=msg37
                    allsnrs(ndecodes)=nsnr
@@ -340,7 +340,7 @@ contains
                          calldtodd(1)%dt=xdt
                       endif
                    endif
-!!!$omp end critical(update_arrays)
+!$omp end critical(update_arrays)
 
                    if(.not.lhidemsg) then
                       msg26=msg37(1:37) !ft8md was 1:26

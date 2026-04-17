@@ -1,4 +1,9 @@
 == Changelog
+V2.0.7
+[fixes]
+- Fixed FT8 multi-threaded decoder producing duplicate decodes of the same station on the same frequency within a single cycle (e.g. same message with SNR +1 and -18)
+- ALLCALL7.TXT now reliably found by jt9 regardless of how wsjtx is launched (jt9 working directory set to install bin/ folder)
+
 V2.0.6
 [fixes]
 - Fixed FT8 MTD duplicate decodes: the earlyDecodes dedup buffer was being cleared at the top of decode(), which runs twice per cycle in multi-threaded mode — wiping the buffer between the early-pass and final-pass, so dedup never worked. Reset moved to a period boundary in guiUpdate() (seconds 10/25/40/55, ~2s before the next cycle's early decode), matching wsjtx-improved

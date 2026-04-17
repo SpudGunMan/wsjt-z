@@ -805,7 +805,7 @@ MainWindow::MainWindow(QDir const& temp_directory, bool multiple,
       if (m_pskReporterView) m_pskReporterView->setFont(font);
     });
 
-  setWindowTitle (program_title () +  " (WSJT-Z MOD v2.0.6 by SQ9FVE)") ;
+  setWindowTitle (program_title () +  " (WSJT-Z MOD v2.0.7 by SQ9FVE)") ;
 
 
   connect(&proc_jt9, &QProcess::readyReadStandardOutput, this, &MainWindow::readFromStdout);
@@ -1076,6 +1076,10 @@ MainWindow::MainWindow(QDir const& temp_directory, bool multiple,
   QProcessEnvironment new_env {m_env};
   new_env.insert ("OMP_STACKSIZE", "4M");
   proc_jt9.setProcessEnvironment (new_env);
+  // Set jt9's working directory to the install bin/ folder so that bare-
+  // filename opens (ALLCALL7.TXT in cwfilter.f90, matching wsjtx-orig)
+  // resolve correctly regardless of how the user launched wsjtx.
+  proc_jt9.setWorkingDirectory (m_appDir);
   proc_jt9.start(QDir::toNativeSeparators (m_appDir) + QDir::separator () +
           "jt9", jt9_args, QIODevice::ReadWrite | QIODevice::Unbuffered);
 
