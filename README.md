@@ -36,8 +36,6 @@ Pre-built Windows installers and release notes are published on the GitHub **Rel
 
   → **https://github.com/sq9fve/wsjt-z/releases**
 
-(Builds for other platforms are not currently provided; build from source — see below.)
-
 ## Features
 
 ### Operating workflow
