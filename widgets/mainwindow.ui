@@ -893,8 +893,11 @@ QPushButton[state=&quot;ok&quot;] {
                 <verstretch>0</verstretch>
                </sizepolicy>
               </property>
+              <property name="focusPolicy">
+               <enum>Qt::WheelFocus</enum>
+              </property>
               <property name="toolTip">
-               <string>USB dial frequency</string>
+               <string>Click + mouse wheel to tune dial frequency in 1 kHz steps. Left/right click also tunes ±1 kHz.</string>
               </property>
               <property name="styleSheet">
                <string notr="true">QLabel {
