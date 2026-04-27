@@ -227,6 +227,7 @@ private slots:
   void on_txb6_clicked();
   void on_lookupButton_clicked();
   void on_addButton_clicked();
+  void wheelEvent(QWheelEvent *event) override;
   void mousePressEvent(QMouseEvent *event) override;
   void on_dxCallEntry_textChanged (QString const&);
   void on_dxGridEntry_textChanged (QString const&);
