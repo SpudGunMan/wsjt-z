@@ -320,7 +320,27 @@ QByteArray HamlibTransceiver::impl::get_conf (char const * item)
   QByteArray value {128, '\0'};
   if (RIG_CONF_END != token)	// only get if valid for rig model
     {
-      error_check (rig_get_conf (rig_.data (), token, value.data ()), tr ("getting a configuration item"));
+      #if defined(RIG_FUNCTION_GET_CONF2)
+            error_check (rig_get_conf2 (rig_.data (), token, value.data (), value.size ()),
+                        tr ("getting a configuration item"));
+      #else
+      #if defined(__clang__)
+      // Hamlib's rig_get_conf is deprecated use it if rig_get_conf2 is not available
+      // but suppress the deprecation warning till its not needed anymore
+      #pragma clang diagnostic push
+      #pragma clang diagnostic ignored "-Wdeprecated-declarations"
+      #elif defined(__GNUC__)
+      #pragma GCC diagnostic push
+      #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+      #endif
+            error_check (rig_get_conf (rig_.data (), token, value.data ()),
+                        tr ("getting a configuration item"));
+      #if defined(__clang__)
+      #pragma clang diagnostic pop
+      #elif defined(__GNUC__)
+      #pragma GCC diagnostic pop
+      #endif
+      #endif
     }
   return value;
 }
