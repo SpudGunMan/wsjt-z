@@ -71,33 +71,6 @@ Pre-built Windows installers and release notes are published on the GitHub **Rel
 - **NA_VHF / EU_VHF contest flows** with associated UI tweaks
 - **Modernized highlighting model** with per-band overrides
 
-## Build from source
-
-WSJT-Z is built on Windows via the JTSDK toolchain (the same one used to build upstream WSJT-X).
-
-**64-bit (recommended):**
-
-```
-cd E:\JTSDK64-Tools
-jtsdk64.cmd
-jtbuild rinstall          :: incremental build + install
-jtbuild package           :: produce a .exe installer
-```
-
-**32-bit (legacy):**
-
-```
-cd E:\JTSDK-Tools
-jtsdk-env.cmd
-jtbuild package
-```
-
-The build script reads the source path from `tmp\build.txt` (`SRCD` line). After changing the project version (`Versions.cmake`) or any CMake-level config, run `jtbuild rconfig` once to regenerate the CMake cache.
-
-Build artifacts land in `E:\JTSDK-Build\output\_\build64\` (64-bit) or `\build32\` (32-bit). The default install location is `C:\WSJT\wsjtz\bin\`.
-
-For a deeper build setup walkthrough, see the JTSDK documentation: https://github.com/KI7MT/jtsdk64-tools
-
 ## Tools
 
 The `tools/` directory contains helper scripts for project maintenance:
