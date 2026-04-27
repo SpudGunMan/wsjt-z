@@ -2683,7 +2683,7 @@ list. The list can be maintained in Settings (F2).</string>
                       <attribute name="title">
                        <string>Filtering</string>
                       </attribute>
-                      <layout class="QGridLayout" name="gridLayout">
+                      <layout class="QGridLayout" name="gridLayout_filtering">
                        <property name="leftMargin">
                         <number>4</number>
                        </property>
@@ -2951,7 +2951,7 @@ list. The list can be maintained in Settings (F2).</string>
                        </item>
                       </layout>
                      </widget>
-                     <widget class="QWidget" name="tab_4">
+                     <widget class="QWidget" name="tab_prefixes">
                       <attribute name="title">
                        <string>Prefixes</string>
                       </attribute>
@@ -3825,7 +3825,7 @@ list. The list can be maintained in Settings (F2).</string>
                    </property>
                    <item>
                     <widget class="QWidget" name="WSPR_controls_widget" native="true">
-                     <layout class="QGridLayout" name="gridLayout_9">
+                     <layout class="QGridLayout" name="horizontalLayout_wspr_controls">
                       <item row="1" column="0">
                        <spacer name="horizontalSpacer_7">
                         <property name="orientation">
