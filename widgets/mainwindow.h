@@ -954,6 +954,7 @@ private:
   bool m_transmitting;
   bool m_tune;
   bool m_tx_watchdog;           // true when watchdog triggered
+  bool m_watchdogLastSeqGrace;  // one-shot WD grace for final auto-sequence cycle
   bool m_block_pwr_tooltip;
   bool m_PwrBandSetOK;
   bool m_bDisplayedOnce;

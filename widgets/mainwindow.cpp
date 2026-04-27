@@ -467,6 +467,7 @@ MainWindow::MainWindow(QDir const& temp_directory, bool multiple,
   m_transmitting {false},
   m_tune {false},
   m_tx_watchdog {false},
+  m_watchdogLastSeqGrace {false},
   m_block_pwr_tooltip {false},
   m_PwrBandSetOK {true},
   m_lastMonitoredFrequency {default_frequency},
@@ -5763,7 +5764,15 @@ void MainWindow::guiUpdate()
     // Z
     if (watchdog() && m_mode!="WSPR" && m_mode!="FST4W"
         && m_idleMinutes >= watchdog ()) {
-      tx_watchdog (true);       // disable transmit
+      bool const final_auto_sequence = m_auto
+        && ui->cbAutoSeq->isChecked ()
+        && (m_ntx == 5 || m_QSOProgress == SIGNOFF);
+      if (final_auto_sequence && !m_watchdogLastSeqGrace) {
+        // Allow one final auto-sequence cycle before watchdog stops transmit.
+        m_watchdogLastSeqGrace = true;
+      } else {
+        tx_watchdog (true);       // disable transmit
+      }
     }
 
     double fTR=float((ms%int(1000.0*m_TRperiod)))/int(1000.0*m_TRperiod);
@@ -11044,6 +11053,7 @@ void MainWindow::tx_watchdog (bool triggered)
 {
   auto prior = m_tx_watchdog;
   m_tx_watchdog = triggered;
+  m_watchdogLastSeqGrace = false;
   if (triggered)
     {
       if (m_zdebug) log("TXWatchdog: TRUE");
