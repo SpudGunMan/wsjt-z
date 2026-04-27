@@ -591,8 +591,8 @@ void CPlotter::DrawOverlay()                   //DrawOverlay()
   int yh=5;
   int yTxTop=12;
   int yRxBottom=yTxTop + 2*yh + 4;
-  if(m_mode=="JT9" or m_mode=="JT65" or m_mode=="Q65" or m_mode=="FT8"
-     or m_mode=="FT4" or m_mode.startsWith("FST4")) {
+    if(m_mode=="JT9" or m_mode=="JT65" or m_mode=="Q65" or m_mode=="FT8"
+      or m_mode=="FT4" or m_mode=="FT2" or m_mode.startsWith("FST4")) {
 
     if(m_mode=="FST4" and !m_bSingleDecode) {
       x1=XfromFreq(m_nfa);
@@ -676,8 +676,8 @@ void CPlotter::DrawOverlay()                   //DrawOverlay()
       overPainter.drawLine(x1,0,x1,m_h); overPainter.drawLine(x2,0,x2,m_h);
     }
   }
-  if(m_mode=="JT9" or m_mode=="JT65" or m_mode.mid(0,4)=="WSPR" or m_mode=="Q65"
-     or m_mode=="FT8" or m_mode=="FT4" or m_mode.startsWith("FST4")) {
+    if(m_mode=="JT9" or m_mode=="JT65" or m_mode.mid(0,4)=="WSPR" or m_mode=="Q65"
+      or m_mode=="FT8" or m_mode=="FT4" or m_mode=="FT2" or m_mode.startsWith("FST4")) {
     painter0.setPen(penRed);
     x1=XfromFreq(m_txFreq);
     x2=XfromFreq(m_txFreq+bw);

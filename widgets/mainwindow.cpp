@@ -394,6 +394,7 @@ MainWindow::MainWindow(QDir const& temp_directory, bool multiple,
   m_btxok0 {false},
   m_nsendingsh {0},
   m_onAirFreq0 {0.0},
+  m_foxWarningDialFreq0 {0.0},
   m_first_error {true},
   tx_status_label {tr ("Receiving")},
   wsprNet {new WSPRNet {&m_network_manager, this}},
@@ -805,10 +806,20 @@ MainWindow::MainWindow(QDir const& temp_directory, bool multiple,
       if (m_pskReporterView) m_pskReporterView->setFont(font);
     });
 
-  setWindowTitle (program_title () +  " (WSJT-Z MOD v2.0.7 by SQ9FVE)") ;
+  setWindowTitle (program_title () +  " (WSJT-Z MOD v2.0.8 by SQ9FVE)") ;
 
 
   connect(&proc_jt9, &QProcess::readyReadStandardOutput, this, &MainWindow::readFromStdout);
+  connect(&proc_jt9, &QProcess::readyReadStandardError, [this] {
+    auto chunk = proc_jt9.readAllStandardError ();
+    if (!chunk.isEmpty ()) {
+      m_jt9_stderr_buffer.append (chunk);
+      constexpr int max_jt9_stderr_bytes = 32768;
+      if (m_jt9_stderr_buffer.size () > max_jt9_stderr_bytes) {
+        m_jt9_stderr_buffer.remove (0, m_jt9_stderr_buffer.size () - max_jt9_stderr_bytes);
+      }
+    }
+  });
 #if QT_VERSION < QT_VERSION_CHECK (5, 6, 0)
   connect(&proc_jt9, static_cast<void (QProcess::*) (QProcess::ProcessError)> (&QProcess::error),
           [this] (QProcess::ProcessError error) {
@@ -1074,8 +1085,9 @@ MainWindow::MainWindow(QDir const& temp_directory, bool multiple,
       , "-t", QDir::toNativeSeparators (m_config.temp_dir ().absolutePath ())
       };
   QProcessEnvironment new_env {m_env};
-  new_env.insert ("OMP_STACKSIZE", "4M");
+  new_env.insert ("OMP_STACKSIZE", "16M");
   proc_jt9.setProcessEnvironment (new_env);
+  m_jt9_stderr_buffer.clear ();
   // Set jt9's working directory to the install bin/ folder so that bare-
   // filename opens (ALLCALL7.TXT in cwfilter.f90, matching wsjtx-orig)
   // resolve correctly regardless of how the user launched wsjtx.
@@ -3207,6 +3219,8 @@ void MainWindow::setup_status_bar (bool vhf)
     mode_label.setStyleSheet ("QLabel{color: #000000; background-color: #ff6666}");
   } else if ("FT4" == m_mode) {
     mode_label.setStyleSheet ("QLabel{color: #000000; background-color: #ff0099}");
+  } else if ("FT2" == m_mode) {
+    mode_label.setStyleSheet ("QLabel{color: #000000; background-color: #ff3399}");
   } else if ("FT8" == m_mode) {
     mode_label.setStyleSheet ("QLabel{color: #000000; background-color: #ff6699}");
   } else if ("FST4" == m_mode) {
@@ -3234,19 +3248,38 @@ bool MainWindow::subProcessFailed (QProcess * process, int exit_code, QProcess::
 {
   if (m_valid && (exit_code || QProcess::NormalExit != status))
     {
+      constexpr int max_stderr_bytes = 32768;
       QStringList arguments;
       for (auto argument: process->arguments ())
         {
           if (argument.contains (' ')) argument = '"' + argument + '"';
           arguments << argument;
         }
+      QByteArray stderr_bytes;
+      if (process == &proc_jt9)
+        {
+          stderr_bytes = m_jt9_stderr_buffer;
+        }
+      stderr_bytes.append (process->readAllStandardError ());
+      if (stderr_bytes.size () > max_stderr_bytes)
+        {
+          stderr_bytes.remove (0, stderr_bytes.size () - max_stderr_bytes);
+        }
+
+      auto stderr_text = QString::fromLocal8Bit (stderr_bytes).trimmed ();
+      if (stderr_text.isEmpty ())
+        {
+          stderr_text = tr ("No stderr output captured.");
+        }
+
       if (m_splash && m_splash->isVisible ()) m_splash->hide ();
       MessageBox::critical_message (this, tr ("Subprocess Error")
-                                    , tr ("Subprocess failed with exit code %1")
+                                    , tr ("Subprocess failed with exit code %1 (%2)")
                                     .arg (exit_code)
+                                    .arg (QProcess::CrashExit == status ? tr ("crashed") : tr ("normal exit"))
                                     , tr ("Running: %1\n%2")
                                     .arg (process->program () + ' ' + arguments.join (' '))
-                                    .arg (QString {process->readAllStandardError()}));
+                                    .arg (stderr_text));
       return true;
     }
   return false;
@@ -3256,17 +3289,36 @@ void MainWindow::subProcessError (QProcess * process, QProcess::ProcessError)
 {
   if (m_valid)
     {
+      constexpr int max_stderr_bytes = 32768;
       QStringList arguments;
       for (auto argument: process->arguments ())
         {
           if (argument.contains (' ')) argument = '"' + argument + '"';
           arguments << argument;
         }
+
+      QByteArray stderr_bytes;
+      if (process == &proc_jt9)
+        {
+          stderr_bytes = m_jt9_stderr_buffer;
+        }
+      stderr_bytes.append (process->readAllStandardError ());
+      if (stderr_bytes.size () > max_stderr_bytes)
+        {
+          stderr_bytes.remove (0, stderr_bytes.size () - max_stderr_bytes);
+        }
+      auto stderr_text = QString::fromLocal8Bit (stderr_bytes).trimmed ();
+      if (stderr_text.isEmpty ())
+        {
+          stderr_text = tr ("No stderr output captured.");
+        }
+
       if (m_splash && m_splash->isVisible ()) m_splash->hide ();
       MessageBox::critical_message (this, tr ("Subprocess error")
-                                    , tr ("Running: %1\n%2")
+                                    , tr ("Running: %1\n%2\n\nStderr tail:\n%3")
                                     .arg (process->program () + ' ' + arguments.join (' '))
-                                    .arg (process->errorString ()));
+                                    .arg (process->errorString ())
+                                    .arg (stderr_text));
       m_valid = false;              // ensures exit if still constructing
       QTimer::singleShot (0, this, SLOT (close ()));
     }
@@ -4310,7 +4362,7 @@ void MainWindow::decodeDone ()
     }
     ARRL_Digi_Display();  // Update the ARRL_DIGI display
   }
-  if(m_mode!="FT8" or dec_data.params.nzhsym==m_hsymStop) m_nDecodes=0;
+  if(m_mode!="FT8" or dec_data.params.nzhsym==50) m_nDecodes=0;
 
   if(m_mode=="Q65" and (m_specOp==SpecOp::NA_VHF or m_specOp==SpecOp::ARRL_DIGI
                         or m_specOp==SpecOp::WW_DIGI or m_specOp==SpecOp::Q65_PILEUP)
@@ -5402,6 +5454,8 @@ void MainWindow::auto_sequence (DecodedText const& message, unsigned start_toler
     QString hiscall;
     QString hisgrid;
     message.deCallAndGrid(/*out*/hiscall,hisgrid);
+    bool addressed_to_me = message_words.at (2).contains (m_baseCall);
+    bool tailender_ok = (m_config.processTailenders() || m_lastCall == hiscall || !m_bAutoReply);
 
 	// Z TODO: This is inccorect - fix !m_config.superFox() && (SpecOp::HOUND != m_specOp)
     if (m_auto
@@ -5469,6 +5523,16 @@ void MainWindow::auto_sequence (DecodedText const& message, unsigned start_toler
         if (!ui->dxCallEntry->text().isEmpty()) auto_tx_mode(true);
     } else {
         if (m_zdebug) log("Not processing");
+        if (m_zdebug) log(": addressed_to_me: " + QString::number(addressed_to_me));
+        if (m_zdebug) log(": m_auto: " + QString::number(m_auto));
+        if (m_zdebug) log(": cbAutoSeq: " + QString::number(ui->cbAutoSeq->isChecked()));
+        if (m_zdebug) log(": m_bCallingCQ: " + QString::number(m_bCallingCQ));
+        if (m_zdebug) log(": m_bAutoReply: " + QString::number(m_bAutoReply));
+        if (m_zdebug) log(": m_QSOProgress: " + QString::number(m_QSOProgress));
+        if (m_zdebug) log(": tailender_ok: " + QString::number(tailender_ok));
+        if (m_zdebug) log(": hiscall: " + hiscall);
+        if (m_zdebug) log(": m_lastCall: " + m_lastCall);
+        if (m_zdebug) log(": m_transmitting: " + QString::number(m_transmitting));
     }
   }
 }
@@ -5595,6 +5659,8 @@ void MainWindow::guiUpdate()
       static int s_lastReset = -1;
       if (s_in_min != s_lastReset) {
         earlyDecodes = "";
+        m_nDecodes = 0;
+        ndecodes_label.setText("0");
         s_lastReset = s_in_min;
       }
     }
@@ -5662,22 +5728,34 @@ void MainWindow::guiUpdate()
     if(m_mode=="FT8" and SpecOp::FOX==m_specOp) {
 // Don't allow Fox mode in any of the default FT8 sub-bands.
       QVector<qint32> ft8Freq = {1840000,3573000,7074000,10136000,14074000,18100000,21074000,24915000,28074000,50313000,70154000};
+      bool fox_band_conflict = false;
+      qint32 conflict_freq = 0;
       for(int i=0; i<ft8Freq.length()-1; i++) {
           int kHzdiff=m_freqNominal - ft8Freq[i];
           if(qAbs(kHzdiff) < 3000 ) {
+          fox_band_conflict = true;
+          conflict_freq = ft8Freq[i];
           m_bTxTime=false;
           if (m_auto) auto_tx_mode (false);
           if (m_tune) stop_tuning();
-          auto const& message = tr ("Please choose another dial frequency.\n"
-                                    "Must be 3Khz away from %1.\n"
-                                    "WSJT-X will not operate in Fox mode\n"
-                                    "overlapping the standard FT8 sub-bands.").arg(ft8Freq[i]);
-          QTimer::singleShot (0, [=] {               // don't block guiUpdate
-            MessageBox::warning_message (this, tr ("Fox Mode warning"), message);
-          });
+          if (m_freqNominal != m_foxWarningDialFreq0) {
+            m_foxWarningDialFreq0 = m_freqNominal;
+            auto const& message = tr ("Please choose another dial frequency.\n"
+                                      "Must be 3Khz away from %1.\n"
+                                      "WSJT-X will not operate in Fox mode\n"
+                                      "overlapping the standard FT8 sub-bands.").arg(conflict_freq);
+            QTimer::singleShot (0, [=] {               // don't block guiUpdate
+              MessageBox::warning_message (this, tr ("Fox Mode warning"), message);
+            });
+          }
           break;
         }
       }
+      if (!fox_band_conflict) {
+        m_foxWarningDialFreq0 = 0.0;
+      }
+    } else {
+      m_foxWarningDialFreq0 = 0.0;
     }
     // Z
     if (watchdog() && m_mode!="WSPR" && m_mode!="FST4W"
@@ -6017,7 +6095,7 @@ void MainWindow::guiUpdate()
         }
     }
 
-    bool b=("FT8"==m_mode or "FT4"==m_mode or "Q65"==m_mode)
+    bool b=("FT8"==m_mode or "FT4"==m_mode or "FT2"==m_mode or "Q65"==m_mode)
         && ui->cbAutoSeq->isEnabled () && ui->cbAutoSeq->isChecked ();
     if(is_73 and (m_config.disable_TX_on_73() or b)) {
       m_nextCall="";  //### Temporary: disable use of "TU;" messages;
@@ -6668,7 +6746,7 @@ void MainWindow::processMessage (DecodedText const& message, Qt::KeyboardModifie
       || ("JT9" == m_mode && mode != "@")
       || ("MSK144" == m_mode && !("&" == mode || "^" == mode))
       || ("Q65" == m_mode && mode.left (1) != ":")) {
-    return;      //Currently we do auto-sequencing only in FT4, FT8, MSK144, FST4, and Q65
+    return;      //Currently we do auto-sequencing only in FT2, FT4, FT8, MSK144, FST4, and Q65
   }
 
   //Skip the rest if no decoded text extracted
@@ -8112,7 +8190,6 @@ void MainWindow::displayWidgets(qint64 n)
     if(i==8) ui->cbFast9->setVisible(b);
     if(i==9) ui->cbAutoSeq->setVisible(b);
     if(i==10) ui->cbTx6->setVisible(b);
-    // if(i==11) ui->pbTxMode->setVisible(b);
     if(i==12) ui->pbR2T->setVisible(b);
     if(i==13) ui->pbT2R->setVisible(b);
     if(i==14) ui->cbHoldTxFreq->setVisible(b);
@@ -8132,7 +8209,11 @@ void MainWindow::displayWidgets(qint64 n)
     if(i==24) ui->actionEnable_AP_FT8->setVisible (b);
     if(i==25) ui->actionEnable_AP_JT65->setVisible (b);
     if(i==26) ui->actionEnable_AP_DXcall->setVisible (b);
-    if(i==27) ui->respondComboBox->setVisible(b);
+    if(i==27) {
+      ui->cbFirst->setVisible(b);
+      ui->respondComboBox->setVisible(b);
+    }
+    if(i==28) ui->labNextCall->setVisible(b);
     if(i==29) ui->measure_check_box->setVisible(b);
     if(i==30) ui->labDXped->setVisible(b);
     if(i==31) ui->cbRxAll->setVisible(b);
@@ -8150,6 +8231,8 @@ void MainWindow::displayWidgets(qint64 n)
     j=j>>1;
   }
   ui->pbBestSP->setVisible((m_mode=="FT4" or m_mode=="FT2"));
+  ui->pbTxMode->setVisible(m_mode.startsWith("JT"));
+  ui->labNextCall->setVisible(m_mode.startsWith("F") || m_mode=="Q65");
   b=false;
   if(m_mode=="FT4" or m_mode=="FT8" or m_mode=="FT2" || "Q65" == m_mode) {
   b=SpecOp::EU_VHF==m_specOp or
@@ -13684,6 +13767,8 @@ void MainWindow::switchBand(int row) {
         m_lastCall = QString();
         clearDX();
         busySlots.clear();
+        // Keep one current-cycle vector so addSlot() cannot index an empty container.
+        busySlots.prepend(QVector<int>());
         on_btn_clearIgnore_clicked();
         if (m_config.autoTune()) {
             ui->tuneButton->setChecked (true);
@@ -14018,6 +14103,10 @@ void MainWindow::logSlots() {
 }
 
 void MainWindow::addSlot(int freq) {
+  // readFromStdout() can call addSlot before ZProcess repopulates busySlots.
+  if (busySlots.isEmpty()) {
+    busySlots.prepend(QVector<int>());
+  }
     QVector<int> &slotsV = busySlots[0];
     slotsV.prepend(freq);
 }

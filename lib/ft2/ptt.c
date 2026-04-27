@@ -5,7 +5,7 @@ int ptt_(int *nport, int *ntx, int *ndtr, int *iptt)
 {
   static HANDLE hFile;
   static int open=0, nhold=0;
-  char s[10];
+  char s[16];
   int i3,i4,i5,i6,i9,i00;
 
   if(*nport==0) {
