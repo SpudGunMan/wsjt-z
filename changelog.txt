@@ -3,9 +3,6 @@ V2.0.7
 [fixes]
 - Fixed FT8 multi-threaded decoder producing duplicate decodes of the same station on the same frequency within a single cycle (e.g. same message with SNR +1 and -18)
 - ALLCALL7.TXT now reliably found by jt9 regardless of how wsjtx is launched (jt9 working directory set to install bin/ folder)
-
-V2.0.6
-[fixes]
 - Fixed FT8 MTD duplicate decodes: the earlyDecodes dedup buffer was being cleared at the top of decode(), which runs twice per cycle in multi-threaded mode — wiping the buffer between the early-pass and final-pass, so dedup never worked. Reset moved to a period boundary in guiUpdate() (seconds 10/25/40/55, ~2s before the next cycle's early decode), matching wsjtx-improved
 - jt9 no longer survives a wsjtx crash on Windows: proc_jt9 is now assigned to a Job Object with JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE, so when wsjtx exits for any reason (clean, crash, Task Manager kill) Windows terminates jt9 automatically
 
@@ -14,9 +11,6 @@ V2.0.6
 - Cached " 30[ABCD] " regex in activeStations.cpp display loop
 - Batched ActiveStations redraws via a 300ms single-shot QTimer: addLine() now only updates the internal map; the full QTextEdit rebuild+repaint happens at most once per tick (previously every decoded line), fixing UI stalls on crowded FT8 bands. Also fixed a latent bug where addLine wrote to a local variable shadowing the member
 - read_log() (Q65 startup scan of wsjtx.log) moved to QtConcurrent so the main window paints immediately; results merged on the UI thread via QFutureWatcher
-
-[features]
-- Version bumped to 2.0.6
 
 V2.0.5
 [fixes]

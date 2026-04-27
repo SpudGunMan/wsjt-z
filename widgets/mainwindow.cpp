@@ -4310,7 +4310,7 @@ void MainWindow::decodeDone ()
     }
     ARRL_Digi_Display();  // Update the ARRL_DIGI display
   }
-  if(m_mode!="FT8" or dec_data.params.nzhsym==50) m_nDecodes=0;
+  if(m_mode!="FT8" or dec_data.params.nzhsym==m_hsymStop) m_nDecodes=0;
 
   if(m_mode=="Q65" and (m_specOp==SpecOp::NA_VHF or m_specOp==SpecOp::ARRL_DIGI
                         or m_specOp==SpecOp::WW_DIGI or m_specOp==SpecOp::Q65_PILEUP)
