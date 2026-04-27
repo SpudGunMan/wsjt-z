@@ -2081,7 +2081,7 @@ list. The list can be maintained in Settings (F2).</string>
                       <attribute name="title">
                        <string>3</string>
                       </attribute>
-                      <layout class="QGridLayout" name="gridLayout_7">
+                      <layout class="QGridLayout" name="gridLayout_7" columnstretch="0,1">
                        <property name="leftMargin">
                         <number>5</number>
                        </property>
@@ -2344,7 +2344,7 @@ list. The list can be maintained in Settings (F2).</string>
                            </property>
                           </widget>
                          </item>
-                         <item row="7" column="1">
+                         <item row="5" column="1">
                           <widget class="QCheckBox" name="cbShMsgs">
                            <property name="toolTip">
                             <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Check to use short-format messages.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
@@ -2390,12 +2390,30 @@ list. The list can be maintained in Settings (F2).</string>
                           </widget>
                          </item>
                          <item row="7" column="0">
-                          <widget class="QCheckBox" name="measure_check_box">
+                          <widget class="QComboBox" name="respondComboBox">
+                             <property name="sizePolicy">
+                              <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
+                               <horstretch>0</horstretch>
+                               <verstretch>0</verstretch>
+                              </sizepolicy>
+                             </property>
+                             <property name="maximumSize">
+                              <size>
+                               <width>130</width>
+                               <height>16777215</height>
+                              </size>
+                             </property>
                            <property name="toolTip">
-                            <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Check this to start recording calibration data.&lt;br/&gt;While measuring calibration correction is disabled.&lt;br/&gt;When not checked you can view the calibration results.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                              <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Select &lt;span style=&quot; font-weight:600;&quot;&gt;CQ: First&lt;/span&gt; to respond automatically to the first decoded reply to your CQ. &lt;/p&gt;&lt;p&gt;Select &lt;span style=&quot; font-weight:600;&quot;&gt;CQ: Max Dist&lt;/span&gt; to respond automatically to the reply yielding most points in the ARRL International Digital Contest.&lt;/p&gt;&lt;p&gt;Select &lt;span style=&quot; font-weight:600;&quot;&gt;CQ: None&lt;/span&gt; to choose callers manually.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                             </property>
+                           <property name="currentText">
+                            <string/>
                            </property>
-                           <property name="text">
-                            <string>Measure</string>
+                           <property name="currentIndex">
+                            <number>-1</number>
+                           </property>
+                           <property name="maxVisibleItems">
+                           <number>3</number>
                            </property>
                           </widget>
                          </item>
@@ -2437,7 +2455,7 @@ list. The list can be maintained in Settings (F2).</string>
                            </property>
                           </widget>
                          </item>
-                         <item row="5" column="1">
+                         <item row="6" column="1">
                           <widget class="QSpinBox" name="sbMaxDrift">
                            <property name="prefix">
                             <string>Max Drift </string>
@@ -2450,19 +2468,13 @@ list. The list can be maintained in Settings (F2).</string>
                            </property>
                           </widget>
                          </item>
-                         <item row="6" column="1">
-                          <widget class="QComboBox" name="respondComboBox">
+                         <item row="7" column="1">
+                          <widget class="QCheckBox" name="measure_check_box">
                            <property name="toolTip">
-                            <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Select &lt;span style=&quot; font-weight:600;&quot;&gt;CQ: First&lt;/span&gt; to respond automatically to the first decoded reply to your CQ. &lt;/p&gt;&lt;p&gt;Select &lt;span style=&quot; font-weight:600;&quot;&gt;CQ: Max Dist&lt;/span&gt; to respond automatically to the reply yielding most points in the ARRL International Digital Contest.&lt;/p&gt;&lt;p&gt;Select &lt;span style=&quot; font-weight:600;&quot;&gt;CQ: None&lt;/span&gt; to choose callers manually.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                            <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Check this to start recording calibration data.&lt;br/&gt;While measuring calibration correction is disabled.&lt;br/&gt;When not checked you can view the calibration results.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
                            </property>
-                           <property name="currentText">
-                            <string/>
-                           </property>
-                           <property name="currentIndex">
-                            <number>-1</number>
-                           </property>
-                           <property name="maxVisibleItems">
-                            <number>3</number>
+                           <property name="text">
+                            <string>Measure</string>
                            </property>
                           </widget>
                          </item>
@@ -3810,7 +3822,7 @@ list. The list can be maintained in Settings (F2).</string>
                 </property>
                 <item>
                  <widget class="QWidget" name="widget_2" native="true">
-                  <layout class="QHBoxLayout" name="horizontalLayout_9">
+                  <layout class="QHBoxLayout" name="horizontalLayout_wspr_controls">
                    <property name="leftMargin">
                     <number>0</number>
                    </property>
@@ -3825,7 +3837,7 @@ list. The list can be maintained in Settings (F2).</string>
                    </property>
                    <item>
                     <widget class="QWidget" name="WSPR_controls_widget" native="true">
-                     <layout class="QGridLayout" name="horizontalLayout_wspr_controls">
+                     <layout class="QGridLayout" name="gridLayout_9">
                       <item row="1" column="0">
                        <spacer name="horizontalSpacer_7">
                         <property name="orientation">
