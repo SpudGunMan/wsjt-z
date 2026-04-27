@@ -1,28 +1,30 @@
 # WSJT-Z
 
-WSJT-X fork with JTDX decoder enhancements and WSJT-Z extensions by SQ9FVE.
+WSJT-Z is a modified version of the WSJT-X software by Joe Taylor K1JT (https://sourceforge.net/projects/wsjt/).
 
-Based on WSJT-X 3.0.0 + JTDX FT8 multi-thread decoder + WSJT-Z UI/filter additions.
+VISIT OUR GROUPS.IO PAGE FOR ANY COMMENTS / QUESTIONS / BUG REPORTS: https://groups.io/g/WSJT-Z/topics
 
-## Features beyond upstream WSJT-X
-- Multi-thread FT8 decoder (Decode → Number of FT8 threads, Auto or 1–12)
-- Auto CQ / Auto Call, pounce mode, priority call queue
-- Advanced filters: ignored stations, prefix/state/continent/CQ-target, new-on-band
-- Before-worked alerts (CQ Zone / ITU Zone / grid / continent / country, per-band variants)
-- QRZ callsign lookup panel
-- Band-hopper, custom alerts, NA_VHF/EU_VHF contest flows
+The CHANGELOG is available on the Files page: https://sourceforge.net/projects/wsjt-z/files/.
 
-## Build
-Windows via JTSDK:
-- **64-bit:** `E:\JTSDK64-Tools` → `jtsdk64.cmd` → `jtbuild rinstall` (or `jtbuild package`)
-- **32-bit:** `E:\JTSDK-Tools` → `jtsdk-env.cmd` → `jtbuild package`
+Initially developed as an automation project, WSJT-Z now focuses on enhancing the functionality of the original software.
 
-Source path is read from `tmp/build.txt` (`SRCD`). Build artifacts land in `E:\JTSDK-Build\output\_\build{32,64}`.
+Latest installers can be downloaded here: https://sourceforge.net/projects/wsjt-z/files/Packages.
 
-## Version
-`3.0.0-2.0.1` — WSJT-X 3.0.0 base, WSJT-Z mod v2.0.1.
+Licensed under GNU GPL v3: https://www.gnu.org/licenses/gpl-3.0.txt.
 
-See `CLAUDE.md` for development notes and the `NEWS` file for upstream changelog.
+Most of the code is created and copyrighted by the WSJT-X team, led by Joe Taylor K1JT.
 
-## License
-GPL-3 (inherited from WSJT-X).
+Previously known as WSJT-X SQ9FVE Full-Auto Mod, WSJT-Z supports FT8, FT4, JT*, and WSPR.
+
+Note: Always monitor your transceiver while using WSJT-Z, unless automated operation is permitted in your location.
+
+## Features
+
+- Modified user interface, including a larger Band Activity window
+- Extended filtering features
+- Auto CQ and auto responding
+- QRZ.COM integration
+- Audio alerts
+- DXCC / Continent Filtering
+- Band hopping
+- PSK Reporter integration

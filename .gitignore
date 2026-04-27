@@ -27,3 +27,12 @@ lib.pre_decoder_port.bak/
 *.exe
 *.a
 *.stackdump
+
+# Claude Code artifacts
+.claude/
+.claude.json
+.claude.local.json
+CLAUDE.md
+CLAUDE.local.md
+.anthropic/
+.aider*
