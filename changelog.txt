@@ -1,4 +1,14 @@
 == Changelog
+V2.0.8
+[tooling]
+- Added tools/rebuild_usstate_db.py: stdlib-only Python script that refreshes USState.db end-to-end from the weekly FCC ULS amateur licensee dump (download → unzip → filter Active+unexpired → emit valid 2-letter USPS state codes → fresh SQLite DB with idx_call index, backing up the existing DB)
+- decodeDone(): replaced hardcoded `nzhsym==50` cycle-end reset with `nzhsym==m_hsymStop` so the reset works correctly for non-FT8 modes that use a different symbol-stop count
+
+[docs]
+- Replaced README with a fresh WSJT-Z project description: app icon at top, badges, full mode list, grouped feature catalog, build-from-source instructions, tools pointer, GPL-3 + credits
+- Releases and changelog now hosted on GitHub
+- .gitignore: exclude Claude Code / Anthropic SDK / aider artifacts
+
 V2.0.7
 [fixes]
 - Fixed FT8 multi-threaded decoder producing duplicate decodes of the same station on the same frequency within a single cycle (e.g. same message with SNR +1 and -18)
