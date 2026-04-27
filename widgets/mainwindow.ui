@@ -3122,7 +3122,7 @@ list. The list can be maintained in Settings (F2).</string>
                          <item>
                           <widget class="QComboBox" name="cb_ignoreCQTarget">
                            <property name="toolTip">
-                            <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;You can include/exclude specific CQ targets here, ie. CQ EU, CQ SP etc.&lt;/p&gt;&lt;p&gt;When &amp;quot;Show only&amp;quot; is selected, only the stations with matching CQ target will be shown.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                           <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;You can include/exclude specific CQ targets here, i.e. CQ EU, CQ SP etc.&lt;/p&gt;&lt;p&gt;When &amp;quot;Show only&amp;quot; is selected, only stations with matching CQ target are shown.&lt;/p&gt;&lt;p&gt;When &amp;quot;Prefer&amp;quot; is selected, matching CQ targets are prioritized over other decodes.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
                            </property>
                            <item>
                             <property name="text">
@@ -3142,6 +3142,11 @@ list. The list can be maintained in Settings (F2).</string>
                            <item>
                             <property name="text">
                              <string>Show only</string>
+                            </property>
+                           </item>
+                           <item>
+                            <property name="text">
+                             <string>Prefer</string>
                             </property>
                            </item>
                           </widget>
