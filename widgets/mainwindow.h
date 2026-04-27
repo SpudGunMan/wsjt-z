@@ -725,6 +725,7 @@ private:
   int     m_maxDistance = 0;
   int     m_maxSignal = -30;
   QString m_priorityCall;
+  bool    m_priorityCallPreferCQTarget = false;
   int     m_decodeCount = 0;
   bool    m_prioTxFirst;
   int     m_prioFreq;

@@ -4763,7 +4763,10 @@ void MainWindow::readFromStdout()                             //readFromStdout
   // append happens here too (orig appends after display; we do it inline).
   bool const mtft8 = (m_mode == "FT8")
       && ui->actionUse_multithreaded_FT8_decoder->isChecked();
-  bool const dedup_on = mtft8 && (m_ft8DecoderStart < 2 || m_freqNominal > 45000000);
+    bool const dedup_on = mtft8 &&
+      (m_ft8DecoderStart < 2
+       || m_freqNominal > 45000000
+       || ui->actionReduce_false_decodes->isChecked());
   while(proc_jt9.canReadLine()) {
     auto line_read = proc_jt9.readLine ();
     if (dedup_on && line_read.size() >= 42
@@ -12644,6 +12647,8 @@ bool MainWindow::callsignFiltered(DecodedText dt)
     bool ITUZoneB4;
     bool ITUZoneB4onBand;
     bool matched = false;
+    bool cqTargetPreferMode = (ui->cb_ignoreCQTarget->currentIndex() == 4);
+    bool cqTargetPreferMatch = false;
 
     if (m_zdebug) log("callsignFiltered: ENTRY");
 
@@ -12754,9 +12759,11 @@ bool MainWindow::callsignFiltered(DecodedText dt)
             {
                 QStringList  ignoreCQXXList = ui->le_ignoreCQXX->text().split(",",SkipEmptyParts);
                 if (CQTarget != "DX" && CQTarget.length() && ignoreCQXXList.size()>0) {
+                  bool cqTargetListed = ignoreCQXXList.contains(CQTarget);
                     // CQ Target filter
-                    if ( ui->cb_ignoreCQTarget->currentIndex() == 2 && ignoreCQXXList.contains(CQTarget)) return true;
-                    if ( (ui->cb_ignoreCQTarget->currentIndex() == 1 || ui->cb_ignoreCQTarget->currentIndex() == 3 ) && !ignoreCQXXList.contains(CQTarget)) return true;
+                  if ( ui->cb_ignoreCQTarget->currentIndex() == 2 && cqTargetListed) return true;
+                  if ( (ui->cb_ignoreCQTarget->currentIndex() == 1 || ui->cb_ignoreCQTarget->currentIndex() == 3 ) && !cqTargetListed) return true;
+                  if (cqTargetPreferMode && cqTargetListed) cqTargetPreferMatch = true;
                 }
                 // CQ DX filter
                 if (CQTarget == "DX" && ui->cb_filter_CQDX_Continent->currentIndex() > 0 ) {
@@ -13007,7 +13014,16 @@ bool MainWindow::callsignFiltered(DecodedText dt)
     }
 
     bool prio = false;
-    if (ui->cb_autoCallPriority->currentIndex() == 2) {
+    bool forcePreferPromotion = cqTargetPreferMode && cqTargetPreferMatch && !m_priorityCallPreferCQTarget;
+    bool skipAutoPriority = cqTargetPreferMode && m_priorityCallPreferCQTarget && !cqTargetPreferMatch;
+    if (forcePreferPromotion) {
+      prio = true;
+      // Restart priority baseline when switching from non-preferred to preferred pool.
+      m_maxDistance = 0;
+      m_maxSignal = -31;
+    }
+
+    if (!skipAutoPriority && ui->cb_autoCallPriority->currentIndex() == 2) {
         if (dxGrid.length() == 4 && dxGrid != "RR73" && !dxGrid.startsWith("R-") && !dxGrid.startsWith("R+")) {
             double utch=0.0;
             int nAz,nEl,nDmiles,nDkm,nHotAz,nHotABetter;
@@ -13024,7 +13040,7 @@ bool MainWindow::callsignFiltered(DecodedText dt)
             m_maxDistance = 1;
         }
 
-    } else if (ui->cb_autoCallPriority->currentIndex() == 1) {
+    } else if (!skipAutoPriority && ui->cb_autoCallPriority->currentIndex() == 1) {
         bool convOK;
         int intdbM = dbM.toInt(&convOK);
         if (convOK && intdbM >  m_maxSignal) {
@@ -13033,7 +13049,7 @@ bool MainWindow::callsignFiltered(DecodedText dt)
 
        }
 
-    } else if (ui->cb_autoCallPriority->currentIndex() == 0) {
+    } else if (!skipAutoPriority && ui->cb_autoCallPriority->currentIndex() == 0) {
         prio = true;
     }
 
@@ -13041,6 +13057,7 @@ bool MainWindow::callsignFiltered(DecodedText dt)
     if (prio) {
         if (m_zdebug) log("++ New Priority Call: " + dxCall);
         m_priorityCall = dxCall;
+      m_priorityCallPreferCQTarget = cqTargetPreferMatch;
         m_prioFreq = dt.frequencyOffset();
         m_nextRpt = dt.report();
         int nmod;
@@ -13764,6 +13781,7 @@ void MainWindow::switchBand(int row) {
         ui->bandComboBox->setCurrentIndex (row);
         on_bandComboBox_activated (row);
         m_priorityCall = QString();
+        m_priorityCallPreferCQTarget = false;
         m_lastCall = QString();
         clearDX();
         busySlots.clear();
@@ -13809,6 +13827,7 @@ void MainWindow::ZProcess ()
     if (m_transmitting)
     {
         m_priorityCall = QString();
+      m_priorityCallPreferCQTarget = false;
         if (m_zdebug) log("ZProcess: EXIT (Transmitting)");
         return;
     }
@@ -13923,6 +13942,7 @@ void MainWindow::ZProcess ()
     m_maxDistance = 0 ;
     m_maxSignal = -30;
     m_priorityCall = QString();
+    m_priorityCallPreferCQTarget = false;
     m_beeped = false;
     if (m_zdebug) log("ZProcess: EXIT");
 }
@@ -13935,6 +13955,7 @@ void MainWindow::resetAutoSwitch() {
         ui->le_autoCallLeft->setText(QString::number(ui->sb_autoCallCount->value()));
         ui->le_autoCQLeft->setText(QString::number(ui->sb_autoCQCount->value()));
         m_priorityCall = QString();
+  m_priorityCallPreferCQTarget = false;
 }
 
 int MainWindow::watchdog() {
