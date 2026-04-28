@@ -3660,12 +3660,16 @@ void Configuration::impl::on_cbOTP_clicked(bool)
 // Toggling HighDPI scaling persists by writing/removing a sentinel file
 // next to the executable; main.cpp reads it on next startup to decide
 // whether to call QApplication::setAttribute(Qt::AA_EnableHighDpiScaling).
+// Anchor to the exe directory — relative paths resolve against CWD,
+// which differs between toggle-time and main()'s startup-time, so a
+// relative path landed the sentinel where main couldn't find it.
 void Configuration::impl::on_cbHighDPI_clicked(bool checked)
 {
+  QString path = QCoreApplication::applicationDirPath () + "/DisableHighDpiScaling";
   if (checked) {
-      QFile::remove ("DisableHighDpiScaling");
+      QFile::remove (path);
   } else {
-      static QFile f("DisableHighDpiScaling");
+      QFile f(path);
       f.open(QIODevice::WriteOnly | QIODevice::Text);
       QString EventConfig = ("DisableHighDpiScaling=\"true\"");
       QTextStream out(&f);
