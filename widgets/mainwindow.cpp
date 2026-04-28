@@ -6778,8 +6778,12 @@ void MainWindow::processMessage (DecodedText const& message, Qt::KeyboardModifie
   }
 
   // check for CQ with listening frequency
+  // Restricted to fast modes (MSK144 etc.) where "CQ nnn" is a standardized
+  // listening-kHz format. Including FT8 here was a wsjtz regression that
+  // caused random ~1 MHz dial jumps when a stray 3-digit number appeared
+  // in parts[6] of a CQ decode.
   if (parts.size () >= 7
-      && (m_bFastMode || m_mode=="FT8")
+      && m_bFastMode
       && "CQ" == parts[5]
       && m_config.is_transceiver_online ()) {
     bool ok;
