@@ -213,6 +213,7 @@ set (wsjt_qt_CXXSRCS
   Transceiver/HamlibTransceiver.cpp
   Transceiver/HRDTransceiver.cpp
   Transceiver/DXLabSuiteCommanderTransceiver.cpp
+  Transceiver/TCITransceiver.cpp
   Network/NetworkMessage.cpp
   Network/MessageClient.cpp
   widgets/LettersSpinBox.cpp
@@ -1018,7 +1019,7 @@ endif ()
 #
 
 # Widgets finds its own dependencies.
-find_package (Qt5 COMPONENTS Widgets SerialPort Multimedia PrintSupport Sql LinguistTools REQUIRED)
+find_package (Qt5 COMPONENTS Widgets SerialPort Multimedia PrintSupport Sql LinguistTools WebSockets REQUIRED)
 
 if (WIN32)
   add_definitions (-DQT_NEEDS_QTMAIN)
@@ -1507,7 +1508,7 @@ target_link_libraries (qcp Qt5::Widgets Qt5::PrintSupport)
 add_library (wsjt_qt STATIC ${wsjt_qt_CXXSRCS} ${wsjt_qt_GENUISRCS} ${GENAXSRCS})
 # set wsjtx_udp exports to static variants
 target_compile_definitions (wsjt_qt PUBLIC UDP_STATIC_DEFINE)
-target_link_libraries (wsjt_qt Hamlib::Hamlib Boost::log qcp Qt5::Widgets Qt5::Network Qt5::Sql)
+target_link_libraries (wsjt_qt Hamlib::Hamlib Boost::log qcp Qt5::Widgets Qt5::Network Qt5::Sql Qt5::WebSockets)
 if (WIN32)
   target_link_libraries (wsjt_qt Qt5::AxContainer Qt5::AxBase)
 endif (WIN32)
@@ -1802,6 +1803,20 @@ install (DIRECTORY
   FILES_MATCHING REGEX "^.*[^~]$"
   #COMPONENT runtime
   )
+
+# OpenSSL runtime DLLs for PSKReporter / hamlib network TLS on Windows.
+# Without these Qt's QSslSocket reports "TLS initialization failed" and
+# PSKReporter spotting fails. Mirrors wsjtx-orig.
+if (WIN32)
+  install (FILES
+    contrib/tls/libssl-1_1.dll
+    contrib/tls/libcrypto-1_1.dll
+    contrib/tls/libssl-1_1-x64.dll
+    contrib/tls/libcrypto-1_1-x64.dll
+    DESTINATION ${CMAKE_INSTALL_BINDIR}
+    #COMPONENT runtime
+  )
+endif (WIN32)
 
 #
 # Mac installer files

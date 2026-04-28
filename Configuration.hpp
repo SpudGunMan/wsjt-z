@@ -96,6 +96,9 @@ public:
   // re-opened if they return true.
   bool restart_audio_input () const;
   bool restart_audio_output () const;
+  bool restart_tci () const;
+  bool tci_audio () const;
+  bool is_tci () const;
 
   QString my_callsign () const;
   QString my_grid () const;
@@ -138,6 +141,8 @@ public:
   bool decode_at_52s () const;
   bool single_decode () const;
   bool twoPass() const;
+  bool highDPI() const;
+  bool largerTabWidget() const;
   bool superFox() const;
   bool bFox() const;
   bool bHound() const;
@@ -319,6 +324,33 @@ public:
   // i.e. the transceiver is ready for use.
   Q_SLOT void sync_transceiver (bool force_signal = false, bool enforce_mode_and_split = false);
 
+  // Set/unset Audio streaming for TCI.
+  Q_SLOT void transceiver_audio (bool = false);
+
+  // Set/unset Tune for TCI.
+  Q_SLOT void transceiver_tune (bool = false);
+
+  // Set period for TCI audio
+  Q_SLOT void transceiver_period (double = 15.0);
+
+  // Set blocksize for TCI audio.
+  Q_SLOT void transceiver_blocksize (qint32 = 6912 / 2);
+
+  // Set modulation start TCI audio
+  Q_SLOT void transceiver_modulator_start (QString="FT8", unsigned = 79, double = 1920.0, double = 1500.0, double = -3.0, bool = true, bool=false, double = 99., double = 60.0);
+
+  // Set modulation stop TCI audio
+  Q_SLOT void transceiver_modulator_stop (bool = false);
+
+  // Set spread for TCI audio
+  Q_SLOT void transceiver_spread (double = 0.0);
+
+  // Set nsym for TCI audio
+  Q_SLOT void transceiver_nsym (int = 79);
+
+  // Set trfrequency for TCI audio
+  Q_SLOT void transceiver_trfrequency (double = 1500.0);
+
   Q_SLOT void invalidate_audio_input_device (QString error);
   Q_SLOT void invalidate_audio_output_device (QString error);
 
@@ -354,6 +386,10 @@ public:
   // re-established with a call to transceiver_online(true) assuming
   // the fault condition has been rectified or is transient.
   Q_SIGNAL void transceiver_failure (QString const& reason) const;
+
+  // TCI audio data transfer
+  Q_SIGNAL void transceiver_TCIframesWritten (qint64) const;
+  Q_SIGNAL void transceiver_TCImodActive (bool) const;
 
   // signal announces audio devices are being enumerated
   //

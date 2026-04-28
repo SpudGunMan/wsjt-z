@@ -1,13 +1,23 @@
 == Changelog
 V2.0.8
+[fixes]
+- Fixed PSKReporter spotting on Windows (was failing with a TLS error — OpenSSL libraries are now bundled with the installer)
+- Fixed random ~1 MHz dial frequency jumps when double-clicking some FT8 CQ decodes
+- Decoder cycle-end reset now works correctly for non-FT8 modes that use a different symbol count
+
+[features]
+- TCI rig support — Expert Electronics SunSDR, MB1, ColibriNANO and other TCI-compatible SDRs are now selectable as rigs for CAT/PTT control
+- HighDPI scaling option for high-resolution / 4K monitors (Settings → Advanced → GUI tweaks for high-resolution monitors)
+- Optional taller tab widget for hi-res displays
+
 [tooling]
-- Added tools/rebuild_usstate_db.py: stdlib-only Python script that refreshes USState.db end-to-end from the weekly FCC ULS amateur licensee dump (download → unzip → filter Active+unexpired → emit valid 2-letter USPS state codes → fresh SQLite DB with idx_call index, backing up the existing DB)
-- decodeDone(): replaced hardcoded `nzhsym==50` cycle-end reset with `nzhsym==m_hsymStop` so the reset works correctly for non-FT8 modes that use a different symbol-stop count
+- New script (tools/rebuild_usstate_db.py) to refresh USState.db from the weekly FCC ULS dump
+- Refreshed USState.db with the latest FCC data (April 2026, ~746k active US amateur callsigns)
 
 [docs]
-- Replaced README with a fresh WSJT-Z project description: app icon at top, badges, full mode list, grouped feature catalog, build-from-source instructions, tools pointer, GPL-3 + credits
+- New README with project overview, mode list, feature catalog, build instructions, and credits
 - Releases and changelog now hosted on GitHub
-- .gitignore: exclude Claude Code / Anthropic SDK / aider artifacts
+- .gitignore updated for AI tool artifacts
 
 V2.0.7
 [fixes]

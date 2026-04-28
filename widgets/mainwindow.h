@@ -134,6 +134,7 @@ public slots:
   void showStatusMessage(const QString& statusMsg);
   void dataSink(qint64 frames);
   void fastSink(qint64 frames);
+  void tci_mod_active(bool on) {m_tci_mod_active = on;}
   void diskDat();
   void freezeDecode(int n);
   void guiUpdate();
@@ -661,6 +662,9 @@ private:
   qint32  m_fetched=0;
 
   bool    m_btxok;		//True if OK to transmit
+  bool    m_tci_mod_active;
+  bool    m_tci;
+  bool    m_tci_audio;
   bool    m_diskData;
   bool    m_loopall;
   bool    m_decoderBusy;
