@@ -7,7 +7,6 @@
 #include <QString>
 #include <QStandardPaths>
 #include <QFile>
-#include <QTimer>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QJsonValue>
