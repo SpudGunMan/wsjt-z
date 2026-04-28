@@ -1899,6 +1899,7 @@ void MainWindow::set_application_font (QFont const& font)
   qApp->setFont (font);
   // Z
   qApp->setStyleSheet (qApp->styleSheet () + "* {" + font_as_stylesheet (font) + '}');
+  if (m_config.largerTabWidget()) ui->tabWidget->setMaximumHeight(1000);
   for (auto& widget : qApp->topLevelWidgets ())
     {
       widget->updateGeometry ();

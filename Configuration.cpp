@@ -548,6 +548,7 @@ private:
   void insert_station ();
 
   Q_SLOT void on_font_push_button_clicked ();
+  Q_SLOT void on_cbHighDPI_clicked(bool checked);
   Q_SLOT void on_decoded_text_font_push_button_clicked ();
   Q_SLOT void on_PTT_port_combo_box_activated (int);
   Q_SLOT void on_CAT_port_combo_box_activated (int);
@@ -750,6 +751,8 @@ private:
   bool decode_at_52s_;
   bool single_decode_;
   bool twoPass_;
+  bool highDPI_;
+  bool largerTabWidget_;
   bool bSuperFox_;
   bool Individual_Contest_Name_;
   bool bSpecialOp_;
@@ -895,6 +898,8 @@ bool Configuration::enable_VHF_features () const {return m_->enable_VHF_features
 bool Configuration::decode_at_52s () const {return m_->decode_at_52s_;}
 bool Configuration::single_decode () const {return m_->single_decode_;}
 bool Configuration::twoPass() const {return m_->twoPass_;}
+bool Configuration::highDPI() const {return m_->highDPI_;}
+bool Configuration::largerTabWidget() const {return m_->largerTabWidget_;}
 bool Configuration::superFox() const {return m_->bSuperFox_;}
 bool Configuration::Individual_Contest_Name() const {return m_->Individual_Contest_Name_;}
 bool Configuration::x2ToneSpacing() const {return m_->x2ToneSpacing_;}
@@ -1621,6 +1626,8 @@ void Configuration::impl::initialize_models ()
   ui_->decode_at_52s_check_box->setChecked(decode_at_52s_);
   ui_->single_decode_check_box->setChecked(single_decode_);
   ui_->cbTwoPass->setChecked(twoPass_);
+  ui_->cbHighDPI->setChecked(highDPI_);
+  ui_->cbLargerTabWidget->setChecked(largerTabWidget_);
   ui_->cbSuperFox->setChecked(bSuperFox_);
   ui_->cbContestName->setChecked(Individual_Contest_Name_);
   ui_->gbSpecialOpActivity->setChecked(bSpecialOp_);
@@ -1941,6 +1948,8 @@ void Configuration::impl::read_settings ()
   decode_at_52s_ = settings_->value("Decode52",false).toBool ();
   single_decode_ = settings_->value("SingleDecode",false).toBool ();
   twoPass_ = settings_->value("TwoPass",true).toBool ();
+  highDPI_ = settings_->value("HighDPI",true).toBool ();
+  largerTabWidget_ = settings_->value("LargerTabWidget",false).toBool ();
   bSuperFox_ = settings_->value("SuperFox",true).toBool ();
   Individual_Contest_Name_ = settings_->value("Individual_Contest_Name",true).toBool ();
   bSpecialOp_ = settings_->value("SpecialOpActivity",false).toBool ();
@@ -2126,6 +2135,8 @@ void Configuration::impl::write_settings ()
   settings_->setValue ("Decode52", decode_at_52s_);
   settings_->setValue ("SingleDecode", single_decode_);
   settings_->setValue ("TwoPass", twoPass_);
+  settings_->setValue ("HighDPI", highDPI_);
+  settings_->setValue ("LargerTabWidget", largerTabWidget_);
   settings_->setValue ("SuperFox", bSuperFox_);
   settings_->setValue ("Individual_Contest_Name", Individual_Contest_Name_);
   settings_->setValue ("SelectedActivity", SelectedActivity_);
@@ -2597,6 +2608,8 @@ void Configuration::impl::accept ()
   decode_at_52s_ = ui_->decode_at_52s_check_box->isChecked ();
   single_decode_ = ui_->single_decode_check_box->isChecked ();
   twoPass_ = ui_->cbTwoPass->isChecked ();
+  highDPI_ = ui_->cbHighDPI->isChecked ();
+  largerTabWidget_ = ui_->cbLargerTabWidget->isChecked ();
   bSuperFox_ = ui_->cbSuperFox->isChecked ();
   Individual_Contest_Name_ = ui_->cbContestName->isChecked ();
   bSpecialOp_ = ui_->gbSpecialOpActivity->isChecked ();
@@ -3505,6 +3518,23 @@ void Configuration::impl::on_cbContestName_clicked (bool)
 void Configuration::impl::on_cbOTP_clicked(bool)
 {
   check_visibility();
+}
+
+// Toggling HighDPI scaling persists by writing/removing a sentinel file
+// next to the executable; main.cpp reads it on next startup to decide
+// whether to call QApplication::setAttribute(Qt::AA_EnableHighDpiScaling).
+void Configuration::impl::on_cbHighDPI_clicked(bool checked)
+{
+  if (checked) {
+      QFile::remove ("DisableHighDpiScaling");
+  } else {
+      static QFile f("DisableHighDpiScaling");
+      f.open(QIODevice::WriteOnly | QIODevice::Text);
+      QString EventConfig = ("DisableHighDpiScaling=\"true\"");
+      QTextStream out(&f);
+      out << EventConfig;
+      f.close();
+  }
 }
 
 void Configuration::impl::on_cbShowOTP_clicked(bool)

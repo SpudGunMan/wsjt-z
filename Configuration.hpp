@@ -138,6 +138,8 @@ public:
   bool decode_at_52s () const;
   bool single_decode () const;
   bool twoPass() const;
+  bool highDPI() const;
+  bool largerTabWidget() const;
   bool superFox() const;
   bool bFox() const;
   bool bHound() const;
