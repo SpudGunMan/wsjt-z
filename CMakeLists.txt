@@ -1803,6 +1803,20 @@ install (DIRECTORY
   #COMPONENT runtime
   )
 
+# OpenSSL runtime DLLs for PSKReporter / hamlib network TLS on Windows.
+# Without these Qt's QSslSocket reports "TLS initialization failed" and
+# PSKReporter spotting fails. Mirrors wsjtx-orig.
+if (WIN32)
+  install (FILES
+    contrib/tls/libssl-1_1.dll
+    contrib/tls/libcrypto-1_1.dll
+    contrib/tls/libssl-1_1-x64.dll
+    contrib/tls/libcrypto-1_1-x64.dll
+    DESTINATION ${CMAKE_INSTALL_BINDIR}
+    #COMPONENT runtime
+  )
+endif (WIN32)
+
 #
 # Mac installer files
 #
