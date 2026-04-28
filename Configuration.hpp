@@ -179,6 +179,8 @@ public:
   Type2MsgGen type_2_msg_gen () const;
   bool pwrBandTxMemory () const;
   bool pwrBandTuneMemory () const;
+  bool PWR_and_SWR () const;
+  bool check_SWR () const;
   LotWUsers const& lotw_users () const;
   DecodeHighlightingModel const& decode_highlighting () const;
   bool highlight_by_mode () const;

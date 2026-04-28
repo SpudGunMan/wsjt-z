@@ -257,6 +257,24 @@ void TransceiverBase::update_PTT (bool state)
   actual_.ptt (state);
 }
 
+void TransceiverBase::update_level (int strength)
+{
+  CAT_TRACE ("strength: " << strength);
+  actual_.level (strength);
+}
+
+void TransceiverBase::update_power (unsigned int mwpower)
+{
+  CAT_TRACE ("power: " << mwpower);
+  actual_.power (mwpower);
+}
+
+void TransceiverBase::update_swr (unsigned int mswr)
+{
+  CAT_TRACE ("swr: " << mswr);
+  actual_.swr (mswr);
+}
+
 void TransceiverBase::update_complete (bool force_signal)
 {
   CAT_TRACE ("force signal: " << force_signal);

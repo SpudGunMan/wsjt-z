@@ -2533,6 +2533,7 @@ void MainWindow::on_actionSettings_triggered()               //Setup Dialog
     if ((!verified && ui->labDXped->isVisible()) or ui->labDXped->text()!="Super Hound")
       ui->labDXped->setStyleSheet("QLabel {background-color: red; color: white;}");
     set_mode(m_mode);
+
     configActiveStations();
     keep_frequency = false;
   } else {
@@ -3182,8 +3183,9 @@ void MainWindow::createStatusBar()                           //createStatusBar
   labAz.setFrameStyle (QFrame::Panel | QFrame::Sunken);
   statusBar()->addWidget (&labAz);
 
+  if (m_config.PWR_and_SWR()) statusBar ()->addPermanentWidget (&band_hopping_label);
   band_hopping_label.setAlignment (Qt::AlignHCenter);
-  band_hopping_label.setMinimumSize (QSize {90, 18});
+  band_hopping_label.setMinimumSize (QSize {80, 18});
   band_hopping_label.setFrameStyle (QFrame::Panel | QFrame::Sunken);
 
   statusBar()->addPermanentWidget(&progressBar);
@@ -3239,6 +3241,7 @@ void MainWindow::setup_status_bar (bool vhf)
     if (!band_hopping_label.isVisible ()) {
       statusBar ()->addWidget (&band_hopping_label);
       band_hopping_label.show ();
+      band_hopping_label.setMinimumSize (QSize  {80, 18});
     }
   } else {
     if (band_hopping_label.isVisible ()) statusBar ()->removeWidget (&band_hopping_label);
@@ -9711,6 +9714,84 @@ void MainWindow::handle_transceiver_update (Transceiver::TransceiverState const&
       m_tx_when_ready = false;
     }
   }
+
+  // Display PWR and SWR
+  if(m_config.PWR_and_SWR()) {
+    if (!band_hopping_label.isVisible ()) {
+      statusBar ()->addWidget (&band_hopping_label);
+      band_hopping_label.setMinimumSize (QSize  {80, 18});
+      band_hopping_label.show();
+    }
+    if (m_rigState.power() != s.power() && m_transmitting) {
+      ui->label->setText(QString {tr("%1 W")}.arg (round(s.power()/1000.)));
+      if (round(s.power()/1000.) >= 100) {
+        qreal pointSize = m_config.text_font().pointSizeF();
+
+        ui->label->setMinimumWidth (2.8*pointSize + 16);
+        ui->outAttenuation->setMinimumWidth (2.8*pointSize + 16);
+      }
+    } else {
+      ui->label->setText("Pwr");
+    }
+    static bool s_alreadyShowingSWRAlert = false;
+    static unsigned int s_lastValidSWR = 0;
+    auto const tx_active = (m_tune || m_transmitting || s.ptt());
+    auto swr_effective = s.swr();
+
+    if (s.swr() > 0) {
+      s_lastValidSWR = s.swr();
+    }
+
+    // Some rigs report SWR=0 on overrange/open load while TX is active.
+    // If SWR was valid earlier in this TX/tune sequence and then drops to
+    // zero, treat it as a critical/overrange condition.
+    if (tx_active && s.swr() == 0 && s_lastValidSWR > 0) {
+      swr_effective = 9999;
+    }
+
+    if (!tx_active) {
+      s_lastValidSWR = 0;
+    }
+
+    auto const swr_invalid = tx_active && (swr_effective == 0 || (swr_effective > 0 && swr_effective < 100));
+
+    if (swr_invalid) {
+      band_hopping_label.setStyleSheet ("QLabel{color: #ffffff; background-color: #ff0000}");
+      band_hopping_label.setText("SWR: NULL");
+      if ((m_config.check_SWR() || m_tune) && !s_alreadyShowingSWRAlert) {
+        on_stopTxButton_clicked();
+        s_alreadyShowingSWRAlert = true;
+        MessageBox::warning_message (this, tr ("SWR invalid/overrange !!!\n\n"
+                                               "Transmission was stopped\n\n"
+                                               "Check your antenna and rig SWR readout"));
+        s_alreadyShowingSWRAlert = false;
+      }
+    } else if (swr_effective > 0) {
+      if (swr_effective > 150) band_hopping_label.setStyleSheet ("QLabel{color: #000000; background-color: #ffff00}");
+      if (swr_effective > 200) band_hopping_label.setStyleSheet ("QLabel{color: #ffffff; background-color: #ff0000}");
+      if (swr_effective > 250 && (m_config.check_SWR() || m_tune)) {
+        if (!s_alreadyShowingSWRAlert) {
+          on_stopTxButton_clicked();
+          s_alreadyShowingSWRAlert = true;
+          MessageBox::warning_message (this, tr ("SWR > 2.5 !!!\n\n"
+                                                 "Transmission was stopped\n\n"
+                                                 "Check your antenna"));
+          s_alreadyShowingSWRAlert = false;
+        }
+      }
+      if (swr_effective < 1000) {
+        band_hopping_label.setText(QString {"SWR: %1"}.arg (swr_effective/100.,0,'f',2));
+      } else {
+        band_hopping_label.setText(QString {"SWR: %1"}.arg (swr_effective/100.,0,'f',1));
+      }
+    } else {
+      if (!s_alreadyShowingSWRAlert) {
+        band_hopping_label.setText("");
+        band_hopping_label.setStyleSheet("");
+      }
+    }
+  }
+
   m_rigState = s;
   auto old_freqNominal = m_freqNominal;
   if (!old_freqNominal)

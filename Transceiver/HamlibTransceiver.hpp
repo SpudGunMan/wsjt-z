@@ -34,6 +34,11 @@ private:
 
   void do_poll () override;
 
+  bool ptt_on_ = false;
+  bool do_pwr_ = false;
+  bool do_pwr2_ = false;
+  bool do_swr_ = false;
+
   class impl;
   pimpl<impl> m_;
 };

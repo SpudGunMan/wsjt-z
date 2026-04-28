@@ -52,6 +52,7 @@ void PollingTransceiver::stop_timer ()
 
 void PollingTransceiver::do_post_start ()
 {
+  interval_ = 500;  // needed for displaying PWR and SWR
   start_timer ();
   if (!next_state_.online ())
     {

@@ -557,6 +557,7 @@ private:
   Q_SLOT void on_CAT_handshake_button_group_buttonClicked (int);
   Q_SLOT void on_CAT_poll_interval_spin_box_valueChanged (int);
   Q_SLOT void on_split_mode_button_group_buttonClicked (int);
+  Q_SLOT void on_PWR_and_SWR_check_box_clicked (bool checked);
   Q_SLOT void on_test_CAT_push_button_clicked ();
   Q_SLOT void on_test_PTT_push_button_clicked (bool checked);
   Q_SLOT void on_force_DTR_combo_box_currentIndexChanged (int);
@@ -775,6 +776,8 @@ private:
   bool bLowSidelobes_;
   bool pwrBandTxMemory_;
   bool pwrBandTuneMemory_;
+  bool PWR_and_SWR_;
+  bool check_SWR_;
   bool highlight_DXcall_;
   bool highlight_DXgrid_;
 
@@ -927,6 +930,8 @@ QDir Configuration::azel_directory () const {return m_->azel_directory_;}
 QString Configuration::rig_name () const {return m_->rig_params_.rig_name;}
 bool Configuration::pwrBandTxMemory () const {return m_->pwrBandTxMemory_;}
 bool Configuration::pwrBandTuneMemory () const {return m_->pwrBandTuneMemory_;}
+bool Configuration::PWR_and_SWR () const {return m_->PWR_and_SWR_;}
+bool Configuration::check_SWR () const {return m_->check_SWR_;}
 LotWUsers const& Configuration::lotw_users () const {return m_->lotw_users_;}
 DecodeHighlightingModel const& Configuration::decode_highlighting () const {return m_->decode_highlighing_model_;}
 bool Configuration::highlight_by_mode () const {return m_->highlight_by_mode_;}
@@ -1637,6 +1642,12 @@ void Configuration::impl::initialize_models ()
   ui_->CAT_handshake_button_group->button (rig_params_.handshake)->setChecked (true);
   ui_->checkBoxPwrBandTxMemory->setChecked(pwrBandTxMemory_);
   ui_->checkBoxPwrBandTuneMemory->setChecked(pwrBandTuneMemory_);
+  ui_->PWR_and_SWR_check_box->setChecked (PWR_and_SWR_);
+  ui_->check_SWR_check_box->setChecked (check_SWR_);
+  if (!ui_->PWR_and_SWR_check_box->isChecked ())
+    {
+      ui_->check_SWR_check_box->setEnabled (false);
+    }
   if (rig_params_.force_dtr)
     {
       ui_->force_DTR_combo_box->setCurrentIndex (rig_params_.dtr_high ? 1 : 2);
@@ -1654,7 +1665,7 @@ void Configuration::impl::initialize_models ()
       ui_->force_RTS_combo_box->setCurrentIndex (0);
     }
   ui_->TX_audio_source_button_group->button (rig_params_.audio_source)->setChecked (true);
-  ui_->CAT_poll_interval_spin_box->setValue (rig_params_.poll_interval);
+  ui_->CAT_poll_interval_spin_box->setValue (rig_params_.poll_interval & 0x7fff);
   ui_->opCallEntry->setText (opCall_);
   ui_->udp_server_line_edit->setEnabled(false);
   ui_->udp_server_line_edit->setText (udp_server_name_);
@@ -1964,6 +1975,8 @@ void Configuration::impl::read_settings ()
   calibration_.slope_ppm = settings_->value ("CalibrationSlopePPM", 0.).toDouble ();
   pwrBandTxMemory_ = settings_->value("pwrBandTxMemory",false).toBool ();
   pwrBandTuneMemory_ = settings_->value("pwrBandTuneMemory",false).toBool ();
+  PWR_and_SWR_ = settings_->value ("PWRandSWR", false).toBool ();
+  check_SWR_ = settings_->value ("CheckSWR", false).toBool ();
   highlight_DXcall_ = settings_->value("highlight_DXcall",false).toBool ();
   highlight_DXgrid_ = settings_->value("highlight_DXgrid",false).toBool ();
 #ifdef WIN32
@@ -2147,6 +2160,8 @@ void Configuration::impl::write_settings ()
   settings_->setValue ("CalibrationSlopePPM", calibration_.slope_ppm);
   settings_->setValue ("pwrBandTxMemory", pwrBandTxMemory_);
   settings_->setValue ("pwrBandTuneMemory", pwrBandTuneMemory_);
+  settings_->setValue ("PWRandSWR", PWR_and_SWR_);
+  settings_->setValue ("CheckSWR", check_SWR_);
   settings_->setValue ("Region", QVariant::fromValue (region_));
   settings_->setValue ("AutoGrid", use_dynamic_grid_);
   settings_->setValue ("highlight_DXcall", highlight_DXcall_);
@@ -2250,11 +2265,16 @@ void Configuration::impl::set_rig_invariants ()
       ui_->test_PTT_push_button->setEnabled (TransceiverFactory::PTT_method_DTR == ptt_method
                                              || TransceiverFactory::PTT_method_RTS == ptt_method);
       ui_->TX_audio_source_group_box->setEnabled (false);
+      ui_->PWR_and_SWR_check_box->setChecked (false);
+      ui_->PWR_and_SWR_check_box->setEnabled (false);
+      ui_->check_SWR_check_box->setChecked (false);
+      ui_->check_SWR_check_box->setEnabled (false);
     }
   else
     {
       ui_->monitor_last_used_check_box->setEnabled (true);
       ui_->CAT_control_group_box->setEnabled (true);
+      ui_->PWR_and_SWR_check_box->setEnabled (true);
       ui_->test_CAT_push_button->setEnabled (true);
       ui_->test_PTT_push_button->setEnabled (false);
       ui_->TX_audio_source_group_box->setEnabled (transceiver_factory_.has_CAT_PTT_mic_data (rig) && TransceiverFactory::PTT_method_CAT == ptt_method);
@@ -2442,6 +2462,10 @@ TransceiverFactory::ParameterPack Configuration::impl::gather_rig_data ()
   result.force_rts = ui_->force_RTS_combo_box->isEnabled () && ui_->force_RTS_combo_box->currentIndex () > 0;
   result.rts_high = ui_->force_RTS_combo_box->isEnabled () && 1 == ui_->force_RTS_combo_box->currentIndex ();
   result.poll_interval = ui_->CAT_poll_interval_spin_box->value ();
+  if (ui_->PWR_and_SWR_check_box->isChecked ())
+    {
+      result.poll_interval |= do__pwr;
+    }
   result.ptt_type = static_cast<TransceiverFactory::PTTMethod> (ui_->PTT_method_button_group->checkedId ());
   result.ptt_port = ui_->PTT_port_combo_box->currentText ();
   result.audio_source = static_cast<TransceiverFactory::TXAudioSource> (ui_->TX_audio_source_button_group->checkedId ());
@@ -2607,6 +2631,8 @@ void Configuration::impl::accept ()
   calibration_.slope_ppm = ui_->calibration_slope_ppm_spin_box->value ();
   pwrBandTxMemory_ = ui_->checkBoxPwrBandTxMemory->isChecked ();
   pwrBandTuneMemory_ = ui_->checkBoxPwrBandTuneMemory->isChecked ();
+  PWR_and_SWR_ = ui_->PWR_and_SWR_check_box->isChecked ();
+  check_SWR_ = ui_->check_SWR_check_box->isChecked ();
   opCall_=ui_->opCallEntry->text();
   OTPinterval_=ui_->sbOTPinterval->value();
   OTPSeed_=ui_->OTPSeed->text();
@@ -2970,6 +2996,15 @@ void Configuration::impl::on_CAT_handshake_button_group_buttonClicked (int /* id
 void Configuration::impl::on_rig_combo_box_currentIndexChanged (int /* index */)
 {
   set_rig_invariants ();
+}
+
+void Configuration::impl::on_PWR_and_SWR_check_box_clicked (bool checked)
+{
+  ui_->check_SWR_check_box->setEnabled (checked);
+  if (!checked)
+    {
+      ui_->check_SWR_check_box->setChecked (false);
+    }
 }
 
 void Configuration::impl::on_CAT_data_bits_button_group_buttonClicked (int /* id */)

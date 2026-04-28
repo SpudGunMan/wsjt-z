@@ -86,6 +86,9 @@ public:
       , mode_ {UNK}
       , split_ {Split::unknown}
       , ptt_ {false}
+      , level_ {0}
+      , power_ {0}
+      , swr_ {0}
     {
     }
 
@@ -95,6 +98,9 @@ public:
     bool split () const {return Split::on == split_;}
     MODE mode () const {return mode_;}
     bool ptt () const {return ptt_;}
+    int level () const {return level_;}
+    unsigned int power () const {return power_;}
+    unsigned int swr () const {return swr_;}
 
     void online (bool state) {online_ = state;}
     void frequency (Frequency f) {rx_frequency_ = f;}
@@ -102,6 +108,9 @@ public:
     void split (bool state) {split_ = state ? Split::on : Split::off;}
     void mode (MODE m) {mode_ = m;}
     void ptt (bool state) {ptt_ = state;}
+    void level (int strength) {level_ = strength;}
+    void power (unsigned int mwpower) {power_ = mwpower;}
+    void swr (unsigned int mswr) {swr_ = mswr;}
 
   private:
     bool online_;
@@ -110,6 +119,9 @@ public:
     MODE mode_;
     enum class Split {unknown, off, on} split_;
     bool ptt_;
+    int level_;
+    unsigned int power_;
+    unsigned int swr_;
     // Don't forget to update the debug print and != operator if you
     // add more members here
 

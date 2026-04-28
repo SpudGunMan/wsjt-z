@@ -79,6 +79,11 @@ public:
   enum SplitMode {split_mode_none, split_mode_rig, split_mode_emulate};
   Q_ENUM (SplitMode)
 
+#define do__snr  0x10000
+#define do__pwr  0x20000
+#define rig__power 0x40000
+#define rig__power_off 0x80000
+
   TransceiverFactory ();
   ~TransceiverFactory ();
 
