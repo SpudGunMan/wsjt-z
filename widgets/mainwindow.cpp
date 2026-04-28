@@ -356,6 +356,9 @@ MainWindow::MainWindow(QDir const& temp_directory, bool multiple,
   m_frequency_list_fcal_iter {m_config.frequencies ()->begin ()},
   m_nTx73 {0},
   m_btxok {false},
+  m_tci_mod_active {false},
+  m_tci {false},
+  m_tci_audio {false},
   m_diskData {false},
   m_loopall {false},
   m_txFirst {false},
@@ -931,6 +934,8 @@ MainWindow::MainWindow(QDir const& temp_directory, bool multiple,
   // hook up configuration signals
   connect (&m_config, &Configuration::transceiver_update, this, &MainWindow::handle_transceiver_update);
   connect (&m_config, &Configuration::transceiver_failure, this, &MainWindow::handle_transceiver_failure);
+  connect (&m_config, &Configuration::transceiver_TCIframesWritten, this, &MainWindow::dataSink);
+  connect (&m_config, &Configuration::transceiver_TCImodActive, this, &MainWindow::tci_mod_active);
   connect (&m_config, &Configuration::udp_server_changed, m_messageClient, &MessageClient::set_server);
   connect (&m_config, &Configuration::udp_server_port_changed, m_messageClient, &MessageClient::set_server_port);
   connect (&m_config, &Configuration::udp_TTL_changed, m_messageClient, &MessageClient::set_TTL);
@@ -1105,6 +1110,12 @@ MainWindow::MainWindow(QDir const& temp_directory, bool multiple,
   connect (&m_wav_future_watcher, &QFutureWatcher<void>::finished, this, &MainWindow::diskDat);
 
   connect(&watcher3, SIGNAL(finished()),this,SLOT(fast_decode_done()));
+
+  // TCI: cache rig-type flags. m_tci_audio routing is not yet ported, so
+  // even on a TCI rig wsjtz uses regular sound devices for now.
+  m_tci = m_config.is_tci();
+  m_tci_audio = (m_config.tci_audio() && m_config.is_tci());
+
   if (!m_config.audio_input_device ().isNull ())
     {
       Q_EMIT startAudioInputStream (m_config.audio_input_device ()
