@@ -1,4 +1,16 @@
 == Changelog
+V2.0.10
+[fixes]
+- Contest log save no longer fails with "Database Error: No query / Unable to fetch row" after decoding any US callsign. Root cause: the USState lookup was calling QSqlDatabase::addDatabase("QSQLITE") with no connection name, which replaces the unnamed default SQLite connection used by the contest log. Fix: USState now uses its own named connection ("usstate") opened once and reused.
+- App no longer crashes on Settings → OK when "Special operating activity" is enabled and the Advanced tab has been visited. Same root cause as above: the settings flow calls on_contest_log_action_triggered → n_qso(), the SQL error threw std::runtime_error out of a Qt slot, and Qt aborts the process on uncaught exceptions. n_qso() now returns 0 on a SELECT failure instead of throwing.
+
+V2.0.9
+[features]
+- TCI audio support — for SunSDR/MB1/ColibriNANO and other TCI rigs, audio is now streamed over the same TCI connection used for CAT/PTT (no virtual audio cable needed). When "Use TCI Audio" is ticked in Settings → Radio, the Sound Input/Output dropdowns offer a "TCI audio" device that routes RX/TX audio through the rig's TCI server.
+
+[fixes]
+- Clean settings dialog open/close on a TCI rig no longer tugs at the rig frequency mid-doppler-update (astroUpdate now skips setRig while the settings dialog is open).
+
 V2.0.8
 [fixes]
 - Fixed PSKReporter spotting on Windows (was failing with a TLS error — OpenSSL libraries are now bundled with the installer)
