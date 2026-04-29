@@ -21,6 +21,7 @@
 #include <QDir>
 #include <QDirIterator>
 #include <QFile>
+#include <QFileInfo>
 #include <QStandardPaths>
 #include <QStringList>
 #include <QLockFile>
@@ -114,8 +115,13 @@ int main(int argc, char *argv[])
   // Multiple instances communicate with jt9 via this
   QSharedMemory mem_jt9;
 
-  // Read optional file to disable highDPI scaling
-  QFile f("DisableHighDpiScaling");
+  // Read optional file to disable highDPI scaling. Anchor to the exe
+  // directory via argv[0] — relative paths resolve against CWD which
+  // differs between launch (often install root) and Configuration's
+  // toggle-time CWD, so a relative QFile path lost the sentinel.
+  QString sentinelPath = QFileInfo (QString::fromLocal8Bit (argv[0]))
+                           .absoluteDir ().absoluteFilePath ("DisableHighDpiScaling");
+  QFile f(sentinelPath);
   if (!f.exists()) QApplication::setAttribute(Qt::AA_EnableHighDpiScaling);
 
   auto const env = QProcessEnvironment::systemEnvironment ();

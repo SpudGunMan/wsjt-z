@@ -6958,6 +6958,12 @@ void MainWindow::processMessage (DecodedText const& message, Qt::KeyboardModifie
        && (message_words.at(2).contains(m_baseCall) || "DE" == message_words.at(2))
        && (message_words.at(3).contains(qso_partner_base_call) or m_bDoubleClicked
            or bEU_VHF_w2 or (m_QSOProgress==CALLING))) {
+      // Reset Tx watchdog when an incoming message addresses us — someone
+      // replied to our CQ or we're already in a QSO with the sender.
+      // Without this, WD expiring during a long CQ campaign blocks the
+      // very next TX cycle, so the reply never goes out (worst on FT2
+      // where TR period is 2s and many CQ cycles fit inside one minute).
+      tx_watchdog (false);
       if(message_words.at(4).contains(grid_regexp) and SpecOp::EU_VHF!=m_specOp) {
         if((SpecOp::NA_VHF==m_specOp or SpecOp::WW_DIGI==m_specOp or
             SpecOp::ARRL_DIGI==m_specOp or SpecOp::Q65_PILEUP==m_specOp)
