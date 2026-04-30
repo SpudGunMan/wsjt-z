@@ -99,6 +99,7 @@ public:
   bool restart_tci () const;
   bool tci_audio () const;
   bool is_tci () const;
+  qint32 volume () const;
 
   QString my_callsign () const;
   QString my_grid () const;
@@ -352,6 +353,12 @@ public:
 
   // Set trfrequency for TCI audio
   Q_SLOT void transceiver_trfrequency (double = 1500.0);
+
+  // Set volume for TCI audio
+  Q_SLOT void transceiver_volume (double = 0);
+
+  // Set TX volume for TCI audio
+  Q_SLOT void transceiver_txvolume (double = 0);
 
   Q_SLOT void invalidate_audio_input_device (QString error);
   Q_SLOT void invalidate_audio_output_device (QString error);
