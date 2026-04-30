@@ -879,6 +879,7 @@ bool Configuration::restart_audio_input () const {return m_->restart_sound_input
 bool Configuration::restart_audio_output () const {return m_->restart_sound_output_device_;}
 bool Configuration::restart_tci () const {return m_->restart_tci_device_;}
 bool Configuration::tci_audio () const {return m_->tci_audio_;}
+qint32 Configuration::volume () const {return m_->volume_;}
 bool Configuration::is_tci () const {return m_->is_tci_;}
 auto Configuration::type_2_msg_gen () const -> Type2MsgGen {return m_->type_2_msg_gen_;}
 QString Configuration::my_callsign () const {return m_->my_callsign_;}
@@ -1113,6 +1114,16 @@ void Configuration::transceiver_nsym (int nsym)
 void Configuration::transceiver_trfrequency (double trfrequency)
 {
   m_->transceiver_trfrequency (trfrequency);
+}
+
+void Configuration::transceiver_volume (double volume)
+{
+  m_->transceiver_volume (volume);
+}
+
+void Configuration::transceiver_txvolume (double txvolume)
+{
+  m_->transceiver_txvolume (txvolume);
 }
 
 void Configuration::sync_transceiver (bool force_signal, bool enforce_mode_and_split)
@@ -2587,6 +2598,7 @@ TransceiverFactory::ParameterPack Configuration::impl::gather_rig_data ()
   result.force_rts = ui_->force_RTS_combo_box->isEnabled () && ui_->force_RTS_combo_box->currentIndex () > 0;
   result.rts_high = ui_->force_RTS_combo_box->isEnabled () && 1 == ui_->force_RTS_combo_box->currentIndex ();
   result.poll_interval = ui_->CAT_poll_interval_spin_box->value ();
+  if (is_tci_ && ui_->tci_audio_check_box->isChecked ()) result.poll_interval |= tci__audio;
   result.ptt_type = static_cast<TransceiverFactory::PTTMethod> (ui_->PTT_method_button_group->checkedId ());
   result.ptt_port = ui_->PTT_port_combo_box->currentText ();
   result.audio_source = static_cast<TransceiverFactory::TXAudioSource> (ui_->TX_audio_source_button_group->checkedId ());
@@ -4246,6 +4258,14 @@ void Configuration::impl::load_audio_devices (QAudio::Mode mode, QComboBox * com
 
   Q_EMIT self_->enumerating_audio_devices ();
   int current_index = -1;
+  if (is_tci_ && tci_audio_) {
+    QList<QVariant> channel_counts;
+    QList<int> scc({1});
+    copy (scc.cbegin (), scc.cend (), back_inserter (channel_counts));
+    combo_box->addItem ("TCI audio", channel_counts);
+    combo_box->setCurrentIndex (0);
+    return;
+  }
   auto const& devices = QAudioDeviceInfo::availableDevices (mode);
   Q_FOREACH (auto const& p, devices)
     {

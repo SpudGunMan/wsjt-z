@@ -267,8 +267,12 @@ bool CabrilloLog::dupe (Frequency frequency, QString const& call) const
 
 int CabrilloLog::n_qso()
 {
-  SQL_error_check (m_->qso_count_query_, static_cast<bool (QSqlQuery::*) ()> (&QSqlQuery::exec));
-  m_->qso_count_query_.first();
+  // Don't throw on a SELECT failure — n_qso() is invoked from add_QSO's
+  // post-insert signal chain and from on_contest_log_action_triggered,
+  // both of which run on Qt slots where an uncaught std::runtime_error
+  // terminates the app. Return 0 if the query can't read a row.
+  if (!m_->qso_count_query_.exec ()) return 0;
+  if (!m_->qso_count_query_.first ()) return 0;
   return m_->qso_count_query_.value(0).toInt();
 }
 

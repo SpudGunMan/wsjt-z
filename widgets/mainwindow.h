@@ -665,6 +665,7 @@ private:
   bool    m_tci_mod_active;
   bool    m_tci;
   bool    m_tci_audio;
+  bool    inSettings = false;
   bool    m_diskData;
   bool    m_loopall;
   bool    m_decoderBusy;
