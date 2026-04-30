@@ -9918,12 +9918,33 @@ void MainWindow::handle_transceiver_update (Transceiver::TransceiverState const&
     } else {
       ui->label->setText("Pwr");
     }
-    if (m_rigState.swr() != s.swr()) {
+    bool const swr_changed = (m_rigState.swr() != s.swr());
+    bool const swr_active_tx = (s.ptt() || m_transmitting || m_tune);
+    if (swr_changed || swr_active_tx) {
       static bool s_alreadyShowingSWRAlert = false;
+      static bool s_alreadyShowingNoSWRAlert = false;
+      static int s_missingSWRReadings = 0;
       if (s.swr() > 0) {
-        if (s.swr()>150) band_hopping_label.setStyleSheet ("QLabel{color: #000000; background-color: #ffff00}");
-        if (s.swr()>200) band_hopping_label.setStyleSheet ("QLabel{color: #ffffff; background-color: #ff0000}");
-        if (s.swr()>250 && m_config.check_SWR()) {
+        s_missingSWRReadings = 0;
+        s_alreadyShowingNoSWRAlert = false;
+        double swr_ratio = 0.0;
+        if (s.swr() >= 100) {
+          swr_ratio = s.swr() / 100.0;   // common internal representation
+        } else if (s.swr() >= 10) {
+          swr_ratio = s.swr() / 10.0;    // some rigs report x10
+        } else {
+          swr_ratio = static_cast<double>(s.swr()); // some rigs report plain ratio
+        }
+
+        if (swr_ratio > 2.0) {
+          band_hopping_label.setStyleSheet ("QLabel{color: #ffffff; background-color: #ff0000}");
+        } else if (swr_ratio > 1.5) {
+          band_hopping_label.setStyleSheet ("QLabel{color: #000000; background-color: #ffff00}");
+        } else {
+          band_hopping_label.setStyleSheet("");
+        }
+
+        if (swr_ratio > 2.5 && m_config.check_SWR()) {
           if (!s_alreadyShowingSWRAlert) {     // avoid recursion
             on_stopTxButton_clicked();
             s_alreadyShowingSWRAlert = true;
@@ -9933,15 +9954,28 @@ void MainWindow::handle_transceiver_update (Transceiver::TransceiverState const&
             s_alreadyShowingSWRAlert = false;
           }
         }
-        if (s.swr()<1000) {
-          band_hopping_label.setText(QString {"SWR: %1"}.arg (s.swr()/100.,0,'f',2));
-        } else {
-          band_hopping_label.setText(QString {"SWR: %1"}.arg (s.swr()/100.,0,'f',1));
-        }
+        band_hopping_label.setText(QString {"SWR: %1"}.arg (swr_ratio,0,'f',2));
       } else {
-        if (!s_alreadyShowingSWRAlert) {      // retain value and color if SWR was > 2.5
-          band_hopping_label.setText("");
-          band_hopping_label.setStyleSheet("");
+        if (!s_alreadyShowingSWRAlert) {
+          if (swr_active_tx) {
+            // Rig is transmitting/tuning but no SWR reading is currently available.
+            band_hopping_label.setText("SWR: --");
+            band_hopping_label.setStyleSheet ("QLabel{color: #000000; background-color: #ff9900}");
+            ++s_missingSWRReadings;
+            if (s_missingSWRReadings >= 4 && !s_alreadyShowingNoSWRAlert) {
+              s_alreadyShowingNoSWRAlert = true;
+              MessageBox::warning_message (
+                  this,
+                  tr ("No SWR telemetry while transmitting/tuning.\n\n"
+                      "SWR value is unavailable (shown as '--').\n"
+                      "Check rig CAT/TCI SWR reporting."));
+            }
+          } else {
+            s_missingSWRReadings = 0;
+            s_alreadyShowingNoSWRAlert = false;
+            band_hopping_label.setText("");
+            band_hopping_label.setStyleSheet("");
+          }
         }
       }
     }
