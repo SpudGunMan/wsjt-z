@@ -812,7 +812,7 @@ MainWindow::MainWindow(QDir const& temp_directory, bool multiple,
       if (m_pskReporterView) m_pskReporterView->setFont(font);
     });
 
-  setWindowTitle (program_title () +  " (WSJT-Z MOD v2.0.10 by SQ9FVE)") ;
+  setWindowTitle (program_title () +  " (WSJT-Z MOD v2.0.11 by SQ9FVE)") ;
 
 
   connect(&proc_jt9, &QProcess::readyReadStandardOutput, this, &MainWindow::readFromStdout);

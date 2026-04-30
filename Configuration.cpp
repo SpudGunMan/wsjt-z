@@ -2598,6 +2598,7 @@ TransceiverFactory::ParameterPack Configuration::impl::gather_rig_data ()
   result.force_rts = ui_->force_RTS_combo_box->isEnabled () && ui_->force_RTS_combo_box->currentIndex () > 0;
   result.rts_high = ui_->force_RTS_combo_box->isEnabled () && 1 == ui_->force_RTS_combo_box->currentIndex ();
   result.poll_interval = ui_->CAT_poll_interval_spin_box->value ();
+  if (is_tci_ && ui_->tci_audio_check_box->isChecked ()) result.poll_interval |= tci__audio;
   result.ptt_type = static_cast<TransceiverFactory::PTTMethod> (ui_->PTT_method_button_group->checkedId ());
   result.ptt_port = ui_->PTT_port_combo_box->currentText ();
   result.audio_source = static_cast<TransceiverFactory::TXAudioSource> (ui_->TX_audio_source_button_group->checkedId ());

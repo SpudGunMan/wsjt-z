@@ -1,4 +1,8 @@
 == Changelog
+V2.0.11
+[fixes]
+- TCI audio now actually starts. The "Use TCI Audio" checkbox was wired into Settings but the resulting flag bit was never OR'd into rig_params.poll_interval, so TCITransceiver booted with tci_audio_=false and never sent audio_start to the rig. Result: no RX audio reached WSJT-Z, and TX audio only worked if the operator had manually selected TCI as the audio source on the rig side. Configuration::gather_rig_data now sets the tci__audio bit when the checkbox is ticked, matching the upstream wiring.
+
 V2.0.10
 [fixes]
 - Contest log save no longer fails with "Database Error: No query / Unable to fetch row" after decoding any US callsign. Root cause: the USState lookup was calling QSqlDatabase::addDatabase("QSQLITE") with no connection name, which replaces the unnamed default SQLite connection used by the contest log. Fix: USState now uses its own named connection ("usstate") opened once and reused.
