@@ -4208,6 +4208,10 @@ void MainWindow::decode()                                       //decode()
   if(dec_data.params.nfSplit==8) dec_data.params.nfSplit=1;
 
   dec_data.params.nfb=m_wideGraph->Fmax();
+  if (m_diskData && (m_mode=="FT8" || m_mode=="FT4" || m_mode=="FT2")) {
+    dec_data.params.nfa = 200;
+    dec_data.params.nfb = 4000;
+  }
   if(m_mode=="FT8" and SpecOp::HOUND==m_specOp and !ui->cbRxAll->isChecked() and
      !m_config.superFox()) dec_data.params.nfb=1000;
   if(m_mode=="FT8" and SpecOp::FOX == m_specOp ) dec_data.params.nfqso=200;
@@ -4858,7 +4862,8 @@ void MainWindow::readFromStdout()                             //readFromStdout
   // append happens here too (orig appends after display; we do it inline).
   bool const mtft8 = (m_mode == "FT8")
       && ui->actionUse_multithreaded_FT8_decoder->isChecked();
-    bool const dedup_on = mtft8 &&
+  bool const hide_ft8_dupes = ui->actionHide_FT8_dupe_messages->isChecked();
+    bool const dedup_on = mtft8 && (hide_ft8_dupes || m_diskData) &&
       (m_ft8DecoderStart < 2
        || m_freqNominal > 45000000
        || ui->actionReduce_false_decodes->isChecked());
