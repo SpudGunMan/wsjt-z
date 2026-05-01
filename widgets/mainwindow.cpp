@@ -173,9 +173,10 @@ extern "C" {
 
   void save_echo_params_(int* ndoptotal, int* ndop, int* nfrit, float* f1, float* fspread, short id2[], int* idir);
 
-  void avecho_( short id2[], int* dop, int* nfrit, int* nauto, int* navg, int* nqual, float* f1,
-                float* level, float* sigdb, float* snr, float* dfreq,
-                float* width, bool* bDiskData);
+  void avecho_( short id2[], int* dop, int* nfrit, int* nauto, int* ndf, int* navg, int* nqual,
+                float* f1, float* level, float* sigdb, float* snr, float* dfreq,
+                float* width, bool* bDiskData, bool* bEchoCall,
+                char* txcall, char* rxcall, FCL txcall_len, FCL rxcall_len);
 
   void fast_decode_(short id2[], int narg[], double * trperiod,
                     char msg[], char mycall[], char hiscall[],
@@ -2173,13 +2174,18 @@ void MainWindow::dataSink(qint64 frames)
       int nDop=m_fAudioShift;
       if(m_astroWidget->DopplerMethod()==2) nDop=0;   //Using CFOM
       int nDopTotal=m_fDop;
+      int ndf=0;
       int navg=ui->sbEchoAvg->value();
+      bool bEchoCall=false;
+      QByteArray txCallBa = (m_config.my_callsign ().toUpper () + "      ").left (6).toLatin1 ();
+      QByteArray rxCallBa {"      "};
       if(m_diskData) {
         int idir=-1;
         save_echo_params_(&nDopTotal,&nDop,&nfrit,&f1,&width,dec_data.d2,&idir);
       }
-      avecho_(dec_data.d2,&nDop,&nfrit,&nauto,&navg,&nqual,&f1,&xlevel,&sigdb,
-          &dBerr,&dfreq,&width,&m_diskData);
+      avecho_(dec_data.d2,&nDop,&nfrit,&nauto,&ndf,&navg,&nqual,&f1,&xlevel,&sigdb,
+          &dBerr,&dfreq,&width,&m_diskData,&bEchoCall,
+          txCallBa.data(),rxCallBa.data(),6,6);
       //Don't restart Monitor after an Echo transmission
       if(m_bEchoTxed and !m_auto) {
         monitor(false);
