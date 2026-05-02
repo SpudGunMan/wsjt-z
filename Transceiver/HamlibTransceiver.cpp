@@ -479,6 +479,13 @@ HamlibTransceiver::HamlibTransceiver (logger_type * logger,
 
   if (!m_->is_dummy_)
     {
+      if (params.poll_interval & do__pwr)
+        {
+          do_pwr_ = true;
+          do_pwr2_ = true;
+          do_swr_ = true;
+        }
+
       switch (rig_get_caps_int (m_->model_, RIG_CAPS_PORT_TYPE))
         {
         case RIG_PORT_SERIAL:
@@ -656,6 +663,12 @@ int HamlibTransceiver::do_start ()
   m_->tickle_hamlib_ = false;
   m_->get_vfo_works_ = true;
   m_->set_vfo_works_ = true;
+  do_pwr_ &= (!m_->is_dummy_ && rig_get_function_ptr (m_->model_, RIG_FUNCTION_GET_LEVEL)
+              && (rig_get_caps_int (m_->model_, RIG_CAPS_HAS_GET_LEVEL) & RIG_LEVEL_RFPOWER_METER_WATTS) == RIG_LEVEL_RFPOWER_METER_WATTS);
+  do_pwr2_ &= (!m_->is_dummy_ && rig_get_function_ptr (m_->model_, RIG_FUNCTION_GET_LEVEL)
+               && (rig_get_caps_int (m_->model_, RIG_CAPS_HAS_GET_LEVEL) & RIG_LEVEL_RFPOWER) == RIG_LEVEL_RFPOWER);
+  do_swr_ &= (!m_->is_dummy_ && rig_get_function_ptr (m_->model_, RIG_FUNCTION_GET_LEVEL)
+              && (rig_get_caps_int (m_->model_, RIG_CAPS_HAS_GET_LEVEL) & RIG_LEVEL_SWR) == RIG_LEVEL_SWR);
 
   // the Net rigctl back end promises all functions work but we must
   // test get_vfo as it determines our strategy for Icom rigs
@@ -1216,17 +1229,94 @@ void HamlibTransceiver::do_poll ()
     }
 
   if (RIG_PTT_NONE != m_->rig_->state.pttport.type.ptt && rig_get_function_ptr (m_->model_, RIG_FUNCTION_GET_PTT))
+  {
+    ptt_t p;
+    auto rc = rig_get_ptt (m_->rig_.data (), RIG_VFO_CURR, &p);
+    if (-RIG_ENAVAIL != rc && -RIG_ENIMPL != rc) // may fail if
+      // Net rig ctl and target doesn't
+      // support command
+      {
+        m_->error_check (rc, tr ("getting PTT state"));
+        CAT_TRACE ("rig_get_ptt PTT=" << p);
+        update_PTT (!(RIG_PTT_OFF == p));
+      }
+  }
+
+  if (ptt_on_)
     {
-      ptt_t p;
-      auto rc = rig_get_ptt (m_->rig_.data (), RIG_VFO_CURR, &p);
-      if (-RIG_ENAVAIL != rc && -RIG_ENIMPL != rc) // may fail if
-        // Net rig ctl and target doesn't
-        // support command
+      // update PWR and SWR
+      value_t strength;
+      int rc;
+
+      if (do_swr_)
         {
-          m_->error_check (rc, tr ("getting PTT state"));
-          CAT_TRACE ("rig_get_ptt PTT=" << p);
-          update_PTT (!(RIG_PTT_OFF == p));
+          rc = rig_get_level (m_->rig_.data (), RIG_VFO_CURR, RIG_LEVEL_SWR, &strength);
+          if (RIG_OK == rc && ptt_on_)
+            {
+              if (!std::isfinite (strength.f))
+                {
+                  // Treat invalid SWR reports while transmitting as critical.
+                  update_swr (9999);
+                }
+              else if (strength.f >= 1.000)
+                {
+                  auto const swr = static_cast<unsigned int> (std::round (strength.f * 100.0f));
+                  update_swr (swr);
+                }
+              else
+                {
+                  update_swr (0);
+                }
+            }
+          else
+            {
+              CAT_TRACE ("rig_get_level RIG_LEVEL_SWR failed with rc:" << rc << "; treating as critical while transmitting");
+              update_swr (9999);
+            }
         }
+
+      if (do_pwr_)
+        {
+          rc = rig_get_level (m_->rig_.data (), RIG_VFO_CURR, RIG_LEVEL_RFPOWER_METER_WATTS, &strength);
+          if (RIG_OK == rc)
+            {
+              update_power (strength.f * 1000);
+            }
+          else
+            {
+              CAT_TRACE ("rig_get_level RFPOWER_METER_WATTS failed with rc:" << rc << " ignoring");
+              update_power (0);
+            }
+        }
+      else if (do_pwr2_)
+        {
+          rc = rig_get_level (m_->rig_.data (), RIG_VFO_CURR, RIG_LEVEL_RFPOWER, &strength);
+          if (RIG_OK == rc)
+            {
+              unsigned int mwpower;
+              rc = rig_power2mW (m_->rig_.data (), &mwpower, strength.f, f, m);
+              if (RIG_OK != rc)
+                {
+                  CAT_TRACE ("rig_power2mW failed with rc:" << rc << " ignoring");
+                  mwpower = 0;
+                }
+              update_power (mwpower);
+            }
+          else
+            {
+              CAT_TRACE ("rig_get_level RFPOWER failed with rc:" << rc << " ignoring");
+              update_power (0);
+            }
+        }
+      else
+        {
+          update_power (0);
+        }
+    }
+  else
+    {
+      update_power (0);
+      update_swr (0);
     }
 }
 
@@ -1237,6 +1327,7 @@ void HamlibTransceiver::do_ptt (bool on)
     {
       if (RIG_PTT_NONE != m_->rig_->state.pttport.type.ptt)
         {
+          ptt_on_ = true;
           CAT_TRACE ("rig_set_ptt PTT=true");
           auto ptt_type = rig_get_caps_int (m_->model_, RIG_CAPS_PTT_TYPE);
           m_->error_check (rig_set_ptt (m_->rig_.data (), RIG_VFO_CURR
@@ -1248,6 +1339,7 @@ void HamlibTransceiver::do_ptt (bool on)
     {
       if (RIG_PTT_NONE != m_->rig_->state.pttport.type.ptt)
         {
+          ptt_on_ = false;
           CAT_TRACE ("rig_set_ptt PTT=false");
           m_->error_check (rig_set_ptt (m_->rig_.data (), RIG_VFO_CURR, RIG_PTT_OFF), tr ("setting PTT off"));
         }

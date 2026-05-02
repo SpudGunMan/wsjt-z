@@ -2613,6 +2613,7 @@ void MainWindow::on_actionSettings_triggered()               //Setup Dialog
     if ((!verified && ui->labDXped->isVisible()) or ui->labDXped->text()!="Super Hound")
       ui->labDXped->setStyleSheet("QLabel {background-color: red; color: white;}");
     set_mode(m_mode);
+
     configActiveStations();
     keep_frequency = false;
     inSettings = false;
@@ -3282,8 +3283,9 @@ void MainWindow::createStatusBar()                           //createStatusBar
   labAz.setFrameStyle (QFrame::Panel | QFrame::Sunken);
   statusBar()->addWidget (&labAz);
 
+  if (m_config.PWR_and_SWR()) statusBar ()->addPermanentWidget (&band_hopping_label);
   band_hopping_label.setAlignment (Qt::AlignHCenter);
-  band_hopping_label.setMinimumSize (QSize {90, 18});
+  band_hopping_label.setMinimumSize (QSize {80, 18});
   band_hopping_label.setFrameStyle (QFrame::Panel | QFrame::Sunken);
 
   statusBar()->addPermanentWidget(&progressBar);
@@ -3339,6 +3341,7 @@ void MainWindow::setup_status_bar (bool vhf)
     if (!band_hopping_label.isVisible ()) {
       statusBar ()->addWidget (&band_hopping_label);
       band_hopping_label.show ();
+      band_hopping_label.setMinimumSize (QSize  {80, 18});
     }
   } else {
     if (band_hopping_label.isVisible ()) statusBar ()->removeWidget (&band_hopping_label);
@@ -9907,6 +9910,88 @@ void MainWindow::handle_transceiver_update (Transceiver::TransceiverState const&
       m_tx_when_ready = false;
     }
   }
+
+  // Display PWR and SWR
+  if(m_config.PWR_and_SWR()) {
+    if (!band_hopping_label.isVisible ()) {
+      statusBar ()->addWidget (&band_hopping_label);
+      band_hopping_label.setMinimumSize (QSize  {80, 18});
+      band_hopping_label.show();
+    }
+    if (m_rigState.power() != s.power() && m_transmitting) {
+      ui->label->setText(QString {tr("%1 W")}.arg (round(s.power()/1000.)));
+      if (round(s.power()/1000.) >= 100) {
+        qreal pointSize = m_config.text_font().pointSizeF();
+
+        ui->label->setMinimumWidth (2.8*pointSize + 16);
+        ui->outAttenuation->setMinimumWidth (2.8*pointSize + 16);
+      }
+    } else {
+      ui->label->setText("Pwr");
+    }
+    bool const swr_changed = (m_rigState.swr() != s.swr());
+    bool const swr_active_tx = (s.ptt() || m_transmitting || m_tune);
+    if (swr_changed || swr_active_tx) {
+      static bool s_alreadyShowingSWRAlert = false;
+      static bool s_alreadyShowingNoSWRAlert = false;
+      static int s_missingSWRReadings = 0;
+      if (s.swr() > 0) {
+        s_missingSWRReadings = 0;
+        s_alreadyShowingNoSWRAlert = false;
+        double swr_ratio = 0.0;
+        if (s.swr() >= 100) {
+          swr_ratio = s.swr() / 100.0;   // common internal representation
+        } else if (s.swr() >= 10) {
+          swr_ratio = s.swr() / 10.0;    // some rigs report x10
+        } else {
+          swr_ratio = static_cast<double>(s.swr()); // some rigs report plain ratio
+        }
+
+        if (swr_ratio > 2.0) {
+          band_hopping_label.setStyleSheet ("QLabel{color: #ffffff; background-color: #ff0000}");
+        } else if (swr_ratio > 1.5) {
+          band_hopping_label.setStyleSheet ("QLabel{color: #000000; background-color: #ffff00}");
+        } else {
+          band_hopping_label.setStyleSheet("");
+        }
+
+        if (swr_ratio > 2.5 && m_config.check_SWR()) {
+          if (!s_alreadyShowingSWRAlert) {     // avoid recursion
+            on_stopTxButton_clicked();
+            s_alreadyShowingSWRAlert = true;
+            MessageBox::warning_message (this, tr ("SWR > 2.5 !!!\n\n"
+                                                   "Transmission was stopped\n\n"
+                                                   "Check your antenna"));
+            s_alreadyShowingSWRAlert = false;
+          }
+        }
+        band_hopping_label.setText(QString {"SWR: %1"}.arg (swr_ratio,0,'f',2));
+      } else {
+        if (!s_alreadyShowingSWRAlert) {
+          if (swr_active_tx) {
+            // Rig is transmitting/tuning but no SWR reading is currently available.
+            band_hopping_label.setText("SWR: --");
+            band_hopping_label.setStyleSheet ("QLabel{color: #000000; background-color: #ff9900}");
+            ++s_missingSWRReadings;
+            if (s_missingSWRReadings >= 4 && !s_alreadyShowingNoSWRAlert) {
+              s_alreadyShowingNoSWRAlert = true;
+              MessageBox::warning_message (
+                  this,
+                  tr ("No SWR telemetry while transmitting/tuning.\n\n"
+                      "SWR value is unavailable (shown as '--').\n"
+                      "Check rig CAT/TCI SWR reporting."));
+            }
+          } else {
+            s_missingSWRReadings = 0;
+            s_alreadyShowingNoSWRAlert = false;
+            band_hopping_label.setText("");
+            band_hopping_label.setStyleSheet("");
+          }
+        }
+      }
+    }
+  }
+
   m_rigState = s;
   auto old_freqNominal = m_freqNominal;
   if (!old_freqNominal)
