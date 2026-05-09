@@ -5574,7 +5574,10 @@ void MainWindow::auto_sequence (DecodedText const& message, unsigned start_toler
         && (SpecOp::HOUND != m_specOp) && qAbs (ui->TxFreqSpinBox->value () - df) <= int (stop_tolerance) //
         && message_words.at (2) != "DE"
         && !message_words.at (2).contains (QRegularExpression {"(^(CQ|QRZ))|" + m_baseCall})
-        && message_words.at (3).contains (Radio::base_callsign (ui->dxCallEntry->text ()))) {
+        // Selected DX station is transmitting to another caller, not to us.
+        && message_words.at (2).contains (Radio::base_callsign (ui->dxCallEntry->text ()))
+        && !message_words.at (3).contains (m_baseCall)
+        && !message_words.at (3).contains (m_config.my_callsign ())) {
       // auto stop to avoid accidental QRM
         // Z
         if (m_zdebug) log("Automatic TX halt");
