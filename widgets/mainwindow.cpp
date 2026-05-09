@@ -6368,8 +6368,8 @@ void MainWindow::guiUpdate()
 
     // prevent tuning on top of a SuperFox message
     if (SpecOp::HOUND==m_specOp && sfox && m_tune) {
-      QDateTime now = now;
-      int s = now.time().toString("ss").toInt();
+      QDateTime now = QDateTime::currentDateTimeUtc();
+      int s = now.time().second();
       if ((s >= 0 && s < 15) || (s >= 30 && s < 45)) ui->tuneButton->click ();
     }
 
@@ -11796,7 +11796,7 @@ QString MainWindow::sortHoundCalls(QString t, int isort, int max_dB)
 
   int nn=lines2.length();
   if(isort==0) {                                      // shuffle Hound calls to random order
-    int a[nn];
+    QVector<int> a(nn);
     for(i=0; i<nn; i++) {
       a[i]=i;
     }

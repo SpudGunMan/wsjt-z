@@ -405,12 +405,34 @@ int main(int argc, char *argv[])
             {
               if (!mem_jt9.create (sizeof (dec_data)))
               {
-                splash.hide ();
-                MessageBox::critical_message (nullptr, a.translate ("main", "Shared memory error"),
-                                              a.translate ("main", "Unable to create shared memory segment"));
-                throw std::runtime_error {"Shared memory error"};
+                // A stale segment from a previous crash/build can cause create()
+                // to fail (e.g. AlreadyExists/PermissionDenied). Try one
+                // cleanup pass and then retry before bailing out.
+                auto const first_error = mem_jt9.errorString ();
+                if (mem_jt9.attach ())
+                  {
+                    mem_jt9.detach ();
+                  }
+
+                if (!mem_jt9.create (sizeof (dec_data)))
+                  {
+                    auto const details = a.translate ("main", "Unable to create shared memory segment")
+                      + "\n"
+                      + a.translate ("main", "Key") + ": " + mem_jt9.key ()
+                      + "\n"
+                      + a.translate ("main", "Error") + ": " + mem_jt9.errorString ()
+                      + "\n"
+                      + a.translate ("main", "Initial error") + ": " + first_error;
+
+                    splash.hide ();
+                    MessageBox::critical_message (nullptr, a.translate ("main", "Shared memory error"), details);
+                    throw std::runtime_error {("Shared memory error: " + details).toStdString ()};
+                  }
               }
-              LOG_INFO ("shmem size: " << mem_jt9.size ());
+              else
+                {
+                  LOG_INFO ("shmem size: " << mem_jt9.size ());
+                }
             }
           else
             {

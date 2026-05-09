@@ -12,6 +12,7 @@
 #include "moc_plotter.cpp"
 #include <fstream>
 #include <iostream>
+#include <vector>
 
 #define MAX_SCREENSIZE 8192
 
@@ -369,15 +370,15 @@ void CPlotter::drawRed(int ia, int ib, float swide[])
 void CPlotter::replot()
 {
   resizeEvent(NULL);
-  float swide[m_w];
+  std::vector<float> swide(m_w);
   m_bReplot=true;
   for(int irow=0; irow<m_h1; irow++) {
     m_j=irow;
-    plotsave_(swide,&m_w,&m_h1,&irow);
-    draw(swide,false,false);
+    plotsave_(swide.data(),&m_w,&m_h1,&irow);
+    draw(swide.data(),false,false);
   }
   if(m_mode=="Q65" and m_bQ65_Sync) {
-    draw(swide,false,true);
+    draw(swide.data(),false,true);
   }
   update();                                    //trigger a new paintEvent
   m_bReplot=false;

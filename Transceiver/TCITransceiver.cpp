@@ -1649,8 +1649,8 @@ quint16 TCITransceiver::readAudioData (float * data, qint32 maxSize, qreal txAtt
           float x1=QRandomGenerator::global ()->generateDouble ();
           float x2=QRandomGenerator::global ()->generateDouble ();
 #else
-          float x1=(float)qrand()/RAND_MAX;
-          float x2=(float)qrand()/RAND_MAX;
+          float x1=static_cast<float>(qrand())/static_cast<float>(RAND_MAX);
+          float x2=static_cast<float>(qrand())/static_cast<float>(RAND_MAX);
 #endif
           toneFrequency = m_toneFrequency0 + 0.5*m_fSpread*(x1+x2-1.0);
           m_dphi = m_twoPi * toneFrequency / audioSampleRate;

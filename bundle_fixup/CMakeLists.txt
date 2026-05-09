@@ -21,6 +21,61 @@ if (APPLE OR WIN32)
   #get_filename_component (hamlib_lib_dir ${Hamlib_LIBRARIES} PATH)
 
   if (APPLE)
+    # Homebrew Qt plugins (e.g. imageformats) may depend on dylibs referenced as
+    # @rpath/libwebp*.dylib and @rpath/libsharpyuv*.dylib. Add their directories
+    # so BundleUtilities can resolve and copy them during fixup_bundle.
+    find_library (WEBP_LIBRARY NAMES webp libwebp)
+    if (WEBP_LIBRARY)
+      get_filename_component (webp_lib_dir ${WEBP_LIBRARY} PATH)
+      list (APPEND fixup_library_dirs ${webp_lib_dir})
+    endif ()
+
+    find_library (SHARPYUV_LIBRARY NAMES sharpyuv libsharpyuv)
+    if (SHARPYUV_LIBRARY)
+      get_filename_component (sharpyuv_lib_dir ${SHARPYUV_LIBRARY} PATH)
+      list (APPEND fixup_library_dirs ${sharpyuv_lib_dir})
+    endif ()
+
+    # Fallback well-known Homebrew library locations for both Apple Silicon and Intel.
+    if (EXISTS "/opt/homebrew/lib")
+      list (APPEND fixup_library_dirs "/opt/homebrew/lib")
+    endif ()
+    if (EXISTS "/usr/local/lib")
+      list (APPEND fixup_library_dirs "/usr/local/lib")
+    endif ()
+
+    # Add GCC/gfortran runtime directories used by Homebrew. These provide
+    # @rpath/libquadmath*.dylib and @rpath/libgcc_s*.dylib.
+    if (CMAKE_Fortran_COMPILER)
+      get_filename_component (gfortran_bin_dir ${CMAKE_Fortran_COMPILER} DIRECTORY)
+      get_filename_component (brew_prefix_from_fc ${gfortran_bin_dir}/.. REALPATH)
+      if (EXISTS "${brew_prefix_from_fc}/lib/gcc/current")
+        list (APPEND fixup_library_dirs "${brew_prefix_from_fc}/lib/gcc/current")
+      endif ()
+      if (EXISTS "${brew_prefix_from_fc}/opt/gcc/lib/gcc/current")
+        list (APPEND fixup_library_dirs "${brew_prefix_from_fc}/opt/gcc/lib/gcc/current")
+      endif ()
+    endif ()
+
+    # CMake discovers additional implicit linker search dirs for Fortran.
+    # Include them so BundleUtilities can resolve compiler runtime dylibs.
+    if (CMAKE_Fortran_IMPLICIT_LINK_DIRECTORIES)
+      list (APPEND fixup_library_dirs ${CMAKE_Fortran_IMPLICIT_LINK_DIRECTORIES})
+    endif ()
+
+    # Also include explicit resolved paths when available.
+    find_library (QUADMATH_LIBRARY NAMES quadmath libquadmath)
+    if (QUADMATH_LIBRARY)
+      get_filename_component (quadmath_lib_dir ${QUADMATH_LIBRARY} PATH)
+      list (APPEND fixup_library_dirs ${quadmath_lib_dir})
+    endif ()
+
+    find_library (GCC_S_LIBRARY NAMES gcc_s.1.1 gcc_s libgcc_s)
+    if (GCC_S_LIBRARY)
+      get_filename_component (gcc_s_lib_dir ${GCC_S_LIBRARY} PATH)
+      list (APPEND fixup_library_dirs ${gcc_s_lib_dir})
+    endif ()
+
     # install required Qt plugins
     install (
       DIRECTORY
@@ -146,7 +201,26 @@ if (APPLE OR WIN32)
         set (gp_tool ${gp_tool})
         # canonicalize path in install context
         get_filename_component (the_exe ${fixup_exe} REALPATH)
-        fixup_bundle (\"\${the_exe}\" \"\${QTPLUGINS}\" \"${fixup_library_dirs}\")"
+        fixup_bundle (\"\${the_exe}\" \"\${QTPLUGINS}\" \"${fixup_library_dirs}\")
+        if (APPLE)
+          # fixup_bundle may rewrite Mach-O load commands. Re-sign the bundle so
+          # dyld on newer macOS versions does not reject modified pages.
+          get_filename_component (bundle_macos_dir \"\${the_exe}\" DIRECTORY)
+          get_filename_component (bundle_contents_dir \"\${bundle_macos_dir}\" DIRECTORY)
+          get_filename_component (bundle_app \"\${bundle_contents_dir}\" DIRECTORY)
+          find_program (CODESIGN_EXECUTABLE codesign)
+          if (CODESIGN_EXECUTABLE)
+            execute_process (
+              COMMAND \"\${CODESIGN_EXECUTABLE}\" --force --deep --sign - --timestamp=none \"\${bundle_app}\"
+              RESULT_VARIABLE _codesign_result
+              OUTPUT_QUIET
+              ERROR_VARIABLE _codesign_error
+            )
+            if (NOT _codesign_result EQUAL 0)
+              message (FATAL_ERROR \"codesign failed for bundle '\${bundle_app}': \${_codesign_error}\")
+            endif ()
+          endif ()
+        endif ()"
     #COMPONENT runtime
     )
 endif (APPLE OR WIN32)
