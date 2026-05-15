@@ -14688,7 +14688,9 @@ bool MainWindow::setFreeFreq() {
 bool MainWindow::isSlotFree(int f) {
     int width;
 
-    if ((m_mode=="FT4" or m_mode=="FT2"))
+  if (m_mode=="FT2")
+    width = 160;
+  else if (m_mode=="FT4")
         width = 80;
     else
         width = 50;
