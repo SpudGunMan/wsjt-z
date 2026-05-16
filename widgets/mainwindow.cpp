@@ -7959,6 +7959,7 @@ void MainWindow::lookup()
 void MainWindow::on_lookupButton_clicked()                    //Lookup button
 {
   lookup();
+  dxLookup(ui->dxCallEntry->text().trimmed().toUpper(), ui->dxGridEntry->text().trimmed().toUpper());
 }
 
 void MainWindow::on_addButton_clicked()                       //Add button
@@ -13959,7 +13960,7 @@ void MainWindow::qrzSetSessionKey(QNetworkReply *r) {
 
     if (!error.isNull()) {
         qrzVisible(false);
-        MessageBox::critical_message (this, tr ("Error connecting to QRZ.COM"), error);
+        statusBar()->showMessage(tr("QRZ Login Failed: %1").arg(error), 5000);
     } else {
         qrzVisible(true);
         if (!qrzPendingLookupCall.isEmpty()) {
@@ -13989,7 +13990,7 @@ void MainWindow::qrzLookup(QString dxCall) {
 
 void MainWindow::qrzResponseHandler(QNetworkReply * r) {
     disconnect(networkManager, SIGNAL(finished(QNetworkReply*)), this, SLOT(qrzResponseHandler(QNetworkReply*)));
-    QString error = "";
+    QString error;
     if(r->error() == QNetworkReply::NoError) {
         QByteArray data = r->read(2048);
         QXmlStreamReader reader(data);
@@ -14049,15 +14050,21 @@ void MainWindow::qrzResponseHandler(QNetworkReply * r) {
 
             }
         }
+    } else {
+        error = r->errorString();
+    }
 
-        if (error == "Invalid session key" || error == "Session Timeout") {
-            if (m_zdebug) log("QRZ Error: " + error);
-            qrzInit();
-        } else {
-            if (ui->ci_grid->text().length() > ui->dxGridEntry->text().length() && qrzPendingLookupCall == ui->dxCallEntry->text()) ui->dxGridEntry->setText(ui->ci_grid->text());
-            qrzPendingLookupCall = "";
-            ci_gridLookup();
+    if (error == "Invalid session key" || error == "Session Timeout") {
+        if (m_zdebug) log("QRZ Error: " + error);
+        statusBar()->showMessage(tr("QRZ session expired, reconnecting..."), 3000);
+        qrzInit();
+    } else {
+        if (!error.isEmpty()) {
+            statusBar()->showMessage(tr("QRZ Lookup Failed: %1").arg(error), 5000);
         }
+        if (ui->ci_grid->text().length() > ui->dxGridEntry->text().length() && qrzPendingLookupCall == ui->dxCallEntry->text()) ui->dxGridEntry->setText(ui->ci_grid->text());
+        qrzPendingLookupCall = "";
+        ci_gridLookup();
     }
     r->deleteLater();
 }
