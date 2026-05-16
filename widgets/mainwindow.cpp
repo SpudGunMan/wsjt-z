@@ -5266,6 +5266,10 @@ void MainWindow::readFromStdout()                             //readFromStdout
       m_unfilteredView->display(rawViewLine);
         }
 
+        if (m_bandActivityRawView) {
+      ui->decodedTextBrowser->insertText(rawViewLine);
+        }
+
 
 #ifdef FOX_OTP
           if ((SpecOp::HOUND == m_specOp) &&
@@ -5364,9 +5368,7 @@ void MainWindow::readFromStdout()                             //readFromStdout
               // leading "? ", and Q65 "q1..q9[0-9*]?") before display. Anchored on a
               // leading whitespace + word boundary so we do NOT mangle callsigns that
               // happen to contain "a1".."a9" as a substring (e.g., PA1ABC, LA2XYZ).
-                if (m_bandActivityRawView) {
-                  ui->decodedTextBrowser->insertText(rawViewLine);
-                } else {
+                if (!m_bandActivityRawView) {
                   if (ui->actionHide_AP_info->isVisible() && ui->actionHide_AP_info->isChecked()) {
                     static QRegularExpression const kReAP {
                       R"(\s+(?:\?\s+)?(?:a[1-9]|q[1-9][0-9*]?)\b)"};
