@@ -1,14 +1,14 @@
 [Setup]
-AppName=wsjtx
-AppVerName=wsjtx Version 1.1.0 r3478
+AppName=wsjtz
+AppVerName=wsjtz Version 1.1.0 r3478
 AppCopyright=Copyright (C) 2001-2013 by Joe Taylor, K1JT
-DefaultDirName=c:\wsjtx2
-DefaultGroupName=wsjtx2
+DefaultDirName=c:\wsjtz2
+DefaultGroupName=wsjtz2
 
 [Files]
-Source: "c:\Users\joe\wsjt\wsjtx_install\*.exe";                         DestDir: "{app}"
-Source: "c:\Users\joe\wsjt\wsjtx_install\*.dll";                         DestDir: "{app}";
-Source: "c:\Users\joe\wsjt\wsjtx_install\*.dat";                         DestDir: "{app}";
+Source: "c:\Users\joe\wsjt\wsjtz_install\*.exe";                         DestDir: "{app}"
+Source: "c:\Users\joe\wsjt\wsjtz_install\*.dll";                         DestDir: "{app}";
+Source: "c:\Users\joe\wsjt\wsjtz_install\*.dat";                         DestDir: "{app}";
 Source: "c:\Users\joe\wsjt\wsjtx_install\wsjt.ico";                      DestDir: "{app}";
 Source: "c:\Users\joe\wsjt\wsjtx_install\CALL3.TXT";                     DestDir: "{app}";  Flags: onlyifdoesntexist
 Source: "c:\Users\joe\wsjt\wsjtx\shortcuts.txt";                         DestDir: "{app}"

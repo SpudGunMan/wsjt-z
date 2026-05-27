@@ -45,7 +45,7 @@ if (POLICY CMP0075)
 endif ()
 
 include (Versions.cmake)
-project (wsjtx
+project (wsjtz
   VERSION ${WSJTX_VERSION_MAJOR}.${WSJTX_VERSION_MINOR}.${WSJTX_VERSION_PATCH}.0
   LANGUAGES C CXX Fortran
   )
@@ -85,7 +85,7 @@ set (PROJECT_VENDOR "SQ9FVE")
 set (PROJECT_CONTACT "SQ9FVE")
 set (PROJECT_COPYRIGHT "Copyright (C) 2001-2026 by SQ9FVE")
 set (PROJECT_HOMEPAGE https://groups.io/g/WSJT-Z)
-set (PROJECT_MANUAL wsjtx-main)
+set (PROJECT_MANUAL wsjtz-main)
 set (PROJECT_MANUAL_DIRECTORY_URL https://groups.io/g/WSJT-Z)
 set (PROJECT_SAMPLES_URL https://sourceforge.net/projects/wsjt/files/)
 #set (PROJECT_SAMPLES_UPLOAD_DEST frs.sourceforge.net:/home/frs/project/wsjt/)
@@ -1585,7 +1585,7 @@ generate_version_info (wsjtx_VERSION_RESOURCES
   ICON ${WSJTX_ICON_FILE}
   )
 
-add_executable (wsjtx MACOSX_BUNDLE
+add_executable (wsjtz MACOSX_BUNDLE
   ${wsjtx_CXXSRCS}
   ${wsjtx_GENUISRCS}
   ${WSJTX_ICON_FILE}
@@ -1594,10 +1594,10 @@ add_executable (wsjtx MACOSX_BUNDLE
   )
 
 if (WSJT_CREATE_WINMAIN)
-  set_target_properties (wsjtx PROPERTIES WIN32_EXECUTABLE ON)
+  set_target_properties (wsjtz PROPERTIES WIN32_EXECUTABLE ON)
 endif (WSJT_CREATE_WINMAIN)
 
-set_target_properties (wsjtx PROPERTIES
+set_target_properties (wsjtz PROPERTIES
   MACOSX_BUNDLE_INFO_PLIST "${CMAKE_CURRENT_SOURCE_DIR}/Darwin/Info.plist.in"
   MACOSX_BUNDLE_INFO_STRING "${PROJECT_DESCRIPTION}"
   MACOSX_BUNDLE_ICON_FILE "${WSJTX_ICON_FILE}"
@@ -1607,51 +1607,51 @@ set_target_properties (wsjtx PROPERTIES
   MACOSX_BUNDLE_BUNDLE_NAME "${PROJECT_BUNDLE_NAME}"
   MACOSX_BUNDLE_BUNDLE_EXECUTABLE_NAME "${PROJECT_NAME}"
   MACOSX_BUNDLE_COPYRIGHT "${PROJECT_COPYRIGHT}"
-  MACOSX_BUNDLE_GUI_IDENTIFIER "org.k1jt.wsjtx"
+  MACOSX_BUNDLE_GUI_IDENTIFIER "org.k1jt.wsjtz"
   )
 
-target_include_directories (wsjtx PRIVATE ${FFTW3_INCLUDE_DIRS})
+target_include_directories (wsjtz PRIVATE ${FFTW3_INCLUDE_DIRS})
 if ((NOT ${OPENMP_FOUND}) OR APPLE)
-  target_link_libraries (wsjtx wsjt_fort)
+  target_link_libraries (wsjtz wsjt_fort)
 else ()
-  target_link_libraries (wsjtx wsjt_fort_omp)
+  target_link_libraries (wsjtz wsjt_fort_omp)
   if (OpenMP_C_FLAGS)
-    set_target_properties (wsjtx PROPERTIES
+    set_target_properties (wsjtz PROPERTIES
       COMPILE_FLAGS "${OpenMP_C_FLAGS}"
       LINK_FLAGS "${OpenMP_C_FLAGS}"
       )
   endif ()
-  set_target_properties (wsjtx PROPERTIES
+  set_target_properties (wsjtz PROPERTIES
     Fortran_MODULE_DIRECTORY ${CMAKE_BINARY_DIR}/fortran_modules_omp
     )
   if (WIN32)
-    set_target_properties (wsjtx PROPERTIES
+    set_target_properties (wsjtz PROPERTIES
       LINK_FLAGS -Wl,--stack,0x1000000,--heap,0x20000000
       )
   endif ()
 endif ()
-target_link_libraries (wsjtx Qt5::SerialPort wsjt_cxx wsjt_qt wsjt_qtmm ${FFTW3_LIBRARIES} ${LIBM_LIBRARIES})
+target_link_libraries (wsjtz Qt5::SerialPort wsjt_cxx wsjt_qt wsjt_qtmm ${FFTW3_LIBRARIES} ${LIBM_LIBRARIES})
 
 # make a library for WSJT-X UDP servers
 # add_library (wsjtx_udp SHARED ${UDP_library_CXXSRCS})
-add_library (wsjtx_udp-static STATIC ${UDP_library_CXXSRCS})
+add_library (wsjtz_udp-static STATIC ${UDP_library_CXXSRCS})
 #target_include_directories (wsjtx_udp
 #  INTERFACE
 #  $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/wsjtx>
 #  )
-target_include_directories (wsjtx_udp-static
+target_include_directories (wsjtz_udp-static
   INTERFACE
   $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/wsjtx>
   )
 #set_target_properties (wsjtx_udp PROPERTIES
 #  PUBLIC_HEADER "${UDP_library_HEADERS}"
 #  )
-set_target_properties (wsjtx_udp-static PROPERTIES
-  OUTPUT_NAME wsjtx_udp
+set_target_properties (wsjtz_udp-static PROPERTIES
+  OUTPUT_NAME wsjtz_udp
   )
-target_compile_definitions (wsjtx_udp-static PUBLIC UDP_STATIC_DEFINE)
-target_link_libraries (wsjtx_udp-static Qt5::Network Qt5::Gui)
-generate_export_header (wsjtx_udp-static BASE_NAME udp)
+target_compile_definitions (wsjtz_udp-static PUBLIC UDP_STATIC_DEFINE)
+target_link_libraries (wsjtz_udp-static Qt5::Network Qt5::Gui)
+generate_export_header (wsjtz_udp-static BASE_NAME udp)
 
 generate_version_info (udp_daemon_VERSION_RESOURCES
   NAME udp_daemon
@@ -1660,7 +1660,7 @@ generate_version_info (udp_daemon_VERSION_RESOURCES
   FILE_DESCRIPTION "Example WSJT-X UDP Message Protocol daemon"
   )
 add_executable (udp_daemon UDPExamples/UDPDaemon.cpp ${udp_daemon_VERSION_RESOURCES})
-target_link_libraries (udp_daemon wsjtx_udp-static)
+target_link_libraries (udp_daemon wsjtz_udp-static)
 
 generate_version_info (wsjtx_app_version_VERSION_RESOURCES
   NAME wsjtx_app_version
@@ -1688,7 +1688,7 @@ add_executable (message_aggregator
   ${message_aggregator_RESOURCES_RCC}
   ${message_aggregator_VERSION_RESOURCES}
   )
-target_link_libraries (message_aggregator wsjt_qt Qt5::Widgets wsjtx_udp-static)
+target_link_libraries (message_aggregator wsjt_qt Qt5::Widgets wsjtz_udp-static)
 
 if (WSJT_CREATE_WINMAIN)
   set_target_properties (message_aggregator PROPERTIES WIN32_EXECUTABLE ON)
@@ -1697,18 +1697,18 @@ endif (WSJT_CREATE_WINMAIN)
 if (UNIX)
   if (NOT WSJT_SKIP_MANPAGES)
     add_subdirectory (manpages)
-    add_dependencies (wsjtx manpages)
+    add_dependencies (wsjtz manpages)
   endif (NOT WSJT_SKIP_MANPAGES)
   if (NOT APPLE)
     add_subdirectory (debian)
-    add_dependencies (wsjtx debian)
+    add_dependencies (wsjtz debian)
   endif (NOT APPLE)
 endif (UNIX)
 
 #
 # installation
 #
-install (TARGETS wsjtx
+install (TARGETS wsjtz
   RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR} COMPONENT runtime
   BUNDLE DESTINATION . COMPONENT runtime
   )
@@ -1719,7 +1719,7 @@ install (TARGETS wsjtx
 #   ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
 #   PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/wsjtx
 #   )
-# install (TARGETS wsjtx_udp-static EXPORT udp-static
+# install (TARGETS wsjtz_udp-static EXPORT udp-static
 #   DESTINATION ${CMAKE_INSTALL_LIBDIR}
 #   )
 
@@ -1889,12 +1889,12 @@ endif (NOT WIN32 AND NOT APPLE)
 
 if (APPLE)
   set (CMAKE_POSTFLIGHT_SCRIPT
-    "${wsjtx_BINARY_DIR}/postflight.sh")
+    "${CMAKE_BINARY_DIR}/postflight.sh")
   set (CMAKE_POSTUPGRADE_SCRIPT
-    "${wsjtx_BINARY_DIR}/postupgrade.sh")
-  configure_file ("${wsjtx_SOURCE_DIR}/Darwin/postflight.sh.in"
+    "${CMAKE_BINARY_DIR}/postupgrade.sh")
+  configure_file ("${CMAKE_SOURCE_DIR}/Darwin/postflight.sh.in"
     "${CMAKE_POSTFLIGHT_SCRIPT}")
-  configure_file ("${wsjtx_SOURCE_DIR}/Darwin/postupgrade.sh.in"
+  configure_file ("${CMAKE_SOURCE_DIR}/Darwin/postupgrade.sh.in"
     "${CMAKE_POSTUPGRADE_SCRIPT}")
 endif ()
 

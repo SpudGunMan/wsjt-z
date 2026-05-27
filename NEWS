@@ -2819,7 +2819,7 @@ Settings
 --------
 
 WSJT-X v1.4 introduces a new settings  regime. There is no facility to
-migrate  settings  from  prior  versions  and  copying  the  wsjtx.ini
+migrate  settings  from  prior  versions  and  copying  the  wsjtz.ini
 settings file to  the new user files location will  not carry over any
 useful information.   The new settings  dialog is very  different from
 prior versions but it is intuitive and will not take long to configure
@@ -3153,7 +3153,7 @@ May 22, 2013: v0.99, r3297
 4. Gray bar between decoding periods now contains a dashed line.
 
 5. Corrected a bug that prevented use of Setup | Configuration with
-   no existing wsjtx.ini file.
+  no existing wsjtz.ini file.
 
 May 17, 2013: v0.95, r3278
 --------------------------

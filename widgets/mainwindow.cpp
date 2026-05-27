@@ -3136,7 +3136,7 @@ void MainWindow::statusChanged()
 {
   if (m_specOp==SpecOp::Q65_PILEUP && m_mode != "Q65") on_actionQ65_triggered();
   statusUpdate ();
-  QFile f {m_config.temp_dir ().absoluteFilePath ("wsjtx_status.txt")};
+  QFile f {m_config.temp_dir ().absoluteFilePath ("wsjtz_status.txt")};
   if(f.open(QFile::WriteOnly | QIODevice::Text)) {
     QTextStream out(&f);
     QString tmpGrid = m_hisGrid;
@@ -4647,13 +4647,13 @@ void MainWindow::refreshPileupList()
 
 void MainWindow::read_log()
 {
-  // Parse wsjtx.log off the UI thread. On accounts with years of QSOs this
+  // Parse wsjtz.log off the UI thread. On accounts with years of QSOs this
   // scan can stall startup for hundreds of ms; running it async lets the
   // main window paint immediately and the score updates when results arrive.
   // Called once from the ctor (Q65 mode only) before any QSO can be logged,
   // so there is no writer racing us on m_EMEworked / m_score.
   auto const path = QDir {QStandardPaths::writableLocation (QStandardPaths::DataLocation)}
-                    .absoluteFilePath ("wsjtx.log");
+                    .absoluteFilePath ("wsjtz.log");
   using Result = QPair<QHash<QString, bool>, int>;
   auto * watcher = new QFutureWatcher<Result> (this);
   connect (watcher, &QFutureWatcherBase::finished, this, [this, watcher] () {
@@ -9682,12 +9682,12 @@ void MainWindow::on_actionExport_Cabrillo_log_triggered()
 }
 
 
-void MainWindow::on_actionErase_wsjtx_log_adi_triggered()
+void MainWindow::on_actionErase_wsjtz_log_adi_triggered()
 {
   int ret = MessageBox::query_message (this, tr ("Confirm Erase"),
-                                       tr ("Are you sure you want to erase file wsjtx_log.adi?"));
+                                       tr ("Are you sure you want to erase file wsjtz_log.adi?"));
   if(ret==MessageBox::Yes) {
-    QFile f {m_config.writeable_data_dir ().absoluteFilePath ("wsjtx_log.adi")};
+    QFile f {m_config.writeable_data_dir ().absoluteFilePath ("wsjtz_log.adi")};
     f.remove();
   }
 }

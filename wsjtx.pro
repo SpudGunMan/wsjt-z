@@ -9,7 +9,7 @@ greaterThan(QT_MAJOR_VERSION, 4): QT += widgets sql
 CONFIG   += thread
 #CONFIG   += console
 
-TARGET = wsjtx
+TARGET = wsjtz
 VERSION = "Not for Release"
 TEMPLATE = app
 DEFINES = QT5
@@ -17,7 +17,7 @@ QMAKE_CXXFLAGS += -std=c++11
 DEFINES += PROJECT_MANUAL="'\"http://www.physics.princeton.edu/pulsar/K1JT/wsjtx-doc/wsjtx-main.html\"'"
 
 isEmpty (DESTDIR) {
-DESTDIR = ../wsjtx_exp_install
+DESTDIR = ../wsjtz_exp_install
 }
 
 isEmpty (HAMLIB_DIR) {
