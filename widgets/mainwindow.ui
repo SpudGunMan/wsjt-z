@@ -3652,12 +3652,18 @@ list. The list can be maintained in Settings (F2).</string>
                             <property name="enabled">
                              <bool>true</bool>
                             </property>
+                            <property name="maximum">
+                             <number>999</number>
+                            </property>
                            </widget>
                           </item>
                           <item row="0" column="1">
                            <widget class="QSpinBox" name="sb_autoCQCount">
                             <property name="enabled">
                              <bool>true</bool>
+                            </property>
+                            <property name="maximum">
+                             <number>999</number>
                             </property>
                            </widget>
                           </item>
