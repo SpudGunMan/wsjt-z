@@ -13643,6 +13643,12 @@ bool MainWindow::callsignFiltered(DecodedText dt)
     if (m_zdebug) log("message:" + dt.string());
     dt.deCallAndGrid (/*out*/ dxCall, dxGrid);
     if (m_zdebug) log("dxCall: " + dxCall);
+    if (m_zdebug) log(QString("callsignFiltered: dxCall=%1 dxGrid=%2 filtering=%3 minDb=%4 LOTW=%5")
+                      .arg(dxCall)
+                      .arg(dxGrid)
+                      .arg(ui->cb_filtering->isChecked())
+                      .arg(ui->sbMindB->value())
+                      .arg(ui->cb_f_LOTW->isChecked()));
     int nmod;
     if(m_mode=="FT2") {
       int period = (int)round(double(dt.timeInSeconds()) / m_TRperiod);
@@ -13704,11 +13710,16 @@ bool MainWindow::callsignFiltered(DecodedText dt)
     }
 
 
-    // Minimum signal strngth filter
+    // Minimum signal strength filter
     QString dbM = dt.report();
-    if (ui->sbMindB->value() > -30 && dbM.toInt() < ui->sbMindB->value()) {
-        if (m_zdebug) log("callsignFiltered: Station signal strength under threshold: " + dbM);
-        return true;
+    if (ui->sbMindB->value() > -30) {
+        if (m_zdebug) log(QString("callsignFiltered: Min signal threshold=%1 actual=%2")
+                          .arg(ui->sbMindB->value())
+                          .arg(dbM));
+        if (dbM.toInt() < ui->sbMindB->value()) {
+            if (m_zdebug) log("callsignFiltered: Station signal strength under threshold: " + dbM);
+            return true;
+        }
     }
 
     // Continent filter
@@ -13984,7 +13995,10 @@ bool MainWindow::callsignFiltered(DecodedText dt)
     if (m_zdebug) log("Call not filtered: " + dxCall);
 
     if ( !is_CQ && !(ui->cbCQonlyIncl73->isChecked() && is_73) ) {
-        if (m_zdebug) log("Not CQ/73. Exiting.");
+        if (m_zdebug) log(QString("Not CQ/73. Exiting. is_CQ=%1 is_73=%2 cbCQonlyIncl73=%3")
+                          .arg(is_CQ)
+                          .arg(is_73)
+                          .arg(ui->cbCQonlyIncl73->isChecked()));
         return false;
     }
 
