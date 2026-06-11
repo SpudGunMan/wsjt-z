@@ -3244,7 +3244,7 @@ bool MainWindow::eventFilter (QObject * object, QEvent * event)
           ui->dxCallEntry->clear();
           ui->dxGridEntry->clear();
           ui->txrb6->setChecked(true);
-          if (ui->cbAutoCall->isChecked()) {
+          if (ui->cbAutoCall->isChecked() || ui->cb_autoCQ->isChecked()) {
             m_btxok=false;
             m_bCallingCQ = false;
             m_bAutoReply = false;         // ready for next
@@ -5880,7 +5880,7 @@ void MainWindow::on_EraseButton_clicked ()
     ui->dxCallEntry->clear();
     ui->dxGridEntry->clear();
     ui->txrb6->setChecked(true);
-    if (ui->cbAutoCall->isChecked()) {
+    if (ui->cbAutoCall->isChecked() || ui->cbAutoCQ->isChecked()) {
       m_btxok=false;
       m_bCallingCQ = false;
       m_bAutoReply = false;         // ready for next
