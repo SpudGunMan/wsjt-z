@@ -1917,7 +1917,7 @@ void Configuration::impl::read_settings ()
   azel_directory_.setPath (settings_->value ("AzElDir", default_azel_directory_.absolutePath ()).toString ());
 
   tci_audio_ = settings_->value ("TCIAudio", tci_audio_).toBool ();
-  volume_ = settings_->value ("volume", 0).toInt ();
+  volume_ = settings_->value ("TCIVolume", settings_->value ("volume", 0)).toInt ();
 
   type_2_msg_gen_ = settings_->value ("Type2MsgGen", QVariant::fromValue (Configuration::type_2_msg_3_full)).value<Configuration::Type2MsgGen> ();
 
@@ -2169,6 +2169,7 @@ void Configuration::impl::write_settings ()
   settings_->setValue ("Aggressive", aggressive_);
   settings_->setValue ("RxBandwidth", RxBandwidth_);
   settings_->setValue ("TCIAudio", tci_audio_);
+  settings_->setValue ("TCIVolume", volume_);
   settings_->setValue ("CATTCIPort", rig_params_.tci_port);
   settings_->setValue ("PTTMethod", QVariant::fromValue (rig_params_.ptt_type));
   settings_->setValue ("PTTport", rig_params_.ptt_port);
