@@ -5473,17 +5473,22 @@ void MainWindow::readFromStdout()                             //readFromStdout
                 (ui->respondComboBox->currentText()=="CQ: Max Dist" and m_ActiveStationsWidget==NULL) or
                 (m_ActiveStationsWidget!=NULL and !m_ActiveStationsWidget->isVisible());
             if (decodedtext.messageWords().length() >= 3) {
-                QString t=decodedtext.messageWords()[2];
-                if(t.contains("R+") or t.contains("R-") or t=="R" or t=="RRR" or t=="RR73") bProcessMsgNormally=true;
-            } else {
-                bProcessMsgNormally=true;
+                // Accept any valid reply to CQ, including plain call+grid replies.
+                // The original check incorrectly inspected word 2 (the caller's callsign)
+                // instead of the reply/report field.
+                bProcessMsgNormally = true;
             }
+            if (m_zdebug) log(QString("AutoCQ first-reply branch: for_us=%1 m_bCallingCQ=%2 m_bAutoReply=%3 bProcessMsgNormally=%4 msg=%5")
+                              .arg(for_us).arg(m_bCallingCQ).arg(m_bAutoReply).arg(bProcessMsgNormally).arg(decodedtext.string()));
 
             // Z
             if(bProcessMsgNormally && !isFiltered) {
               m_bDoubleClicked=true;
               m_bAutoReply = true;
               processMessage (decodedtext);
+            } else if (m_zdebug) {
+              log(QString("AutoCQ first reply not processed: isFiltered=%1 deCall=%2 deGrid=%3 m_baseCall=%4")
+                    .arg(isFiltered).arg(parts[5]).arg(parts.size() > 6 ? parts[6] : QString()).arg(m_baseCall));
             }
 
             if(!bProcessMsgNormally and m_ActiveStationsWidget and ui->respondComboBox->currentText()=="CQ: Max Dist") {
@@ -5679,7 +5684,14 @@ void MainWindow::readFromStdout()                             //readFromStdout
 //
 void MainWindow::auto_sequence (DecodedText const& message, unsigned start_tolerance, unsigned stop_tolerance)
 {
-  if (m_zdebug) log("auto_sequence: " + message.string());
+  if (m_zdebug) log(QString("auto_sequence: msg=%1 isStd=%2 m_auto=%3 cbAutoSeq=%4 m_bCallingCQ=%5 m_bAutoReply=%6 m_QSOProgress=%7")
+                      .arg(message.string())
+                      .arg(message.isStandardMessage())
+                      .arg(m_auto)
+                      .arg(ui->cbAutoSeq->isChecked())
+                      .arg(m_bCallingCQ)
+                      .arg(m_bAutoReply)
+                      .arg(m_QSOProgress));
   auto const& message_words = message.messageWords ();
   auto is_73 = message_words.filter (QRegularExpression {"^(73|RR73)$"}).size();
   auto msg_no_hash = message.clean_string();
@@ -6366,8 +6378,11 @@ void MainWindow::guiUpdate()
       }
       // Z
       if((m_config.prompt_to_log() or m_config.autoLog()
-          or ui->cbAutoCQ->isChecked() or ui->cbAutoCall->isChecked()) && !m_tune && CALLING != m_QSOProgress)
+          or ui->cbAutoCQ->isChecked() or ui->cbAutoCall->isChecked())
+          && !m_tune
+          && (CALLING != m_QSOProgress || m_sentFirst73))
         {
+          if (m_zdebug) log(QString("send 73 log trigger: m_QSOProgress=%1 m_sentFirst73=%2").arg(m_QSOProgress).arg(m_sentFirst73));
           logQSOTimer.start(0);
         }
       else
@@ -7318,6 +7333,7 @@ void MainWindow::processMessage (DecodedText const& message, Qt::KeyboardModifie
              || (received_73 && m_QSOProgress >= ROGERS)
              || received_rr73
              || ("R" == word_3 && m_QSOProgress != REPORT))) {
+          if (m_zdebug) log(QString("processMessage terminal signoff branch: m_QSOProgress=%1 word_3=%2").arg(m_QSOProgress).arg(word_3));
           if((m_mode=="FT4" or m_mode=="FT2") and received_rr73) m_dateTimeRcvdRR73=QDateTime::currentDateTimeUtc();
           m_bTUmsg=false;
           m_nextCall="";   //### Temporary: disable use of "TU;" message
@@ -7349,25 +7365,36 @@ void MainWindow::processMessage (DecodedText const& message, Qt::KeyboardModifie
             else if (word_3.contains (QRegularExpression {"^R(?!R73|RR)"})
                      && m_QSOProgress != ROGER_REPORT)
               {
+                if (m_zdebug) log(QString("processMessage R+/- receive branch: m_QSOProgress=%1 word_3=%2").arg(m_QSOProgress).arg(word_3));
                 m_ntx=4;
                 ui->txrb4->setChecked(true);
+                m_QSOProgress = ROGERS;
+                if (m_zdebug) log(QString("Advanced QSO state to ROGERS on R+/- receive: word_3=%1").arg(word_3));
               }
             else if ((m_QSOProgress > CALLING && m_QSOProgress < ROGERS)
                      || word_3.contains (QRegularExpression {"^RR(?:R|73)$"}))
               {
+                if (m_zdebug) log(QString("RRR/RR73 receive branch: m_QSOProgress=%1, word_3=%2").arg(m_QSOProgress).arg(word_3));
                 m_ntx=5;
                 ui->txrb5->setChecked(true);
+                if (m_QSOProgress == CALLING) {
+                  m_QSOProgress = ROGER_REPORT;
+                  if (m_zdebug) log("Bumped QSO state from CALLING to ROGER_REPORT on RR* receive");
+                }
               }
             else if (ROGERS == m_QSOProgress)
               {
-                if (m_config.prompt_to_log() || m_config.autoLog()) {
+                if (m_zdebug) log(QString("processMessage ROGERS terminal signoff: word_3=%1").arg(word_3));
+                if (m_config.prompt_to_log() || m_config.autoLog()
+                    || ui->cbAutoCall->isChecked() || ui->cbAutoCQ->isChecked()) {
                   logQSOTimer.start(0);
                 }
                 else {
                   cease_auto_Tx_after_QSO ();
                 }
-                m_ntx=6;
-                ui->txrb6->setChecked(true);
+                m_ntx=5;
+                ui->txrb5->setChecked(true);
+                m_QSOProgress = SIGNOFF;
               }
             else
               {
@@ -7391,6 +7418,7 @@ void MainWindow::processMessage (DecodedText const& message, Qt::KeyboardModifie
                    || (m_QSOProgress >= REPLYING &&
                    (m_mode=="MSK144" or m_mode=="FT8" or m_mode=="FT4" or m_mode=="FT2" || "Q65" == m_mode)))
                   && word_3.startsWith ('R')) {
+          if (m_zdebug) log(QString("processMessage report->R branch: m_QSOProgress=%1 word_3=%2").arg(m_QSOProgress).arg(word_3));
           m_ntx=4;
           m_QSOProgress = ROGERS;
           if(SpecOp::RTTY == m_specOp) {
@@ -7460,10 +7488,14 @@ void MainWindow::processMessage (DecodedText const& message, Qt::KeyboardModifie
         m_ntx=3;
         m_QSOProgress = ROGER_REPORT;
         ui->txrb3->setChecked (true);
+        if (m_zdebug) log(QString("processMessage report path: EME/MSK reply -> Tx3 m_QSOProgress=%1").arg(m_QSOProgress));
       } else if (!is_73) {    // don't respond to sign off messages
+        if (m_zdebug) log(QString("processMessage report path: non-73 response -> Tx2, before set m_QSOProgress=%1 m_bAutoReply=%2 m_bCallingCQ=%3 msg=%4")
+                          .arg(m_QSOProgress).arg(m_bAutoReply).arg(m_bCallingCQ).arg(message.clean_string()));
         m_ntx=2;
         m_QSOProgress = REPORT;
         ui->txrb2->setChecked(true);
+        if (m_zdebug) log(QString("processMessage report path: set m_QSOProgress=%1").arg(m_QSOProgress));
         if (m_bDoubleClickAfterCQnnn and m_transmitting) {
           on_stopTxButton_clicked();
           TxAgainTimer.start(1500);
@@ -7778,21 +7810,11 @@ void MainWindow::genStdMsgs(QString rpt, bool unconditional)
         a = a.asprintf("%4.4d ",ui->sbSerialNumber->value());
         sent=rs + a + m_config.my_grid();
       }
-      // Local fork heuristic: /P is treated as a standard suffix, so do not
-      // apply the 77-bit nonstandard compound-call rewrite when both our and
-      // his full calls are standard base calls with a /P suffix.
-      // This is a local divergence from upstream; arbitrary suffixes like /QRP
-      // are not considered standard and remain in the general compound-call path.
-      // The 77-bit nonstandard compound-call rewrite is also not applied when both
-      // calls are nonstandard 77-bit calls, even if one or both contain /P
-
+      // The 77-bit nonstandard compound-call rewrite is applied when both
+      // calls are nonstandard 77-bit calls.
       if (is77BitMode () && SpecOp::NONE==m_specOp
           && Radio::is_77bit_nonstandard_callsign (my_callsign)
-          && Radio::is_77bit_nonstandard_callsign (hisCall)
-          && !(!Radio::is_77bit_nonstandard_callsign (m_baseCall)
-               && hisCall.contains("/P")
-               && !Radio::is_77bit_nonstandard_callsign (hisBase)
-               && my_callsign.contains("/P"))) {
+          && Radio::is_77bit_nonstandard_callsign (hisCall)) {
         if (!is_compound && hisCall==hisBase && Radio::is_77bit_nonstandard_callsign (hisCall)) {
           t="<" + hisBase + "> <" + m_baseCall + "> ";
         }
