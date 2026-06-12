@@ -215,6 +215,8 @@ public:
   bool disableWriteFoxQSO() const;
   bool colourAll() const;
   bool autoCQfiltering() const;
+  void setPileupMode(bool enabled, bool autoCQfiltering);
+  bool pileupMode() const;
   bool rxTotxFreq() const;
   bool udpFiltering() const;
   bool highlightDX() const;

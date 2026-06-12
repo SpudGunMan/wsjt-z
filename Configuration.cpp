@@ -815,6 +815,7 @@ private:
   bool disableWriteALL_;
   bool disableWriteFoxQSO_;
   bool colourAll_;
+  bool pileupMode_;
   bool autoCQfiltering_;
   bool rxTotxFreq_;
   bool udpFiltering_;
@@ -971,6 +972,15 @@ bool Configuration::disableWriteALL() const {return m_->disableWriteALL_;}
 bool Configuration::disableWriteFoxQSO() const {return m_->disableWriteFoxQSO_;}
 bool Configuration::colourAll() const {return m_->colourAll_;}
 bool Configuration::autoCQfiltering() const {return m_->autoCQfiltering_;}
+void Configuration::setPileupMode(bool enabled, bool autoCQfiltering)
+{
+  m_->pileupMode_ = enabled;
+  m_->autoCQfiltering_ = autoCQfiltering;
+  m_->ui_->cb_autoCQfiltering->setChecked(autoCQfiltering);
+  m_->settings_->setValue("pileupMode", enabled);
+  m_->settings_->setValue("autoCQfiltering", autoCQfiltering);
+}
+bool Configuration::pileupMode() const {return m_->pileupMode_;}
 bool Configuration::rxTotxFreq() const {return m_->rxTotxFreq_;}
 bool Configuration::udpFiltering() const {return m_->udpFiltering_;}
 bool Configuration::highlightDX() const {return m_->highlightDX_;}
@@ -2094,6 +2104,7 @@ void Configuration::impl::read_settings ()
   disableWriteALL_ = settings_->value("disableWriteALL").toBool();
   disableWriteFoxQSO_ = settings_->value("disableWriteFoxQSO").toBool();
   colourAll_ = settings_->value("colourAll").toBool();
+  pileupMode_ = settings_->value("pileupMode", false).toBool();
   autoCQfiltering_ = settings_->value("autoCQfiltering").toBool();
   rxTotxFreq_ = settings_->value("rxTotxFreq").toBool();
   udpFiltering_ = settings_->value("udpFiltering").toBool();
@@ -2291,6 +2302,7 @@ void Configuration::impl::write_settings ()
   settings_->setValue("disableWriteALL", disableWriteALL_);
   settings_->setValue("disableWriteFoxQSO", disableWriteFoxQSO_);
   settings_->setValue("colourAll", colourAll_);
+  settings_->setValue("pileupMode", pileupMode_);
   settings_->setValue("autoCQfiltering", autoCQfiltering_);
   settings_->setValue("rxTotxFreq", rxTotxFreq_);
   settings_->setValue("udpFiltering", udpFiltering_);
