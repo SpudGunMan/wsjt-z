@@ -450,7 +450,7 @@ private slots:
      void on_actionAbout_WSJT_Z_triggered();
      void on_pb_WDReset_clicked();
      void resetAutoSwitch();
-     int watchdog();
+    double watchdog();
      void on_actionUnfiltered_View_triggered();
      void on_actionPSKReporter_triggered();
      void updateQsoCounter(bool increment);
@@ -633,7 +633,7 @@ private:
   qint32  m_inGain;
   qint32  m_ncw;
   qint32  m_secID;
-  qint32  m_idleMinutes;
+  double  m_idleMinutes;
   qint32  m_nSubMode;
   qint32  m_nSubMode_Q65;
   qint32  m_nSubMode_JT65;
@@ -764,6 +764,7 @@ private:
   QSet<QString> m_pskReporterReceivers;
   QThread * m_pskReporterThread;
   QDateTime m_ignoreListReset;
+  QDateTime m_watchdogAnchorUtc;
   qint64 m_msTxFirst;
   bool m_TxFirstLock = false;
   bool m_savedAutoCQfiltering = false;
@@ -991,6 +992,8 @@ private:
   bool m_tx_when_ready;
   bool m_transmitting;
   bool m_tune;
+  bool m_autoCQWatchdogPending = false;
+  bool m_watchdogPendingDisable = false;
   bool m_tx_watchdog;           // true when watchdog triggered
   bool m_block_pwr_tooltip;
   bool m_PwrBandSetOK;
@@ -1089,6 +1092,7 @@ private:
   void subProcessError (QProcess *, QProcess::ProcessError);
   void statusUpdate () const;
   void update_watchdog_label ();
+  void reset_watchdog_on_click ();
   void invalidate_frequencies_filter ();
   void on_the_minute ();
   void add_child_to_event_filter (QObject *);
