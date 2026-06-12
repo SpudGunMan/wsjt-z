@@ -3599,16 +3599,16 @@ void MainWindow::update_mode_switch_status_label ()
               int bh_remaining = 0;
               if (ui->cbAutoCall->isChecked ())
                 {
-                  // Updated audo-freq behavior hops at AutoCQ -> AutoCall when
-                  // auto mode switch is enabled.
+                  // With auto mode switch enabled, the next band hop occurs at
+                  // the end of the current AutoCall cycle.
                   bh_remaining = auto_call_left;
-                  if (ui->cb_autoModeSwitch->isChecked ()) {
-                    bh_remaining += auto_cq_total;
-                  }
                 }
               else if (ui->cbAutoCQ->isChecked ())
                 {
                   bh_remaining = auto_cq_left;
+                  if (ui->cb_autoModeSwitch->isChecked ()) {
+                    bh_remaining += auto_call_total;
+                  }
                 }
 
               if (bh_remaining > 0)
@@ -15305,6 +15305,9 @@ void MainWindow::ZProcess ()
                             m_autoModeSwitch = true;
                             ui->cbAutoCall->setChecked(false);
                             ui->cbAutoCQ->setChecked(true);
+                            // With auto mode switch enabled, hop at the
+                            // AutoCall -> AutoCQ boundary.
+                            if (ui->cb_bandHopper->isChecked()) toggleBands();
                             if (m_smartModeSwitch) {
                               ui->cbHoldTxFreq->setChecked(true);
                               if (m_config.autoTXFreq()) {
@@ -15365,9 +15368,6 @@ void MainWindow::ZProcess ()
                                 ui->cbHoldTxFreq->setChecked(false);
                               }
                               m_autoModeSwitch = false;
-                              // With auto mode switch enabled, hop only at the
-                              // AutoCQ -> AutoCall boundary.
-                              if (ui->cb_bandHopper->isChecked()) toggleBands();
                               if (m_zdebug) log("ZProcess: Switched to AutoCall");
                           } else {
                               toggleBands();
