@@ -1062,6 +1062,10 @@ QString HRDTransceiver::send_command (QString const& cmd, bool prepend_context, 
     }
   else
     {
+#if defined (__GNUC__) && !defined (__clang__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
+#endif
       auto string = prepend_context ? context + cmd : cmd;
       QScopedPointer<HRDMessage> message {new (string) HRDMessage};
       if (!write_to_port (reinterpret_cast<char const *> (message.data ()), message->size_))
@@ -1072,6 +1076,9 @@ QString HRDTransceiver::send_command (QString const& cmd, bool prepend_context, 
               .arg (cmd)
               };
         }
+#if defined (__GNUC__) && !defined (__clang__)
+#pragma GCC diagnostic pop
+#endif
     }
   auto buffer = read_reply (cmd);
   if (v4 == protocol_)
