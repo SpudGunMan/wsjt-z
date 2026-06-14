@@ -1432,7 +1432,9 @@ void MainWindow::on_the_minute ()
     }
     if (pause_for_autocq) {
       // Freeze WD accrual while AutoCQ is parked in CALLING state.
+      m_idleMinutes = 0;
       m_watchdogAnchorUtc = now_utc;
+      tx_watchdog (false);  // ensure WD label is updated immediately when CALLING starts
     } else {
       auto elapsed_seconds = m_watchdogAnchorUtc.secsTo (now_utc);
       if (elapsed_seconds < 0) {
@@ -1448,7 +1450,7 @@ void MainWindow::on_the_minute ()
     else update_watchdog_label ();
   }
   update_foxLogWindow_rate(); // update the rate on the window
-  if ((!verified && ui->labDXped->isVisible()) or !ui->labDXped->text().contains("Hound"))
+  if ((!verified && ui->labDXped->isVisible()) || !ui->labDXped->text().contains("Hound"))
     ui->labDXped->setStyleSheet("QLabel {background-color: red; color: white;}");
   verified = false;
 }
@@ -2862,10 +2864,6 @@ void MainWindow::auto_tx_mode (bool state)
 {
   // Z
   if (m_zdebug) log("AutoTxMode: " + QString::number(state));
-  if (state && m_tx_watchdog) {
-    if (m_zdebug) log("AutoTxMode ignored because TX watchdog is active");
-    return;
-  }
   if (state) tx_watchdog(false);
 
   if (!state && ui->cbAutoCQ->isChecked()) return;
@@ -15134,7 +15132,6 @@ void MainWindow::ZProcess ()
                             } else if (m_config.autoTXFreq()) {
                               m_autoTXFreq = true;
                             }
-                            m_autoModeSwitch = false;
                             if  (!m_TxFirstLock) {
                                     QDateTime now {QDateTime::currentDateTimeUtc()};
                                     int n=fmod(double(now.time().second()),m_TRperiod);
@@ -15150,8 +15147,9 @@ void MainWindow::ZProcess ()
                               ui->cbHoldTxFreq->setChecked(true);
                             }
                             resetAutoSwitch();
-                            if (!m_autoModeSwitch) clearDX();
+                            clearDX();
                             if (m_zdebug) log("ZProcess: Switched to AutoCQ");
+                            tx_watchdog(false);
                         } else {
                             toggleBands();
                         }
@@ -15179,10 +15177,6 @@ void MainWindow::ZProcess ()
                               if (m_smartModeSwitch) {
                                 ui->cbHoldTxFreq->setChecked(false);
                               }
-                              m_autoModeSwitch = false;
-                              // With auto mode switch enabled, hop only at the
-                              // AutoCQ -> AutoCall boundary.
-                              if (ui->cb_bandHopper->isChecked()) toggleBands();
                               if (m_zdebug) log("ZProcess: Switched to AutoCall");
                           } else {
                               toggleBands();
