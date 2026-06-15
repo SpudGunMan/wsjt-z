@@ -15353,11 +15353,8 @@ void MainWindow::clearRXWindows() {
 }
 
 void MainWindow::on_actionPSKReporter_triggered() {
-    if (!m_config.spot_to_psk_reporter()) {
-        if (m_pskReporterView && m_pskReporterView->isVisible()) {
-            m_pskReporterView->hide();
-        }
-        showStatusMessage(tr("PSK Reporter is disabled in settings"));
+    if (m_pskReporterView && m_pskReporterView->isVisible()) {
+        m_pskReporterView->hide();
         return;
     }
 
