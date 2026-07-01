@@ -60,7 +60,7 @@ case "$HOST_ARCH" in
     ;;
   x86_64)
     CMAKE_ARCH="x86_64"
-    CMAKE_DEPLOY_TARGET="10.15"
+    CMAKE_DEPLOY_TARGET="11.0"
     ;;
   *)
     echo "Unsupported host architecture: $HOST_ARCH"
