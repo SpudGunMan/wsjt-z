@@ -6176,6 +6176,11 @@ void MainWindow::auto_sequence (DecodedText const& message, unsigned start_toler
     bool const directed_with_selected_dx = selected_dx_is_sender || selected_dx_is_target;
     bool const directed_to_me = sender_is_me || target_is_me;
 
+    if (m_QSOProgress == SIGNOFF && !m_lastCall.isEmpty() && hiscall == m_lastCall) {
+      if (m_zdebug) log(QString("auto_sequence: ignoring late duplicate response after logged signoff for %1").arg(hiscall));
+      return;
+    }
+
     // Z TODO: This is inccorect - fix !m_config.superFox() && (SpecOp::HOUND != m_specOp)
     bool const auto_qrm_guard_state = m_QSOProgress == CALLING
                       || m_QSOProgress == REPLYING
@@ -8549,6 +8554,7 @@ void MainWindow::clearDX ()
   m_lastCallsign.clear ();
   m_rptSent.clear ();
   m_rptRcvd.clear ();
+  m_hisCall.clear();
   m_qsoStart.clear ();
   m_qsoStop.clear ();
   m_inQSOwith.clear();
