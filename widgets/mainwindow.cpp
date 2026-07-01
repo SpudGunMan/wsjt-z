@@ -15567,14 +15567,6 @@ void MainWindow::clearRXWindows() {
 }
 
 void MainWindow::on_actionPSKReporter_triggered() {
-    if (!m_config.spot_to_psk_reporter()) {
-        if (m_pskReporterView && m_pskReporterView->isVisible()) {
-            m_pskReporterView->hide();
-        }
-        showStatusMessage(tr("PSK Reporter is disabled in settings"));
-        return;
-    }
-
     if (m_pskReporterView) {
         if (m_pskReporterView->isVisible()) {
             m_pskReporterView->hide();
@@ -15583,7 +15575,6 @@ void MainWindow::on_actionPSKReporter_triggered() {
             m_pskReporterView->showNormal ();
             m_pskReporterView->setFont(m_config.decoded_text_font ());
             m_pskReporterView->raise ();
-            m_pskReporterView->activateWindow ();
         }
     } else {
         m_pskReporterView.reset (new PSKReporterWidget {nullptr, &m_config, &m_logBook});
