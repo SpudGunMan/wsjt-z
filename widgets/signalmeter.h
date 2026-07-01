@@ -22,6 +22,7 @@ private:
   MeterWidget * m_meter;
   QWidget * m_scale;
   QLabel * m_reading;
+  QLabel * m_unit;
 };
 
 #endif // SIGNALMETER_H
