@@ -299,6 +299,21 @@ namespace
     return words.size () > 1 && words.at (1) == "RR73;";
   }
 
+  bool composite_rr73_for_call (QStringList const& words, QString const& call)
+  {
+    if (!composite_rr73 (words))
+      return false;
+
+    auto const& base_call = Radio::base_callsign (call);
+    for (int i = 0; i < words.size (); ++i) {
+      if (token_matches_call (words.at (i), call)
+          || token_matches_call (words.at (i), base_call)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   int ms_minute_error ()
   {
     auto const& now = QDateTime::currentDateTimeUtc ();
@@ -6096,9 +6111,7 @@ void MainWindow::auto_sequence (DecodedText const& message, unsigned start_toler
 
   auto const& raw_words = msg_no_hash.split(" ",SkipEmptyParts);
   bool composite_rr73_detected = composite_rr73 (raw_words);
-  bool composite_rr73_for_me = composite_rr73_detected
-    && (token_matches_call (raw_words.value (0), m_config.my_callsign ())
-        || token_matches_call (raw_words.value (0), m_baseCall));
+  bool composite_rr73_for_me = composite_rr73_for_call (raw_words, m_config.my_callsign ());
   bool terminal_signoff = is_73 || composite_rr73_detected;
 
   bool is_OK=false;
@@ -7633,10 +7646,7 @@ void MainWindow::processMessage (DecodedText const& message, Qt::KeyboardModifie
 
   QStringList w=message.clean_string ().mid(22).remove("<").remove(">").split(" ",SkipEmptyParts);
   auto const& raw_words = message.clean_string().split(" ", SkipEmptyParts);
-  bool const composite_rr73_detected = composite_rr73(raw_words);
-  bool const composite_rr73_for_me = composite_rr73_detected
-    && (token_matches_call(raw_words.value(0), m_config.my_callsign())
-        || token_matches_call(raw_words.value(0), m_baseCall));
+  bool const composite_rr73_for_me = composite_rr73_for_call(raw_words, m_config.my_callsign());
 
   // Z
   dxLookup(hiscall, hisgrid);
