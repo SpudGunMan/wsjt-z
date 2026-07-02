@@ -2392,6 +2392,16 @@ list. The list can be maintained in Settings (F2).</string>
                            </property>
                           </widget>
                          </item>
+                         <item row="10" column="0" colspan="2">
+                          <widget class="QCheckBox" name="cb_autoCallPreferPSKSpotted">
+                           <property name="toolTip">
+                            <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Prefer AutoCall candidates that are already seen by PSK Reporter receivers when PSK Reporter band activity feedback is enabled.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                           </property>
+                           <property name="text">
+                            <string>Prefer PSK spotted stations</string>
+                           </property>
+                          </widget>
+                         </item>
                          <item row="7" column="0">
                           <widget class="QComboBox" name="respondComboBox">
                              <property name="sizePolicy">

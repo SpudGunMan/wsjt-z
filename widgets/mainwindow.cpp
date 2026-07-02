@@ -1694,7 +1694,7 @@ void MainWindow::writeSettings()
 
   m_settings->setValue ("bandHopperEnabled", ui->cb_bandHopper->isChecked());
   m_settings->setValue ("bandHopper", ui->pte_bandHopper->toPlainText());
-
+  m_settings->setValue ("AutoCallPreferPSKSpotted", ui->cb_autoCallPreferPSKSpotted->isChecked());
 
   m_settings->setValue ("AutoCallPriority", ui->cb_autoCallPriority->currentIndex());
 
@@ -1937,6 +1937,7 @@ void MainWindow::readSettings()
   ui->cb_bandHopper->setChecked(m_settings->value("bandHopperEnabled", false).toBool());
   ui->pb_BandChangeNow->setVisible(ui->cb_bandHopper->isChecked());
   ui->pte_bandHopper->setPlainText(m_settings->value("bandHopper", "").toString());
+  ui->cb_autoCallPreferPSKSpotted->setChecked(m_settings->value("AutoCallPreferPSKSpotted", false).toBool());
   ui->cb_autoCallPriority->setCurrentIndex(m_settings->value ("AutoCallPriority", 0).toInt ());
   m_infoMessageShown = m_settings->value("infoMessageShown12-2024", false).toBool();
   ui->cb_ignoreCQTarget->setCurrentIndex(m_settings->value("ignoreCQTargetIndex", 0).toInt());
@@ -14283,6 +14284,10 @@ bool MainWindow::callsignFiltered(DecodedText dt)
       m_maxSignal = -31;
     }
 
+    bool preferPSKSpotted = ui->cb_autoCallPreferPSKSpotted->isChecked();
+    bool thisPskSpotted = preferPSKSpotted && m_config.psk_reporter_band_activity() && m_pskReporterReceivers.contains(dxCall.toUpper());
+    bool currentPriorityPskSpotted = preferPSKSpotted && m_config.psk_reporter_band_activity() && !m_priorityCall.isEmpty() && m_pskReporterReceivers.contains(m_priorityCall.toUpper());
+
     if (!skipAutoPriority && ui->cb_autoCallPriority->currentIndex() == 2) {
         if (dxGrid.length() == 4 && dxGrid != "RR73" && !dxGrid.startsWith("R-") && !dxGrid.startsWith("R+")) {
             double utch=0.0;
@@ -14310,9 +14315,10 @@ bool MainWindow::callsignFiltered(DecodedText dt)
        }
 
     } else if (!skipAutoPriority && ui->cb_autoCallPriority->currentIndex() == 0) {
-        prio = true;
+        if (!preferPSKSpotted || !currentPriorityPskSpotted || thisPskSpotted) {
+            prio = true;
+        }
     }
-
 
     if (prio) {
         if (m_zdebug) log("++ New Priority Call: " + dxCall);
