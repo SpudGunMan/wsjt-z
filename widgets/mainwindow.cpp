@@ -7334,6 +7334,16 @@ bool MainWindow::elide_tx1_not_allowed () const
     || (my_callsign != m_baseCall && !shortList (my_callsign));
 }
 
+bool MainWindow::elide_tx2_not_allowed () const
+{
+  auto const& my_callsign = m_config.my_callsign ();
+  return
+    (m_mode=="FT8" && SpecOp::HOUND == m_specOp)
+    || ((m_mode.startsWith ("FT") || "MSK144" == m_mode || "Q65" == m_mode || "FST4" == m_mode)
+        && Radio::is_77bit_nonstandard_callsign (my_callsign))
+    || (my_callsign != m_baseCall && !shortList (my_callsign));
+}
+
 void MainWindow::on_txrb1_doubleClicked ()
 {
   ui->tx1->setEnabled (!elide_tx1_not_allowed () && !ui->tx1->isEnabled ());
@@ -7348,9 +7358,22 @@ void MainWindow::on_txrb2_toggled (bool status)
   // Tx 2 means we already have CQ'd so good reference
   if (status) {
     if (m_zdebug) log("Toggled: TXRB2");
-    m_ntx=2;
-    set_dateTimeQSO (m_ntx);
+    if (ui->tx2->isEnabled ()) {
+      m_ntx=2;
+      set_dateTimeQSO (m_ntx);
+    }
+    else {
+      QTimer::singleShot (0, ui->txrb4, SLOT (click ()));
+    }
   }
+}
+
+void MainWindow::on_txrb2_doubleClicked ()
+{
+  // Select TX4 with RR73
+  m_send_RR73 = true;
+  QTimer::singleShot (100, ui->txrb4, SLOT (click ()));
+  QTimer::singleShot (150, this, [this] () { genStdMsgs (m_rpt); });
 }
 
 void MainWindow::on_txrb3_toggled(bool status)
@@ -7424,12 +7447,23 @@ void MainWindow::on_txb1_doubleClicked()
   ui->tx1->setEnabled (!elide_tx1_not_allowed () && !ui->tx1->isEnabled ());
 }
 
+void MainWindow::on_txb2_doubleClicked()
+{
+  ui->tx2->setEnabled (!elide_tx2_not_allowed () && !ui->tx2->isEnabled ());
+  ui->tx3->setEnabled (!elide_tx2_not_allowed () && !ui->tx3->isEnabled ());
+}
+
 void MainWindow::on_txb2_clicked()
 {
+  if (ui->tx2->isEnabled ()) {
     m_ntx=2;
     m_QSOProgress = REPORT;
     ui->txrb2->setChecked(true);
     if(m_transmitting) m_restart=true;
+  }
+  else {
+    on_txb4_clicked ();
+  }
 }
 
 void MainWindow::on_txb3_clicked()
