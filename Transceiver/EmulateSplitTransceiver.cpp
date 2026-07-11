@@ -39,6 +39,11 @@ void EmulateSplitTransceiver::set (TransceiverState const& s, unsigned sequence_
       busy_rxtx_ = true;
     }
 
+  if (split_ && s.ptt ())
+    {
+      busy_rxtx_ = true;
+    }
+
   TransceiverState emulated_state {s};
   if (s.ptt () && split_) emulated_state.frequency (s.tx_frequency ());
   emulated_state.split (false);
