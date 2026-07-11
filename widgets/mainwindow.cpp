@@ -512,6 +512,14 @@ MainWindow::MainWindow(QDir const& temp_directory, bool multiple,
   m_block_udp_status_updates {false}
 {
   ui->setupUi(this);
+
+  // Keep both decoder panes usable on platforms with larger native controls,
+  // and reserve additional vertical space for the decoder area.
+  ui->decodes_splitter->setChildrenCollapsible(false);
+  ui->decodes_splitter->setStretchFactor(0, 1);
+  ui->decodes_splitter->setStretchFactor(1, 1);
+  ui->gridLayout->setRowStretch(3, 2);
+
   ui->cb_autoModeSwitch->setContextMenuPolicy (Qt::CustomContextMenu);
   update_auto_mode_switch_widget ();
   m_watchdogAnchorUtc = QDateTime::currentDateTimeUtc ();
@@ -2022,7 +2030,11 @@ void MainWindow::readSettings()
   ui->actionEnable_AP_FT8->setChecked (m_settings->value ("FT8AP", false).toBool());
   ui->actionEnable_AP_JT65->setChecked (m_settings->value ("JT65AP", false).toBool());
   ui->actionAuto_Clear_Avg->setChecked (m_settings->value ("AutoClearAvg", false).toBool());
-  ui->decodes_splitter->restoreState(m_settings->value("SplitterState").toByteArray());
+  auto const splitter_state = m_settings->value("SplitterState").toByteArray();
+  if (splitter_state.isEmpty() || !ui->decodes_splitter->restoreState(splitter_state)) {
+    auto const half_width = qMax(1, ui->decodes_splitter->width() / 2);
+    ui->decodes_splitter->setSizes({half_width, half_width});
+  }
   ui->sbNB->setValue(m_settings->value("Blanker",0).toInt());
   ui->sbEchoAvg->setValue(m_settings->value("EchoAvg",10).toInt());
   {
