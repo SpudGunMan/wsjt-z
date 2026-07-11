@@ -64,6 +64,8 @@
 #include "revision_utils.hpp"
 #include "qt_helpers.hpp"
 #include "Network/NetworkAccessManager.hpp"
+#include "Network/NetworkMessage.hpp"
+#include "UDPExamples/MessageServer.hpp"
 #include "Audio/soundout.h"
 #include "Audio/soundin.h"
 #include "Modulator/Modulator.hpp"
@@ -706,6 +708,39 @@ MainWindow::MainWindow(QDir const& temp_directory, bool multiple,
   connect (m_messageClient, &MessageClient::highlight_callsign, ui->decodedTextBrowser, &DisplayText::highlight_callsign);
   connect (m_messageClient, &MessageClient::switch_configuration, m_multi_settings, &MultiSettings::select_configuration);
   connect (m_messageClient, &MessageClient::configure, this, &MainWindow::remote_configure);
+
+  // Set up MessageServer to listen for incoming UDP messages on port 2237
+  // This allows remote clients to send Configure and other commands to WSJT-X
+  m_udp_server = new MessageServer {this, QApplication::applicationName (), version ()};
+  connect (m_udp_server, &MessageServer::remote_configure, this, [this] (MessageServer::ClientKey const&, QString const& mode, quint32 frequency_tolerance, QString const& submode, bool fast_mode, quint32 tr_period, quint32 rx_df, QString const& dx_call, QString const& dx_grid, bool generate_messages, bool auto_cq_enabled, bool auto_call_enabled) {
+    this->remote_configure (mode, frequency_tolerance, submode, fast_mode, tr_period, rx_df, dx_call, dx_grid, generate_messages, auto_cq_enabled, auto_call_enabled);
+  });
+  
+  // Only start listening if accept_udp_requests is enabled
+  if (m_config.accept_udp_requests ())
+    {
+      m_udp_server->start (m_config.udp_server_port ());
+    }
+  
+  // Handle accept_udp_requests checkbox changes
+  connect (&m_config, &Configuration::accept_udp_requests_changed, [this] (bool enable) {
+    if (enable)
+      {
+        m_udp_server->start (m_config.udp_server_port ());
+      }
+    else
+      {
+        m_udp_server->stop ();
+      }
+  });
+
+  // Handle UDP server port changes
+  connect (&m_config, &Configuration::udp_server_port_changed, [this] (Configuration::port_type port) {
+    if (m_config.accept_udp_requests ())
+      {
+        m_udp_server->start (port);
+      }
+  });
 
   // Hook up WSPR band hopping
   connect (ui->band_hopping_schedule_push_button, &QPushButton::clicked
@@ -13585,8 +13620,19 @@ void MainWindow::configActiveStations()
 
 void MainWindow::remote_configure (QString const& mode, quint32 frequency_tolerance
                                    , QString const& submode, bool fast_mode, quint32 tr_period, quint32 rx_df
-                                   , QString const& dx_call, QString const& dx_grid, bool generate_messages)
+                                   , QString const& dx_call, QString const& dx_grid, bool generate_messages
+                                   , bool auto_cq_enabled, bool auto_call_enabled)
 {
+  // Handle AutoCQ/AutoCall mode changes
+  if (ui->cbAutoCQ->isChecked () != auto_cq_enabled)
+    {
+      ui->cbAutoCQ->setChecked (auto_cq_enabled);
+    }
+  if (ui->cbAutoCall->isChecked () != auto_call_enabled)
+    {
+      ui->cbAutoCall->setChecked (auto_call_enabled);
+    }
+
   if (mode.size ())
     {
       if (mode != m_mode) set_mode (mode);

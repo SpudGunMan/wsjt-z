@@ -46,6 +46,9 @@ public:
                      , QHostAddress const& multicast_group_address = QHostAddress {}
                      , QSet<QString> const& network_interface_names = QSet<QString> {});
 
+  // stop the server
+  Q_SLOT void stop ();
+
   // ask the client to clear one or both of the decode windows
   Q_SLOT void clear_decodes (ClientKey const&, quint8 window = 0);
 
@@ -113,6 +116,12 @@ public:
                             , QString const& exchange_sent, QString const& exchange_rcvd, QString const& prop_mode);
   Q_SIGNAL void decodes_cleared (ClientKey const&);
   Q_SIGNAL void logged_ADIF (ClientKey const&, QByteArray const& ADIF);
+
+  // Signal emitted when a Configure message is received from a remote client
+  Q_SIGNAL void remote_configure (ClientKey const&, QString const& mode, quint32 frequency_tolerance
+                                  , QString const& submode, bool fast_mode, quint32 tr_period, quint32 rx_df
+                                  , QString const& dx_call, QString const& dx_grid, bool generate_messages
+                                  , bool auto_cq_enabled, bool auto_call_enabled);
 
   // this signal is emitted when a network error occurs
   Q_SIGNAL void error (QString const&) const;

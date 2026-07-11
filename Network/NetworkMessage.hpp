@@ -496,6 +496,8 @@
  *                         DX Call                utf8
  *                         DX Grid                utf8
  *                         Generate Messages      bool
+ *                         AutoCQ Enabled         bool (schema 3+)
+ *                         AutoCall Enabled       bool (schema 3+)
  *
  *      The server  may send  this message at  any time.   The message
  *      specifies  various  configuration  options.  For  utf8  string
@@ -506,6 +508,11 @@
  *      the current frequency is NOT in the frequency table for that
  *      mode, a frequency change (to the default frequency for that band
  *      and mode) may occur.
+ *
+ *      The AutoCQ and AutoCall fields (added in schema 3) allow remote
+ *      control of the AutoCQ and AutoCall modes. Servers aware of the
+ *      schema version can use these to enable or disable automated
+ *      calling modes remotely.
  *
  * AnnotationInfo   In     16                     quint32
  *                         Id (unique key)        utf8
