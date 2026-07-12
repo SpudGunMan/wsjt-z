@@ -6102,9 +6102,17 @@ void MainWindow::auto_sequence (DecodedText const& message, unsigned start_toler
                     .arg(composite_rr73_detected)
                     .arg(raw_words.size())
                     .arg(raw_words.size() > 1 ? raw_words.at(1) : "N/A"));
+  // Check if we're either primary or secondary caller in composite RR73
   bool composite_rr73_for_me = composite_rr73_detected
-    && (token_matches_call (raw_words.value (0), m_config.my_callsign ())
-        || token_matches_call (raw_words.value (0), m_baseCall));
+    && ((token_matches_call (raw_words.value (0), m_config.my_callsign ())
+         || token_matches_call (raw_words.value (0), m_baseCall))
+        || (raw_words.size() > 2 && (token_matches_call (raw_words.value (2), m_config.my_callsign ())
+                                      || token_matches_call (raw_words.value (2), m_baseCall))));
+  if (m_zdebug && composite_rr73_detected) 
+    log(QString("composite_rr73_for_me=%1 (primary[0]=%2, secondary[2]=%3)")
+        .arg(composite_rr73_for_me)
+        .arg(raw_words.size() > 0 ? raw_words.at(0) : "N/A")
+        .arg(raw_words.size() > 2 ? raw_words.at(2) : "N/A"));
   bool terminal_signoff = is_73 || composite_rr73_detected;
 
   bool is_OK=false;
@@ -6223,6 +6231,7 @@ void MainWindow::auto_sequence (DecodedText const& message, unsigned start_toler
           if (composite_rr73_for_me && message.is_composite_message ())
             {
               auto const& fields = message.composite_message_fields ();
+              // Always target the tertiary regardless of whether we're primary or secondary
               m_hisCall = fields.tertiary_caller;
               if (m_zdebug) log (QString ("Composite RR73 for me: setting target to %1").arg (m_hisCall));
             }
