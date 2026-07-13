@@ -1,0 +1,189 @@
+name: Build Windows x86_64
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        description: "WSJT-Z version string"
+        required: true
+        type: string
+      hamlib_branch:
+        description: "Hamlib branch to build"
+        required: false
+        type: string
+        default: "4.7.0"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "WSJT-Z version string"
+        required: true
+        default: "3.0.0"
+        type: string
+      hamlib_branch:
+        description: "Hamlib branch to build"
+        required: false
+        default: "4.7.0"
+        type: string
+
+jobs:
+  build:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: msys2 {0}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Disable core.autocrlf
+        shell: pwsh
+        run: git config --global core.autocrlf false
+
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          cache: true
+          install: >-
+            git make tar
+            mingw-w64-x86_64-gcc
+            mingw-w64-x86_64-gcc-fortran
+            mingw-w64-x86_64-cmake
+            mingw-w64-x86_64-ninja
+            mingw-w64-x86_64-qt5-base
+            mingw-w64-x86_64-qt5-multimedia
+            mingw-w64-x86_64-qt5-serialport
+            mingw-w64-x86_64-qt5-svg
+            mingw-w64-x86_64-qt5-tools
+            mingw-w64-x86_64-qt5-websockets
+            mingw-w64-x86_64-qt5-activeqt
+            mingw-w64-x86_64-fftw
+            mingw-w64-x86_64-boost
+            mingw-w64-x86_64-libusb
+            mingw-w64-x86_64-portaudio
+            mingw-w64-x86_64-pkg-config
+            mingw-w64-x86_64-nsis
+            mingw-w64-x86_64-7zip
+            mingw-w64-x86_64-ruby
+            autoconf automake libtool
+
+      - name: Install asciidoctor (Ruby gem)
+        run: gem install asciidoctor --no-document
+
+      - name: Check system Hamlib
+        id: hamlib-check
+        continue-on-error: true
+        run: |
+          pkg-config --modversion hamlib
+          ls /mingw64/lib/libhamlib.* 2>/dev/null || true
+
+      - name: Cache Hamlib build
+        id: hamlib-cache
+        uses: actions/cache@v4
+        if: steps.hamlib-check.outcome == 'failure'
+        with:
+          path: hamlib-prefix
+          key: hamlib-windows-${{ inputs.hamlib_branch }}-${{ hashFiles('.github/workflows/build-windows.yml') }}
+
+      - name: Update pkg-config (required for Hamlib)
+        if: steps.hamlib-check.outcome == 'failure' && steps.hamlib-cache.outputs.cache-hit != 'true'
+        run: |
+          pacman -S --noconfirm mingw-w64-x86_64-pkgconf
+
+      - name: Build Hamlib from source
+        if: steps.hamlib-check.outcome == 'failure' && steps.hamlib-cache.outputs.cache-hit != 'true'
+        continue-on-error: true
+        run: |
+          WORKSPACE=$(cygpath "${GITHUB_WORKSPACE}")
+          git clone --depth 1 --branch "${{ inputs.hamlib_branch }}" \
+            https://github.com/Hamlib/Hamlib.git hamlib-src
+          cd hamlib-src
+          ./bootstrap
+          ./configure \
+            --prefix="${WORKSPACE}/hamlib-prefix" \
+            --enable-shared --disable-static \
+            --without-cxx-binding \
+            --without-readline \
+            CFLAGS="-DNDEBUG -g -O2 -fdata-sections -ffunction-sections" \
+            LDFLAGS="-Wl,--gc-sections"
+          make -j$(nproc)
+          make install-strip
+
+      - name: Set Hamlib path
+        run: |
+          WORKSPACE=$(cygpath "${GITHUB_WORKSPACE}")
+          if [ -d "${WORKSPACE}/hamlib-prefix" ]; then
+            echo "HAMLIB_PREFIX=${WORKSPACE}/hamlib-prefix" >> $GITHUB_ENV
+          else
+            echo "HAMLIB_PREFIX=/mingw64" >> $GITHUB_ENV
+          fi
+
+      - name: Install OmniRig
+        shell: pwsh
+        run: |
+          # Download OmniRig (installer embeds the COM type library for dumpcpp)
+          Invoke-WebRequest -Uri "https://www.dxatlas.com/OmniRig/Files/OmniRig.zip" -OutFile OmniRig.zip
+          Expand-Archive -Path OmniRig.zip -DestinationPath omnirig-extract
+          # Run the installer silently (InnoSetup)
+          $setup = Get-ChildItem -Path omnirig-extract -Filter "*.exe" -Recurse | Select-Object -First 1
+          if (-not $setup) { throw "No installer found in OmniRig.zip" }
+          Start-Process -FilePath $setup.FullName -ArgumentList '/VERYSILENT','/NORESTART' -Wait
+          # Locate the installed OmniRig.exe (embeds the COM type library)
+          $omnirig = Get-ChildItem -Path "C:\Program Files*\Afreet\OmniRig" -Filter "OmniRig.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+          if (-not $omnirig) { throw "OmniRig install failed — OmniRig.exe not found" }
+          echo "OMNIRIG_PATH=$($omnirig.FullName)" >> $env:GITHUB_ENV
+
+      - name: Fix dumpcpp name (MSYS2 ships dumpcpp-qt5, CMake expects dumpcpp)
+        run: |
+          ln -sf /mingw64/bin/dumpcpp-qt5.exe /mingw64/bin/dumpcpp.exe
+
+      - name: Configure
+        run: |
+          WORKSPACE=$(cygpath "${GITHUB_WORKSPACE}")
+          OMNIRIG=$(cygpath "${OMNIRIG_PATH}")
+          cmake -G "MSYS Makefiles" -S . -B wsjtx-build \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_PREFIX_PATH="${HAMLIB_PREFIX}" \
+            -DOMNIRIG_TYPE_LIB="${OMNIRIG}" \
+            -DCMAKE_Fortran_FLAGS="-fallow-argument-mismatch -std=legacy" \
+            -DWSJT_SKIP_MANPAGES=ON \
+            -DWSJT_GENERATE_DOCS=OFF \
+            -Wno-dev
+
+      - name: Build
+        run: cmake --build wsjtx-build -j$(nproc)
+
+      - name: Run tests
+        id: ctest
+        continue-on-error: true
+        run: ctest --output-on-failure
+        working-directory: wsjtx-build
+
+      - name: Verify binaries
+        run: |
+          file wsjtx-build/jt9.exe
+          test -x wsjtx-build/wsjtx.exe
+
+      - name: Package NSIS installer
+        run: |
+          cd wsjtx-build
+          cpack -G NSIS -V \
+            -D CPACK_PACKAGE_VERSION="${{ inputs.version }}" \
+            -D CPACK_PACKAGE_FILE_NAME="wsjtz-${{ inputs.version }}-win64"
+          ls -lh *.exe
+
+      - name: Upload installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: wsjtz-${{ inputs.version }}-windows-installer
+          path: wsjtx-build/wsjtz-${{ inputs.version }}-*.exe
+          retention-days: 30
+
+      - name: Upload binaries
+        uses: actions/upload-artifact@v4
+        with:
+          name: wsjtx-${{ inputs.version }}-windows-binaries
+          path: |
+            wsjtx-build/jt9.exe
+            wsjtx-build/wsjtx.exe
+          retention-days: 30

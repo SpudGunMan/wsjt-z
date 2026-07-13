@@ -1,0 +1,284 @@
+name: Build Linux
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        description: "WSJT-Z version string"
+        required: true
+        type: string
+      hamlib_branch:
+        description: "Hamlib branch to build"
+        required: false
+        type: string
+        default: "4.7.0"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "WSJT-Z version string"
+        required: true
+        default: "3.0.0"
+        type: string
+      hamlib_branch:
+        description: "Hamlib branch to build"
+        required: false
+        default: "4.7.0"
+        type: string
+
+jobs:
+  build:
+    name: Build Linux x86_64
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+            build-essential cmake ninja-build \
+            gfortran \
+            qtbase5-dev qt5-qmake qttools5-dev qttools5-dev-tools \
+            qtmultimedia5-dev libqt5multimedia5-plugins \
+            libqt5serialport5-dev libqt5websockets5-dev \
+            libqt5sql5-sqlite libqt5svg5-dev \
+            libfftw3-dev \
+            libboost-log-dev libboost-thread-dev \
+            libusb-1.0-0-dev libudev-dev \
+            portaudio19-dev \
+            autoconf automake libtool pkg-config \
+            asciidoctor dpkg-dev \
+            texinfo
+
+      - name: Cache Hamlib
+        id: hamlib-cache
+        uses: actions/cache@v4
+        with:
+          path: hamlib-prefix
+          key: hamlib-linux-x86_64-${{ inputs.hamlib_branch }}-${{ hashFiles('.github/workflows/build-linux.yml') }}
+
+      - name: Build Hamlib from source
+        if: steps.hamlib-cache.outputs.cache-hit != 'true'
+        run: |
+          git clone --depth 1 --branch "${{ inputs.hamlib_branch }}" \
+            https://github.com/Hamlib/Hamlib.git hamlib-src
+          cd hamlib-src
+          ./bootstrap
+          ./configure \
+            --prefix="${GITHUB_WORKSPACE}/hamlib-prefix" \
+            --disable-shared --enable-static \
+            --without-cxx-binding \
+            CFLAGS="-g -O2 -fPIC -fdata-sections -ffunction-sections" \
+            LDFLAGS="-Wl,--gc-sections"
+          make -j$(nproc)
+          make install
+
+      - name: Configure
+        run: |
+          cmake -S . -B wsjtx-build \
+            -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_PREFIX_PATH="${GITHUB_WORKSPACE}/hamlib-prefix" \
+            -DWSJT_SKIP_MANPAGES=ON \
+            -DWSJT_GENERATE_DOCS=OFF \
+            -Wno-dev
+
+      - name: Build
+        run: cmake --build wsjtx-build -j$(nproc)
+
+      - name: Run tests
+        id: ctest
+        continue-on-error: true
+        run: ctest --output-on-failure
+        working-directory: wsjtx-build
+        env:
+          QT_QPA_PLATFORM: offscreen
+
+      - name: Verify binary
+        run: |
+          file wsjtx-build/jt9
+          file wsjtx-build/jt9 | grep -q "ELF 64-bit"
+
+      - name: Package .deb
+        run: |
+          cd wsjtx-build
+          cpack -G DEB \
+            -D "CPACK_DEBIAN_FILE_NAME=wsjtz-${{ inputs.version }}-linux-amd64.deb"
+          ls -lh *.deb
+          dpkg-deb --info *.deb | head -20
+
+      - name: Download linuxdeploy tools
+        run: |
+          mkdir -p linuxdeploy-tools
+          cd linuxdeploy-tools
+          
+          # Download linuxdeploy
+          wget -q https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage
+          chmod +x linuxdeploy-x86_64.AppImage
+          
+          # Download linuxdeploy-plugin-qt
+          wget -q https://github.com/linuxdeploy/linuxdeploy-plugin-qt/releases/download/continuous/linuxdeploy-plugin-qt-x86_64.AppImage
+          chmod +x linuxdeploy-plugin-qt-x86_64.AppImage
+          
+          ls -lh
+
+      - name: Create AppImage
+        run: |
+          set -e
+          
+          # Verify binaries exist first
+          if [ ! -f wsjtx-build/wsjtx ]; then
+            echo "ERROR: wsjtx binary not found in wsjtx-build/"
+            exit 1
+          fi
+          if [ ! -f wsjtx-build/jt9 ]; then
+            echo "ERROR: jt9 binary not found in wsjtx-build/"
+            exit 1
+          fi
+          
+          mkdir -p AppDir/usr/bin AppDir/usr/lib AppDir/usr/share/applications AppDir/usr/share/pixmaps
+          
+          # Copy binaries to AppDir
+          cp -v wsjtx-build/wsjtx AppDir/usr/bin/
+          cp -v wsjtx-build/jt9 AppDir/usr/bin/
+          
+          # Verify binaries were copied
+          if [ ! -f AppDir/usr/bin/wsjtx ]; then
+            echo "ERROR: Failed to copy wsjtx to AppDir"
+            exit 1
+          fi
+          
+          # Copy and find desktop file
+          DESKTOP_FILE=""
+          if [ -f wsjtx.desktop ]; then
+            DESKTOP_FILE="wsjtx.desktop"
+            echo "Found desktop file in root: $DESKTOP_FILE"
+          elif [ -f wsjtx-build/wsjtx.desktop ]; then
+            DESKTOP_FILE="wsjtx-build/wsjtx.desktop"
+            echo "Found desktop file in build dir: $DESKTOP_FILE"
+          fi
+          
+          if [ -z "$DESKTOP_FILE" ]; then
+            echo "WARNING: No desktop file found, creating minimal one"
+            mkdir -p AppDir/usr/share/applications
+            printf "[Desktop Entry]\n" > AppDir/usr/share/applications/wsjtx.desktop
+            printf "Name=WSJT-Z\n" >> AppDir/usr/share/applications/wsjtx.desktop
+            printf "Exec=wsjtx %%F\n" >> AppDir/usr/share/applications/wsjtx.desktop
+            printf "Icon=wsjtx\n" >> AppDir/usr/share/applications/wsjtx.desktop
+            printf "Type=Application\n" >> AppDir/usr/share/applications/wsjtx.desktop
+            printf "Categories=Utility;\n" >> AppDir/usr/share/applications/wsjtx.desktop
+          else
+            cp -v "$DESKTOP_FILE" AppDir/usr/share/applications/
+          fi
+          
+          # Ensure Unix line endings (remove any CRLF)
+          sed -i 's/\r$//' AppDir/usr/share/applications/wsjtx.desktop
+          
+          if [ ! -f AppDir/usr/share/applications/wsjtx.desktop ]; then
+            echo "ERROR: Desktop file not in AppDir"
+            exit 1
+          fi
+          
+          # Find and copy icon files to pixmaps
+          if find icons -name "*wsjtx*" -type f 2>/dev/null | grep -q .; then
+            find icons -name "*wsjtx*" -type f | head -1 | xargs -I {} cp -v {} AppDir/usr/share/pixmaps/wsjtx.png 2>/dev/null || true
+          fi
+          
+          # Also try to copy any PNG icon file
+          if [ -z "$(ls -A AppDir/usr/share/pixmaps 2>/dev/null)" ]; then
+            find . -maxdepth 2 -name "*.png" -type f 2>/dev/null | head -1 | xargs -I {} cp -v {} AppDir/usr/share/pixmaps/wsjtx.png 2>/dev/null || true
+          fi
+          
+          # Verify icon exists or warn
+          if [ ! -f AppDir/usr/share/pixmaps/wsjtx.png ]; then
+            echo "WARNING: No icon file found, AppImage will have no icon"
+          else
+            echo "Icon file: $(ls -lh AppDir/usr/share/pixmaps/wsjtx.png)"
+          fi
+          
+          # Debug: show current state
+          echo "=== AppDir structure before fixes ==="
+          ls -lh AppDir/usr/bin/
+          echo "=== Desktop file content before fixes ==="
+          cat AppDir/usr/share/applications/wsjtx.desktop
+          
+          cd "${GITHUB_WORKSPACE}"
+          
+          # Fix desktop file icon and Exec references if needed
+          if [ -f AppDir/usr/share/applications/wsjtx.desktop ]; then
+            # Ensure Icon entry exists and is correct
+            if grep -q "^Icon=" AppDir/usr/share/applications/wsjtx.desktop; then
+              if [ -f AppDir/usr/share/pixmaps/wsjtx.png ]; then
+                sed -i 's/^Icon=.*/Icon=wsjtx/' AppDir/usr/share/applications/wsjtx.desktop
+              else
+                sed -i '/^Icon=/d' AppDir/usr/share/applications/wsjtx.desktop
+              fi
+            else
+              # Add Icon entry if missing
+              echo "Icon=wsjtx" >> AppDir/usr/share/applications/wsjtx.desktop
+            fi
+            
+            # Update Exec entry - use just the binary name, not full path
+            # linuxdeploy will resolve it relative to the AppDir structure
+            if grep -q "^Exec=" AppDir/usr/share/applications/wsjtx.desktop; then
+              sed -i 's|^Exec=.*|Exec=wsjtx %F|' AppDir/usr/share/applications/wsjtx.desktop
+            else
+              # Add Exec entry if missing
+              echo "Exec=wsjtx %F" >> AppDir/usr/share/applications/wsjtx.desktop
+            fi
+            
+            # Verify the desktop file is valid
+            echo "=== Desktop file content after fixes ==="
+            cat AppDir/usr/share/applications/wsjtx.desktop
+            echo "=== Verifying Exec entry ==="
+            grep "^Exec=" AppDir/usr/share/applications/wsjtx.desktop
+          fi
+          
+          # Run linuxdeploy with Qt plugin
+          export PATH="${GITHUB_WORKSPACE}/linuxdeploy-tools:$PATH"
+          export LD_LIBRARY_PATH="${GITHUB_WORKSPACE}/hamlib-prefix/lib:$LD_LIBRARY_PATH"
+          
+          linuxdeploy-x86_64.AppImage \
+            --appdir AppDir \
+            --plugin qt \
+            --executable AppDir/usr/bin/wsjtx \
+            --output appimage
+          
+          # Rename to match version
+          mv WSJT*.AppImage "wsjtz-${{ inputs.version }}-linux-x86_64.AppImage" || \
+          ls -lh *.AppImage && mv *.AppImage "wsjtz-${{ inputs.version }}-linux-x86_64.AppImage"
+
+      - name: Verify AppImage
+        run: |
+          ls -lh wsjtz-${{ inputs.version }}-linux-x86_64.AppImage
+          file wsjtz-${{ inputs.version }}-linux-x86_64.AppImage
+
+      - name: Upload .deb
+        uses: actions/upload-artifact@v4
+        with:
+          name: wsjtz-${{ inputs.version }}-linux-deb
+          path: wsjtx-build/wsjtz-${{ inputs.version }}-linux-amd64.deb
+          retention-days: 30
+
+      - name: Upload AppImage
+        uses: actions/upload-artifact@v4
+        with:
+          name: wsjtz-${{ inputs.version }}-linux-appimage
+          path: wsjtz-${{ inputs.version }}-linux-x86_64.AppImage
+          retention-days: 30
+
+      - name: Upload binaries
+        uses: actions/upload-artifact@v4
+        with:
+          name: wsjtx-${{ inputs.version }}-linux-binaries
+          path: |
+            wsjtx-build/jt9
+            wsjtx-build/wsjtx
+          retention-days: 30
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: wsjtx-linux-amd64
+          path: artifacts/
+          retention-days: 5

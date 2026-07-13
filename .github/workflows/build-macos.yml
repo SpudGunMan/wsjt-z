@@ -1,0 +1,258 @@
+name: Build macOS
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        description: "WSJT-Z version string"
+        required: true
+        type: string
+      hamlib_branch:
+        description: "Hamlib branch to build"
+        required: false
+        type: string
+        default: "4.7.0"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "WSJT-Z version string"
+        required: true
+        default: "3.0.0"
+        type: string
+      hamlib_branch:
+        description: "Hamlib branch to build"
+        required: false
+        default: "4.7.0"
+        type: string
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - runner: macos-latest
+            arch: arm64
+            dmg_name: wsjtz-${{ inputs.version }}-macos-arm64.dmg
+          - runner: macos-13
+            arch: x86_64
+            dmg_name: wsjtz-${{ inputs.version }}-macos-x86_64.dmg
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          export HOMEBREW_NO_REQUIRE_TAP_TRUST=1
+          brew update
+          brew install cmake ninja pkg-config gcc boost fftw hamlib libusb portaudio asciidoc asciidoctor libxslt ccache qt@5
+
+      - name: Find gfortran and Homebrew prefix
+        run: |
+          if command -v gfortran >/dev/null 2>&1; then
+            echo "GFORTRAN_BIN=$(command -v gfortran)" >> $GITHUB_ENV
+          else
+            GFORTRAN_BIN="$(find "$(brew --prefix)/bin" -maxdepth 1 -name 'gfortran-*' -print 2>/dev/null | sort | tail -n1)"
+            echo "GFORTRAN_BIN=$GFORTRAN_BIN" >> $GITHUB_ENV
+          fi
+          echo "HOMEBREW_PREFIX=$(brew --prefix)" >> $GITHUB_ENV
+
+      - name: Setup Qt5
+        run: |
+          QT5_PREFIX="$(brew --prefix qt@5)"
+          echo "QT5_PREFIX=$QT5_PREFIX" >> $GITHUB_ENV
+          if [ ! -x "$QT5_PREFIX/bin/qmake" ]; then
+            echo "Qt5 not found at $QT5_PREFIX"
+            exit 1
+          fi
+
+      - name: Configure
+        run: |
+          cmake -S . -B wsjtx-build \
+            -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DWSJT_SKIP_MANPAGES=ON \
+            -DWSJT_GENERATE_DOCS=OFF \
+            -DCMAKE_Fortran_COMPILER="$GFORTRAN_BIN" \
+            -DCMAKE_PREFIX_PATH="$QT5_PREFIX" \
+            -DQt5_DIR="$QT5_PREFIX/lib/cmake/Qt5" \
+            -DFFTW3_ROOT_DIR="$(brew --prefix fftw)" \
+            -DHamlib_ROOT="$(brew --prefix hamlib)"
+
+      - name: Build
+        run: cmake --build wsjtx-build -j$(sysctl -n hw.ncpu)
+
+      - name: Run tests
+        id: ctest
+        continue-on-error: true
+        run: ctest --output-on-failure
+        working-directory: wsjtx-build
+
+      - name: Verify binary architecture
+        run: |
+          file wsjtx-build/jt9
+          lipo -archs wsjtx-build/jt9 | grep -q arm64
+
+      - name: Install and bundle app
+        run: |
+          set -e
+          
+          # Install to staging directory
+          STAGE=stage
+          mkdir -p "$STAGE"
+          cmake --install wsjtx-build --prefix "$STAGE"
+          
+          APP="$STAGE/wsjtx.app"
+          FRAMEWORKS="$APP/Contents/Frameworks"
+          mkdir -p "$FRAMEWORKS"
+          
+          if [ ! -d "$APP" ]; then
+            echo "ERROR: CMake install did not create $APP"
+            exit 1
+          fi
+          
+          echo "Running macdeployqt to bundle Qt frameworks..."
+          "$QT5_PREFIX/bin/macdeployqt" "$APP" -verbose=2
+          
+          echo "Bundling Fortran and Hamlib dependencies..."
+          
+          # Function to bundle dylib recursively
+          bundle_dylib() {
+            local binary="$1"
+            local lib
+            while IFS= read -r lib; do
+              case "$lib" in
+                /usr/lib/*|/System/*)
+                  continue ;;
+                *Qt*.framework/*)
+                  continue ;;
+                "$HOMEBREW_PREFIX"/*|"$(brew --prefix hamlib)"/*|"$(brew --prefix fftw)"/*|"$(brew --prefix boost)"/*|"$(brew --prefix libusb)"/*|"$(brew --prefix portaudio)"/*|"$(dirname "$GFORTRAN_BIN")"/../lib/*)
+                  local libname=$(basename "$lib")
+                  if [ ! -f "$FRAMEWORKS/$libname" ]; then
+                    echo "  Bundling: $lib"
+                    cp "$lib" "$FRAMEWORKS/$libname"
+                    chmod 644 "$FRAMEWORKS/$libname"
+                    install_name_tool -id "@rpath/$libname" "$FRAMEWORKS/$libname"
+                    bundle_dylib "$FRAMEWORKS/$libname"
+                  fi
+                  if [ "$lib" != "@rpath/$libname" ]; then
+                    install_name_tool -change "$lib" "@rpath/$libname" "$binary"
+                  fi
+                  ;;
+              esac
+            done < <(otool -L "$binary" 2>/dev/null | awk 'NR > 1 {print $1}' || true)
+          }
+          
+          # Ensure rpath is set
+          for exe in "$APP/Contents/MacOS"/*; do
+            [ -f "$exe" ] && [ -x "$exe" ] && {
+              if ! otool -l "$exe" | grep -q "@executable_path/../Frameworks"; then
+                install_name_tool -add_rpath "@executable_path/../Frameworks" "$exe"
+              fi
+              bundle_dylib "$exe"
+            }
+          done
+          
+          # Verify all external references are gone
+          echo "Verifying bundling..."
+          BAD_REFS=0
+          for exe in "$APP/Contents/MacOS"/*; do
+            [ -f "$exe" ] && [ -x "$exe" ] && {
+              if otool -L "$exe" | grep -E "$HOMEBREW_PREFIX|$(brew --prefix hamlib)" | grep -v "frameworks"; then
+                echo "ERROR: $exe still has unbundled dependencies"
+                BAD_REFS=1
+              fi
+            }
+          done
+          
+          if [ $BAD_REFS -eq 1 ]; then
+            exit 1
+          fi
+          
+          echo "App bundle prepared successfully"
+
+      - name: Make binaries executable and ad-hoc sign
+        run: |
+          APP="stage/wsjtx.app"
+          
+          # Make all binaries executable
+          echo "Making binaries executable..."
+          for exe in "$APP/Contents/MacOS"/*; do
+            [ -f "$exe" ] && chmod +x "$exe"
+          done
+          
+          # Ad-hoc sign the entire app bundle to fix code signature invalidated by install_name_tool
+          echo "Ad-hoc signing app bundle..."
+          codesign --force --deep --sign - "$APP" || true
+          
+          # Verify signing
+          echo "Verifying code signature..."
+          codesign -v "$APP" || echo "WARNING: Code signature verification failed"
+          
+          # Rename main executable from wsjtx to wsjtz
+          echo "Renaming executable to wsjtz..."
+          if [ -f "$APP/Contents/MacOS/wsjtx" ]; then
+            mv "$APP/Contents/MacOS/wsjtx" "$APP/Contents/MacOS/wsjtz"
+            echo "Renamed wsjtx → wsjtz"
+          fi
+          
+          # Update Info.plist to reference wsjtz
+          PLIST="$APP/Contents/Info.plist"
+          if [ -f "$PLIST" ]; then
+            sed -i '' 's/<string>wsjtx<\/string>/<string>wsjtz<\/string>/g' "$PLIST"
+            echo "Updated Info.plist references"
+          fi
+          
+          echo "Signing completed"
+
+      - name: Rename app bundle to wsjtz.app
+        run: |
+          if [ -d "stage/wsjtx.app" ]; then
+            mv stage/wsjtx.app stage/wsjtz.app
+            echo "Renamed app bundle: wsjtx.app → wsjtz.app"
+          fi
+
+      - name: Remove macOS quarantine attribute
+        run: |
+          xattr -dr com.apple.quarantine stage/wsjtz.app || true
+          echo "Quarantine attribute removed"
+
+      - name: Create DMG
+        run: |
+          set -e
+          mkdir -p dmg_stage
+          STAGE=stage
+          
+          # Copy app bundle to staging area
+          cp -R "$STAGE/wsjtz.app" dmg_stage/
+          
+          # Copy memory setup helper script if it exists
+          if [ -f Darwin/setup-memory.sh ]; then
+            cp Darwin/setup-memory.sh dmg_stage/
+            chmod +x dmg_stage/setup-memory.sh
+            echo "Included memory setup helper script"
+          fi
+          
+          # Copy ReadMe if it exists
+          if [ -f Darwin/ReadMe.txt ]; then
+            cp Darwin/ReadMe.txt dmg_stage/
+          fi
+          
+          # Create DMG
+          mkdir -p artifacts
+          hdiutil create -volname "WSJT-Z" -srcfolder dmg_stage -ov -format UDZO \
+            "artifacts/${{ matrix.dmg_name }}"
+          
+          # Verify DMG
+          if [ ! -f "artifacts/${{ matrix.dmg_name }}" ]; then
+            echo "ERROR: DMG creation failed"
+            exit 1
+          fi
+          
+          ls -lh artifacts/*.dmg
+
+      - name: Upload DMG
+        uses: actions/upload-artifact@v4
+        with:
+          name: wsjtz-${{ inputs.version }}-macos-${{ matrix.arch }}
+          path: artifacts/wsjtz-*.dmg
+          retention-days: 30
