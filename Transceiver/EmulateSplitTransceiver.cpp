@@ -60,10 +60,15 @@ void EmulateSplitTransceiver::handle_update (TransceiverState const& state,
   else
     {
       TransceiverState new_state {state};
-      // Follow the rig if in RX mode.
+      // Clear busy flag on RX return.
       if (!state.ptt ())
         {
           busy_rxtx_ = false;
+        }
+
+      // Restore RX frequency during TX.
+      if (state.ptt ())
+        {
           new_state.frequency (rx_frequency_);
         }
 
