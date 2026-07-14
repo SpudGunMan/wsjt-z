@@ -1,5 +1,9 @@
 name: Build All Platforms
 
+permissions:
+  contents: read  # for checkout
+  actions: read   # for download-artifact
+
 on:
   push:
     tags: ['v*']

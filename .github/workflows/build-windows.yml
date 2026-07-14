@@ -1,5 +1,9 @@
 name: Build Windows x86_64
 
+permissions:
+  contents: read  # for checkout
+  actions: write  # for cache and upload-artifact
+
 on:
   workflow_call:
     inputs:
