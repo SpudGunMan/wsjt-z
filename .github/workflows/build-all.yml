@@ -2,7 +2,7 @@ name: Build All Platforms
 
 permissions:
   contents: read  # for checkout
-  actions: read   # for download-artifact
+  actions: write  # for cache and upload-artifact in called workflows
 
 on:
   push:
