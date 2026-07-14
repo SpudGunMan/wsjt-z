@@ -11,6 +11,14 @@
 
 #include <QString>
 
+struct CompositeMessage
+{
+  QString primary_caller;
+  QString secondary_caller;
+  QString tertiary_caller;
+  QString report;
+};
+
 
 
 /*
@@ -47,6 +55,8 @@ public:
   bool isJT9() const;
   bool isTX() const;
   bool isStandardMessage () const {return is_standard_;}
+  bool is_composite_message () const {return is_composite_;}
+  CompositeMessage const& composite_message_fields () const {return composite_message_;}
   bool isLowConfidence () const;
   int frequencyOffset() const;  // hertz offset from the tuned dial or rx frequency, aka audio frequency
   int snr() const;
@@ -85,6 +95,8 @@ private:
   QString message_;
   QString message0_;
   bool is_standard_;
+  bool is_composite_;
+  CompositeMessage composite_message_;
 };
 
 #endif // DECODEDTEXT_H

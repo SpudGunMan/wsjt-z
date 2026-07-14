@@ -53,6 +53,7 @@ DecodedText::DecodedText (QString const& the_string)
                                                     // seconds
   , message_ {string_.mid (column_qsoText + padding_).trimmed ()}
   , is_standard_ {false}
+  , is_composite_ {false}
 {
   // discard appended AP info
   clean_string_.replace (QRegularExpression {R"(^(.*?)(?:\?\s)?[aq][0-9].*$)"}, "\\1");
@@ -63,6 +64,31 @@ DecodedText::DecodedText (QString const& the_string)
 // remove appended confidence (?) and ap designators before truncating the message
        message_ = clean_string_.mid (column_qsoText + padding_).trimmed ();
        message0_ = message_.left(37);
+       
+       // Parse composite message: "CALL1 RR73; CALL2 <CALL3> RPT"
+       if (message0_.contains (" RR73; "))
+         {
+           is_composite_ = true;
+           QRegularExpression composite_re {R"((?<primary_caller>[A-Za-z0-9/]+)\sRR73;\s(?<secondary_caller>[A-Za-z0-9/]+)\s<(?<tertiary_caller>[A-Za-z0-9/]+)>\s(?<report>[-+]\d+))"};
+           auto match = composite_re.match (message0_);
+           // If strict format doesn't match, try relaxed format: "CALL1 RR73; CALL2 <CALL3> ..."
+           if (!match.hasMatch ())
+             {
+               QRegularExpression composite_re_relaxed {R"((?<primary_caller>[A-Za-z0-9/]+)\sRR73;\s(?<secondary_caller>[A-Za-z0-9/]+)\s<(?<tertiary_caller>[A-Za-z0-9/]+)>)"};
+               match = composite_re_relaxed.match (message0_);
+             }
+           if (match.hasMatch ())
+             {
+               composite_message_.primary_caller = match.captured ("primary_caller");
+               composite_message_.secondary_caller = match.captured ("secondary_caller");
+               composite_message_.tertiary_caller = match.captured ("tertiary_caller");
+               if (match.capturedTexts().contains("report"))
+                 composite_message_.report = match.captured ("report");
+               else
+                 composite_message_.report = "";
+             }
+         }
+       
        message_ = message_.left(37).remove (QRegularExpression {"[<>]"});
       int i1 = message_.indexOf ('\r');
       if (i1 > 0)

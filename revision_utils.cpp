@@ -26,42 +26,16 @@ namespace
 
 QString revision (QString const& scs_rev_string)
 {
-  return "bf4aa5";
-  QString result;
-  auto revision_from_scs = revision_extract_number (scs_rev_string);
-
-#if defined (CMAKE_BUILD)
-  QString scs_info {":Rev: " SCS_VERSION_STR " $"};
-
-  auto revision_from_scs_info = revision_extract_number (scs_info);
-  if (!revision_from_scs_info.isEmpty ())
+  QString result {SCS_VERSION_STR};
+  if (result.isEmpty ())
     {
-      // we managed to get the revision number from svn info etc.
-      result = revision_from_scs_info;
+      auto revision_from_scs = revision_extract_number (scs_rev_string);
+      if (!revision_from_scs.isEmpty ())
+        result = revision_from_scs;
+      else
+        result = "dev";  // Fallback when no SCS/git is available
     }
-  else if (!revision_from_scs.isEmpty ())
-    {
-      // fall back to revision passed in if any
-      result = revision_from_scs;
-    }
-  else
-    {
-      // match anything
-      QRegularExpression re {R"(^[$:]\w+: ([^$]*)\$$)"};
-      auto match = re.match (scs_info);
-      if (match.hasMatch ())
-        {
-          result = match.captured (1);
-        }
-    }
-#else
-  if (!revision_from_scs.isEmpty ())
-    {
-      // not CMake build so all we have is revision passed
-      result = revision_from_scs;
-    }
-#endif
-  return result.trimmed ();
+  return result;
 }
 
 QString version (bool include_patch)

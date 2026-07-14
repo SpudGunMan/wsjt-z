@@ -91,9 +91,18 @@ SignalMeter::SignalMeter (QWidget * parent)
   inner_layout->addWidget (m_scale);
 
   m_reading = new QLabel(this);
+  m_reading->setAlignment(Qt::AlignCenter);
+  m_unit = new QLabel(tr("dB"), this);
+  m_unit->setAlignment(Qt::AlignCenter);
+
+  auto bottom_layout = new QHBoxLayout;
+  bottom_layout->setContentsMargins(0, 0, 0, 0);
+  bottom_layout->setSpacing(2);
+  bottom_layout->addWidget(m_reading);
+  bottom_layout->addWidget(m_unit);
 
   outer_layout->addLayout (inner_layout);
-  outer_layout->addWidget (m_reading);
+  outer_layout->addLayout (bottom_layout);
   setLayout (outer_layout);
 }
 
@@ -104,7 +113,5 @@ void SignalMeter::setValue(float value, float valueMax)
   m_meter->setContentsMargins (0, font_metrics.ascent () / 2, 0, font_metrics.ascent () / 2 + font_metrics.descent ());
   m_meter->setValue(int(value));
   m_meter->set_sigPeak(valueMax);
-  QString t;
-  t.asprintf("%d\ndB",int(value+0.5));
-  m_reading->setText(t);
+  m_reading->setText(QString::number(int(value+0.5)));
 }

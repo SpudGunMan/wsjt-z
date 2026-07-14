@@ -1694,7 +1694,7 @@ void MainWindow::writeSettings()
 
   m_settings->setValue ("bandHopperEnabled", ui->cb_bandHopper->isChecked());
   m_settings->setValue ("bandHopper", ui->pte_bandHopper->toPlainText());
-
+  m_settings->setValue ("AutoCallPreferPSKSpotted", ui->cb_autoCallPreferPSKSpotted->isChecked());
 
   m_settings->setValue ("AutoCallPriority", ui->cb_autoCallPriority->currentIndex());
 
@@ -1937,6 +1937,7 @@ void MainWindow::readSettings()
   ui->cb_bandHopper->setChecked(m_settings->value("bandHopperEnabled", false).toBool());
   ui->pb_BandChangeNow->setVisible(ui->cb_bandHopper->isChecked());
   ui->pte_bandHopper->setPlainText(m_settings->value("bandHopper", "").toString());
+  ui->cb_autoCallPreferPSKSpotted->setChecked(m_settings->value("AutoCallPreferPSKSpotted", false).toBool());
   ui->cb_autoCallPriority->setCurrentIndex(m_settings->value ("AutoCallPriority", 0).toInt ());
   m_infoMessageShown = m_settings->value("infoMessageShown12-2024", false).toBool();
   ui->cb_ignoreCQTarget->setCurrentIndex(m_settings->value("ignoreCQTargetIndex", 0).toInt());
@@ -6089,16 +6090,30 @@ void MainWindow::auto_sequence (DecodedText const& message, unsigned start_toler
   auto const selected_dx_base = Radio::base_callsign (selected_dx_text);
   bool const have_selected_dx = !selected_dx_base.isEmpty ();
   auto msg_no_hash = message.clean_string();
+  if (m_zdebug) log("BEFORE remove<>: " + msg_no_hash.mid(22));
   msg_no_hash = msg_no_hash.mid(22).remove("<").remove(">");
 
   if (m_zdebug) log("msg_no_hash: " + msg_no_hash);
   if (m_zdebug) log("isStandardMessage: " +  QString::number(message.isStandardMessage()));
+  if (m_zdebug) log("message.is_composite_message(): " + QString::number(message.is_composite_message()));
 
   auto const& raw_words = msg_no_hash.split(" ",SkipEmptyParts);
   bool composite_rr73_detected = composite_rr73 (raw_words);
+  if (m_zdebug) log(QString("composite_rr73_detected: %1, raw_words.size: %2, raw_words[1]: %3")
+                    .arg(composite_rr73_detected)
+                    .arg(raw_words.size())
+                    .arg(raw_words.size() > 1 ? raw_words.at(1) : "N/A"));
+  // Check if we're either primary or secondary caller in composite RR73
   bool composite_rr73_for_me = composite_rr73_detected
-    && (token_matches_call (raw_words.value (0), m_config.my_callsign ())
-        || token_matches_call (raw_words.value (0), m_baseCall));
+    && ((token_matches_call (raw_words.value (0), m_config.my_callsign ())
+         || token_matches_call (raw_words.value (0), m_baseCall))
+        || (raw_words.size() > 2 && (token_matches_call (raw_words.value (2), m_config.my_callsign ())
+                                      || token_matches_call (raw_words.value (2), m_baseCall))));
+  if (m_zdebug && composite_rr73_detected) 
+    log(QString("composite_rr73_for_me=%1 (primary[0]=%2, secondary[2]=%3)")
+        .arg(composite_rr73_for_me)
+        .arg(raw_words.size() > 0 ? raw_words.at(0) : "N/A")
+        .arg(raw_words.size() > 2 ? raw_words.at(2) : "N/A"));
   bool terminal_signoff = is_73 || composite_rr73_detected;
 
   bool is_OK=false;
@@ -6163,6 +6178,11 @@ void MainWindow::auto_sequence (DecodedText const& message, unsigned start_toler
     bool const directed_with_selected_dx = selected_dx_is_sender || selected_dx_is_target;
     bool const directed_to_me = sender_is_me || target_is_me;
 
+    if (m_QSOProgress == SIGNOFF && !m_lastCall.isEmpty() && hiscall == m_lastCall) {
+      if (m_zdebug) log(QString("auto_sequence: ignoring late duplicate response after logged signoff for %1").arg(hiscall));
+      return;
+    }
+
     // Z TODO: This is inccorect - fix !m_config.superFox() && (SpecOp::HOUND != m_specOp)
     bool const auto_qrm_guard_state = m_QSOProgress == CALLING
                       || m_QSOProgress == REPLYING
@@ -6170,6 +6190,7 @@ void MainWindow::auto_sequence (DecodedText const& message, unsigned start_toler
     bool const qrm_stop_window_match = m_QSOProgress == CALLING
       || qAbs (ui->TxFreqSpinBox->value () - df) <= int (stop_tolerance);
     if (m_auto
+        && ui->cbAutoCall->isChecked()
         && auto_qrm_guard_state
         && (SpecOp::HOUND != m_specOp) && qrm_stop_window_match //
         && message_words.at (2) != "DE"
@@ -6177,7 +6198,7 @@ void MainWindow::auto_sequence (DecodedText const& message, unsigned start_toler
         && have_selected_dx
         // Selected DX station is in a directed exchange with someone else, not us.
       && directed_with_selected_dx
-      && !directed_to_me) {
+      && !directed_to_me && !composite_rr73_for_me) {
       // auto stop to avoid accidental QRM
         // Z
       if (m_zdebug) log(QString("auto_sequence stop branch: df=%1 stop_tolerance=%2 m_QSOProgress=%3 message_words[2]=%4 message_words[3]=%5 dxCall=%6")
@@ -6209,6 +6230,19 @@ void MainWindow::auto_sequence (DecodedText const& message, unsigned start_toler
                            || message_words.at (2).contains (m_baseCall))))) {
       if(SpecOp::FOX != m_specOp)
       {
+          // Handle composite RR73 messages by setting target call to tertiary caller
+          if (m_zdebug) log (QString ("composite_rr73_for_me=%1 is_composite=%2 specOp=%3")
+                            .arg(composite_rr73_for_me)
+                            .arg(message.is_composite_message())
+                            .arg(static_cast<int>(m_specOp)));
+          if (composite_rr73_for_me && message.is_composite_message ())
+            {
+              auto const& fields = message.composite_message_fields ();
+              // Always target the tertiary regardless of whether we're primary or secondary
+              m_hisCall = fields.tertiary_caller;
+              if (m_zdebug) log (QString ("Composite RR73 for me: setting target to %1").arg (m_hisCall));
+            }
+          
           // Z
           if (m_zdebug) log(QString("auto_sequence response branch: hiscall=%1 hisgrid=%2 addressed_to_me=%3 within_tolerance=%4 acceptable_73=%5 m_transmitting=%6 m_ntx=%7")
                             .arg(hiscall)
@@ -6228,7 +6262,7 @@ void MainWindow::auto_sequence (DecodedText const& message, unsigned start_toler
     } else if (ui->cbAutoSeq->isChecked()
                && message_words.at (2).contains (m_baseCall)
                && (ui->cbAutoCQ->isChecked() || ui->cbAutoCall->isChecked())
-               && !(have_selected_dx && directed_with_selected_dx && !directed_to_me)
+               && !(have_selected_dx && directed_with_selected_dx && !directed_to_me && !composite_rr73_for_me)
                && m_QSOProgress == CALLING
                && !terminal_signoff
                && (m_config.processTailenders() || m_lastCall == hiscall)
@@ -8538,6 +8572,7 @@ void MainWindow::clearDX ()
   m_lastCallsign.clear ();
   m_rptSent.clear ();
   m_rptRcvd.clear ();
+  m_hisCall.clear();
   m_qsoStart.clear ();
   m_qsoStop.clear ();
   m_inQSOwith.clear();
@@ -13800,6 +13835,7 @@ void MainWindow::on_cbAutoCall_toggled(bool b)
 
     update_auto_call_pileup_mode_ui();
     auto_tx_mode(false);
+    m_autoModeSwitch = false;
   update_mode_switch_status_label ();
 }
 
@@ -13829,6 +13865,7 @@ void MainWindow::on_cbAutoCQ_toggled(bool b)
     }
 
     auto_tx_mode(b);
+    m_autoModeSwitch = false;
   update_mode_switch_status_label ();
 }
 
@@ -14283,36 +14320,50 @@ bool MainWindow::callsignFiltered(DecodedText dt)
       m_maxSignal = -31;
     }
 
-    if (!skipAutoPriority && ui->cb_autoCallPriority->currentIndex() == 2) {
-        if (dxGrid.length() == 4 && dxGrid != "RR73" && !dxGrid.startsWith("R-") && !dxGrid.startsWith("R+")) {
-            double utch=0.0;
-            int nAz,nEl,nDmiles,nDkm,nHotAz,nHotABetter;
-            azdist_(const_cast <char *> ((m_config.my_grid () + "      ").left (6).toLatin1 ().constData ()),
-                    const_cast <char *> (dxGrid.left (6).toLatin1 ().constData ()),&utch,
-                    &nAz,&nEl,&nDmiles,&nDkm,&nHotAz,&nHotABetter,6,6);
-            if (nDkm >  m_maxDistance) {
-                prio = true;
-                m_maxDistance = nDkm;
-            }
+    bool preferPSKSpotted = ui->cb_autoCallPreferPSKSpotted->isChecked() && m_config.psk_reporter_band_activity();
+    bool thisPskSpotted = preferPSKSpotted && m_pskReporterReceivers.contains(dxCall.toUpper());
+    bool currentPriorityPskSpotted = preferPSKSpotted && !m_priorityCall.isEmpty() && m_pskReporterReceivers.contains(m_priorityCall.toUpper());
 
-        } else {
+    if (!skipAutoPriority) {
+        bool pskPrio = preferPSKSpotted && thisPskSpotted && !currentPriorityPskSpotted;
+        if (pskPrio) {
             prio = true;
-            m_maxDistance = 1;
+        } else if (!preferPSKSpotted || (thisPskSpotted == currentPriorityPskSpotted)) {
+            // Fall through to standard priority checks only if PSK preference is off,
+            // or if both current and new candidates have the same PSK-spotted status.
+            switch (ui->cb_autoCallPriority->currentIndex()) {
+            case 2: // Distance
+                if (dxGrid.length() == 4 && dxGrid != "RR73" && !dxGrid.startsWith("R-") && !dxGrid.startsWith("R+")) {
+                    double utch=0.0;
+                    int nAz,nEl,nDmiles,nDkm,nHotAz,nHotABetter;
+                    azdist_(const_cast <char *> ((m_config.my_grid () + "      ").left (6).toLatin1 ().constData ()),
+                            const_cast <char *> (dxGrid.left (6).toLatin1 ().constData ()),&utch,
+                            &nAz,&nEl,&nDmiles,&nDkm,&nHotAz,&nHotABetter,6,6);
+                    if (nDkm > m_maxDistance) {
+                        prio = true;
+                        m_maxDistance = nDkm;
+                    }
+                } else {
+                    prio = true;
+                    m_maxDistance = 1;
+                }
+                break;
+            case 1: // Signal strength
+            {
+                bool convOK;
+                int intdbM = dbM.toInt(&convOK);
+                if (convOK && intdbM > m_maxSignal) {
+                    prio = true;
+                    m_maxSignal = intdbM;
+                }
+            }
+            break;
+            case 0: // Last decoded
+                prio = true;
+                break;
+            }
         }
-
-    } else if (!skipAutoPriority && ui->cb_autoCallPriority->currentIndex() == 1) {
-        bool convOK;
-        int intdbM = dbM.toInt(&convOK);
-        if (convOK && intdbM >  m_maxSignal) {
-               prio = true;
-               m_maxSignal = intdbM;
-
-       }
-
-    } else if (!skipAutoPriority && ui->cb_autoCallPriority->currentIndex() == 0) {
-        prio = true;
     }
-
 
     if (prio) {
         if (m_zdebug) log("++ New Priority Call: " + dxCall);
@@ -15226,11 +15277,22 @@ void MainWindow::switchBand(int row) {
 
 void MainWindow::ZMessage ()
 {
-
-    QString message = "Please visit our <a href='https://groups.io/g/WSJT-Z/topics'>groups.io</a> forum if you need help with Z! <br /><br />"
-                        "Latest versions can be downloaded from <a href='https://sourceforge.net/projects/wsjt-z/'>sourceforge</a> <br /><br />"
-                        "<a href='https://sourceforge.net/projects/wsjt-z/files/Documentation/WSJT-Z%20User%20Manual.pdf/download'>WSJT-Z Documentation</a> <br /><br /><br /><br />"
-                        "<b>Donate to WSJT-Z charity event <a href='https://groups.io/g/WSJT-Z/topic/wsjt_z_charity_event_radio/86127241'>HERE</a></b> <br /><br />";
+    QString rev = revision();
+    QString versionZ = QStringLiteral(VERSION_Z);
+    QString revText = QString("Version %1 - %2").arg(versionZ, rev);
+    
+    QString message = QString(
+        "<h2>WSJT-Z</h2>"
+        "<p>%1</p>"
+        "<p><b>Resources:</b></p>"
+        "<ul>"
+        "<li><a href='https://groups.io/g/WSJT-Z/topics'>WSJT-Z on groups.io for support.</a></li>"
+        "<li><a href='https://github.com/sq9fve/wsjt-z'>Download WSJT-Z on GitHub.</a></li>"
+        "<li><a href='https://github.com/sq9fve/wsjt-z/tree/master/docs'>WSJT-Z Documentation on GitHub.</a></li>"
+        "</ul>"
+        "<p><b><a href='https://groups.io/g/WSJT-Z/topic/wsjt_z_charity_event_radio/86127241'>Donate to WSJT-Z Charity Event</a></b></p>"
+        "<p><i>Special thanks to all our beta testers for their contributions and feedback.</i></p>"
+    ).arg(revText);
 
     MessageBox::information_message(this, message);
 }
@@ -15554,14 +15616,6 @@ void MainWindow::clearRXWindows() {
 }
 
 void MainWindow::on_actionPSKReporter_triggered() {
-    if (!m_config.spot_to_psk_reporter()) {
-        if (m_pskReporterView && m_pskReporterView->isVisible()) {
-            m_pskReporterView->hide();
-        }
-        showStatusMessage(tr("PSK Reporter is disabled in settings"));
-        return;
-    }
-
     if (m_pskReporterView) {
         if (m_pskReporterView->isVisible()) {
             m_pskReporterView->hide();
@@ -15570,7 +15624,6 @@ void MainWindow::on_actionPSKReporter_triggered() {
             m_pskReporterView->showNormal ();
             m_pskReporterView->setFont(m_config.decoded_text_font ());
             m_pskReporterView->raise ();
-            m_pskReporterView->activateWindow ();
         }
     } else {
         m_pskReporterView.reset (new PSKReporterWidget {nullptr, &m_config, &m_logBook});

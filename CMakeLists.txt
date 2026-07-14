@@ -135,10 +135,10 @@ attach a debugger which will then receive the console output inside its console.
 
 if (APPLE)
   # otool -l <binary> | grep -A3 LC_VERSION_MIN_MACOSX
-  set (CMAKE_OSX_DEPLOYMENT_TARGET 10.12
+  set (CMAKE_OSX_DEPLOYMENT_TARGET 11.0
     CACHE STRING "Earliest version of macOS supported
 
-Earliest version we can support with Qt 5.12, C++11 & libc++ is 10.12.
+Earliest version we can support with Qt 5.12, C++11 & libc++ is 11.0.
 Do not override this if you intend to build an official deployable installer.")
 endif (APPLE)
 
