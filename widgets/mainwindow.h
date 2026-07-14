@@ -215,6 +215,7 @@ private slots:
   void on_txrb1_toggled(bool status);
   void on_txrb1_doubleClicked ();
   void on_txrb2_toggled(bool status);
+  void on_txrb2_doubleClicked ();
   void on_txrb3_toggled(bool status);
   void on_txrb4_toggled(bool status);
   void on_txrb4_doubleClicked ();
@@ -224,6 +225,7 @@ private slots:
   void on_txb1_clicked();
   void on_txb1_doubleClicked ();
   void on_txb2_clicked();
+  void on_txb2_doubleClicked ();
   void on_txb3_clicked();
   void on_txb4_clicked();
   void on_txb4_doubleClicked ();
@@ -495,6 +497,7 @@ private:
   void setColorHighlighting();
   void chkFT4();
   bool elide_tx1_not_allowed () const;
+  bool elide_tx2_not_allowed () const;
   void readWidebandDecodes();
   void configActiveStations();
   void showQSYMessage(QString message);
