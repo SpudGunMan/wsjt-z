@@ -41,10 +41,14 @@ public:
 
   // start or restart the server, if the multicast_group_address
   // argument is given it is assumed to be a multicast group address
-  // which the server will join
+  // which the server will join. If bind_address is given (non-null and
+  // non-multicast) the listening socket is bound to that address only
+  // (e.g. QHostAddress::LocalHost to restrict access to this host);
+  // otherwise it binds all interfaces as before.
   Q_SLOT void start (port_type port
                      , QHostAddress const& multicast_group_address = QHostAddress {}
-                     , QSet<QString> const& network_interface_names = QSet<QString> {});
+                     , QSet<QString> const& network_interface_names = QSet<QString> {}
+                     , QHostAddress const& bind_address = QHostAddress {});
 
   // stop the server
   Q_SLOT void stop ();

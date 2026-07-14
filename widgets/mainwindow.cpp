@@ -716,17 +716,19 @@ MainWindow::MainWindow(QDir const& temp_directory, bool multiple,
     this->remote_configure (mode, frequency_tolerance, submode, fast_mode, tr_period, rx_df, dx_call, dx_grid, generate_messages, auto_cq_enabled, auto_call_enabled);
   });
   
-  // Only start listening if accept_udp_requests is enabled
+  // Only start listening if accept_udp_requests is enabled. Bind to
+  // localhost only so the remote-control surface (which can start
+  // automated TX) is not exposed to other hosts on the network.
   if (m_config.accept_udp_requests ())
     {
-      m_udp_server->start (m_config.udp_server_port ());
+      m_udp_server->start (m_config.udp_server_port (), QHostAddress {}, QSet<QString> {}, QHostAddress::LocalHost);
     }
   
   // Handle accept_udp_requests checkbox changes
   connect (&m_config, &Configuration::accept_udp_requests_changed, [this] (bool enable) {
     if (enable)
       {
-        m_udp_server->start (m_config.udp_server_port ());
+        m_udp_server->start (m_config.udp_server_port (), QHostAddress {}, QSet<QString> {}, QHostAddress::LocalHost);
       }
     else
       {
@@ -738,7 +740,7 @@ MainWindow::MainWindow(QDir const& temp_directory, bool multiple,
   connect (&m_config, &Configuration::udp_server_port_changed, [this] (Configuration::port_type port) {
     if (m_config.accept_udp_requests ())
       {
-        m_udp_server->start (port);
+        m_udp_server->start (port, QHostAddress {}, QSet<QString> {}, QHostAddress::LocalHost);
       }
   });
 
