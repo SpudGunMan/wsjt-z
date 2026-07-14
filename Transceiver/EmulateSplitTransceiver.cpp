@@ -39,11 +39,6 @@ void EmulateSplitTransceiver::set (TransceiverState const& s, unsigned sequence_
       busy_rxtx_ = true;
     }
 
-  if (split_ && s.ptt ())
-    {
-      busy_rxtx_ = true;
-    }
-
   TransceiverState emulated_state {s};
   if (s.ptt () && split_) emulated_state.frequency (s.tx_frequency ());
   emulated_state.split (false);
@@ -66,7 +61,7 @@ void EmulateSplitTransceiver::handle_update (TransceiverState const& state,
     {
       TransceiverState new_state {state};
       // Follow the rig if in RX mode.
-      if (state.ptt ())
+      if (!state.ptt ())
         {
           busy_rxtx_ = false;
           new_state.frequency (rx_frequency_);

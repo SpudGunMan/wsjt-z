@@ -518,7 +518,6 @@ MainWindow::MainWindow(QDir const& temp_directory, bool multiple,
   ui->decodes_splitter->setChildrenCollapsible(false);
   ui->decodes_splitter->setStretchFactor(0, 1);
   ui->decodes_splitter->setStretchFactor(1, 1);
-  ui->gridLayout->setRowStretch(3, 2);
 
   ui->cb_autoModeSwitch->setContextMenuPolicy (Qt::CustomContextMenu);
   update_auto_mode_switch_widget ();
@@ -2032,6 +2031,8 @@ void MainWindow::readSettings()
   ui->actionAuto_Clear_Avg->setChecked (m_settings->value ("AutoClearAvg", false).toBool());
   auto const splitter_state = m_settings->value("SplitterState").toByteArray();
   if (splitter_state.isEmpty() || !ui->decodes_splitter->restoreState(splitter_state)) {
+    // Note: width() may not reflect final layout if called during initialization,
+    // but setChildrenCollapsible(false) mitigates the worst case.
     auto const half_width = qMax(1, ui->decodes_splitter->width() / 2);
     ui->decodes_splitter->setSizes({half_width, half_width});
   }
