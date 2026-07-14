@@ -256,6 +256,7 @@ set (wsjt_qt_CXXSRCS
   widgets/CheckableItemComboBox.cpp
   widgets/BandComboBox.cpp
   otpgenerator.cpp
+  UDPExamples/MessageServer.cpp
   )
 
 set (wsjt_qtmm_CXXSRCS
@@ -791,7 +792,6 @@ set (UDP_library_CXXSRCS
   Radio.cpp
   RadioMetaType.cpp
   Network/NetworkMessage.cpp
-  UDPExamples/MessageServer.cpp
   )
 
 set (UDP_library_HEADERS
@@ -1677,7 +1677,7 @@ generate_version_info (udp_daemon_VERSION_RESOURCES
   FILE_DESCRIPTION "Example WSJT-X UDP Message Protocol daemon"
   )
 add_executable (udp_daemon UDPExamples/UDPDaemon.cpp ${udp_daemon_VERSION_RESOURCES})
-target_link_libraries (udp_daemon wsjtx_udp-static)
+target_link_libraries (udp_daemon wsjt_qt)
 
 generate_version_info (wsjtx_app_version_VERSION_RESOURCES
   NAME wsjtx_app_version
@@ -1705,7 +1705,7 @@ add_executable (message_aggregator
   ${message_aggregator_RESOURCES_RCC}
   ${message_aggregator_VERSION_RESOURCES}
   )
-target_link_libraries (message_aggregator wsjt_qt Qt5::Widgets wsjtx_udp-static)
+target_link_libraries (message_aggregator wsjt_qt Qt5::Widgets)
 
 if (WSJT_CREATE_WINMAIN)
   set_target_properties (message_aggregator PROPERTIES WIN32_EXECUTABLE ON)

@@ -364,6 +364,39 @@ void MessageServer::impl::parse_message (QHostAddress const& sender, port_type s
               }
               break;
 
+            case NetworkMessage::Configure:
+              {
+                QByteArray mode;
+                quint32 frequency_tolerance;
+                QByteArray submode;
+                bool fast_mode;
+                quint32 tr_period;
+                quint32 rx_df;
+                QByteArray dx_call;
+                QByteArray dx_grid;
+                bool generate_messages;
+                bool auto_cq_enabled {false};
+                bool auto_call_enabled {false};
+
+                in >> mode >> frequency_tolerance >> submode >> fast_mode >> tr_period
+                   >> rx_df >> dx_call >> dx_grid >> generate_messages;
+
+                if (in.schema () >= 3)
+                  {
+                    in >> auto_cq_enabled >> auto_call_enabled;
+                  }
+
+                if (check_status (in) != Fail)
+                  {
+                    Q_EMIT self_->remote_configure (client_key, QString::fromUtf8 (mode),
+                                                    frequency_tolerance, QString::fromUtf8 (submode),
+                                                    fast_mode, tr_period, rx_df,
+                                                    QString::fromUtf8 (dx_call), QString::fromUtf8 (dx_grid),
+                                                    generate_messages, auto_cq_enabled, auto_call_enabled);
+                  }
+              }
+              break;
+
             default:
               // Ignore
               break;
@@ -435,7 +468,8 @@ MessageServer::MessageServer (QObject * parent, QString const& version, QString 
 }
 
 void MessageServer::start (port_type port, QHostAddress const& multicast_group_address
-                           , QSet<QString> const& network_interface_names)
+                           , QSet<QString> const& network_interface_names
+                           , QHostAddress const& bind_address)
 {
   // qDebug () << "MessageServer::start port:" << port << "multicast addr:" << multicast_group_address.toString () << "network interfaces:" << network_interface_names;
   if (port != m_->localPort ()
@@ -459,13 +493,28 @@ void MessageServer::start (port_type port, QHostAddress const& multicast_group_a
         {
           m_->multicast_group_address_ = multicast_group_address;
           m_->network_interfaces_ = network_interface_names;
-          QHostAddress local_addr {is_multicast_address (multicast_group_address)
-                                   && impl::IPv4Protocol == multicast_group_address.protocol () ? QHostAddress::AnyIPv4 : QHostAddress::Any};
+          // A caller-supplied bind_address (e.g. QHostAddress::LocalHost)
+          // takes precedence and restricts the listener to that address;
+          // this is used by the WSJT-Z control server so it is not exposed
+          // on all network interfaces. Multicast requires an "any" bind.
+          QHostAddress local_addr {!bind_address.isNull () && !is_multicast_address (multicast_group_address)
+                                   ? bind_address
+                                   : (is_multicast_address (multicast_group_address)
+                                      && impl::IPv4Protocol == multicast_group_address.protocol () ? QHostAddress::AnyIPv4 : QHostAddress::Any)};
           if (port && m_->bind (local_addr, port, m_->bind_mode_))
             {
               m_->join_multicast_group ();
             }
         }
+    }
+}
+
+void MessageServer::stop ()
+{
+  m_->leave_multicast_group ();
+  if (impl::UnconnectedState != m_->state ())
+    {
+      m_->close ();
     }
 }
 

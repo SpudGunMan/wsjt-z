@@ -379,15 +379,24 @@ void MessageClient::impl::parse_message (QByteArray const& msg)
                 QByteArray dx_call;
                 QByteArray dx_grid;
                 bool generate_messages {false};
+                bool auto_cq_enabled {false};
+                bool auto_call_enabled {false};
                 in >> mode >> frequency_tolerance >> submode >> fast_mode >> tr_period >> rx_df
                    >> dx_call >> dx_grid >> generate_messages;
-                TRACE_UDP ("Configure mode:" << mode << "frequency tolerance:" << frequency_tolerance << "submode:" << submode << "fast mode:" << fast_mode << "T/R period:" << tr_period << "rx df:" << rx_df << "dx call:" << dx_call << "dx grid:" << dx_grid << "generate messages:" << generate_messages);
-                if (check_status (in) != Fail)
+                // Schema 3+ fields
+                if (in.schema () >= 3)
+                  {
+                    in >> auto_cq_enabled >> auto_call_enabled;
+                  }
+                TRACE_UDP ("Configure schema:" << in.schema () << "mode:" << mode << "frequency tolerance:" << frequency_tolerance << "submode:" << submode << "fast mode:" << fast_mode << "T/R period:" << tr_period << "rx df:" << rx_df << "dx call:" << dx_call << "dx grid:" << dx_grid << "generate messages:" << generate_messages << "auto_cq_enabled:" << auto_cq_enabled << "auto_call_enabled:" << auto_call_enabled);
+                auto status = check_status (in);
+                TRACE_UDP ("Configure check_status result:" << status);
+                if (status != Fail)
                   {
                     Q_EMIT self_->configure (QString::fromUtf8 (mode), frequency_tolerance
                                              , QString::fromUtf8 (submode), fast_mode, tr_period, rx_df
                                              , QString::fromUtf8 (dx_call), QString::fromUtf8 (dx_grid)
-                                             , generate_messages);
+                                             , generate_messages, auto_cq_enabled, auto_call_enabled);
                   }
               }
               break;

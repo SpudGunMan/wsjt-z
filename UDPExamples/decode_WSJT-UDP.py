@@ -1,4 +1,4 @@
-# WSJT UDP message listener and decoder for multicast.
+# WSJT UDP message listener and decoder.
 # Uses QDataStream-compatible binary decoding for schema 2.
 # DE K7MHI
 
@@ -7,15 +7,31 @@ import socket
 import struct
 import sys
 
-mcast_group = '224.0.0.1'
-mcast_port = 2237
+# Parse command-line arguments
+use_multicast = '--multicast' in sys.argv
 
-print("Starting WSJT multicast listener")
+if use_multicast:
+    listen_addr = '224.0.0.1'
+    listen_port = 2237
+    mode_desc = "multicast"
+else:
+    listen_addr = '127.0.0.1'
+    listen_port = 2237
+    mode_desc = "unicast"
+
+print(f"Starting WSJT UDP listener ({mode_desc})")
 print("Make sure WSJT is configured to send UDP messages to IP/group and port.")
 print("WSJT configuration: Settings -> Reporting -> UDP Server")
-print("Set IP to Multicast group:", mcast_group, "port:", mcast_port)
-print("Some Linux distributions may need 'sudo ip link set lo multicast on'")
+
+if use_multicast:
+    print(f"Set IP to Multicast group: {listen_addr}, port: {listen_port}")
+    print("Some Linux distributions may need 'sudo ip link set lo multicast on'")
+else:
+    print(f"Set IP to {listen_addr}, port: {listen_port}")
+    print("Usage: python3 decode_WSJT-UDP.py [--multicast]  (default: unicast on 127.0.0.1)")
+
 print("Waiting for messages...")
+
 
 class QtDataStreamReader:
     def __init__(self, data):
@@ -138,12 +154,13 @@ def format_qtime(qtime):
 try:
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    sock.bind((mcast_group, mcast_port))
-    print("Socket bound to", (mcast_group, mcast_port))
+    sock.bind((listen_addr, listen_port))
+    print("Socket bound to", (listen_addr, listen_port))
 
-    mreq = socket.inet_aton(mcast_group) + socket.inet_aton('0.0.0.0')
-    sock.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, mreq)
-    print("Joined multicast group", mcast_group)
+    if use_multicast:
+        mreq = socket.inet_aton(listen_addr) + socket.inet_aton('0.0.0.0')
+        sock.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, mreq)
+        print("Joined multicast group", listen_addr)
 except Exception as e:
     print("Socket setup failed:", repr(e))
     sys.exit(1)
