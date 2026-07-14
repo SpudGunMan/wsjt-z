@@ -49,6 +49,7 @@ private:
   Frequency rx_frequency_;        // requested Rx frequency
   Frequency tx_frequency_;        // requested Tx frequency
   bool split_; // requested split state
+  bool busy_rxtx_;
 };
 
 #endif
