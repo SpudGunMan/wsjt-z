@@ -393,15 +393,10 @@ void MessageClient::impl::parse_message (QByteArray const& msg)
                 TRACE_UDP ("Configure check_status result:" << status);
                 if (status != Fail)
                   {
-                    qDebug () << "Emitting configure signal with auto_cq=" << auto_cq_enabled << "auto_call=" << auto_call_enabled;
                     Q_EMIT self_->configure (QString::fromUtf8 (mode), frequency_tolerance
                                              , QString::fromUtf8 (submode), fast_mode, tr_period, rx_df
                                              , QString::fromUtf8 (dx_call), QString::fromUtf8 (dx_grid)
                                              , generate_messages, auto_cq_enabled, auto_call_enabled);
-                  }
-                else
-                  {
-                    qDebug () << "Configure message check_status failed!";
                   }
               }
               break;
