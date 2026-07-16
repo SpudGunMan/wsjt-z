@@ -20,7 +20,6 @@
 #include <QDebug>
 #include <QDateTime>
 #include <QTimer>
-#include <cstdio>
 
 namespace
 {
