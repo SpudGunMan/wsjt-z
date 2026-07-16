@@ -6289,6 +6289,20 @@ void MainWindow::auto_sequence (DecodedText const& message, unsigned start_toler
               // Always target the tertiary regardless of whether we're primary or secondary
               m_hisCall = fields.tertiary_caller;
               if (m_zdebug) log (QString ("Composite RR73 for me: setting target to %1").arg (m_hisCall));
+              
+              // For composite RR73, advance state machine to SIGNOFF to mark QSO complete
+              // This prevents further auto-transmissions for this QSO
+              m_ntx = 5;
+              ui->txrb5->setChecked(true);
+              m_QSOProgress = SIGNOFF;
+              m_bTUmsg = false;
+              if (m_config.prompt_to_log() || m_config.autoLog()) {
+                logQSOTimer.start(0);
+              }
+              else {
+                cease_auto_Tx_after_QSO ();
+              }
+              return;  // Don't process through normal state machine
             }
           
           // Z
