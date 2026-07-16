@@ -6269,7 +6269,7 @@ void MainWindow::auto_sequence (DecodedText const& message, unsigned start_toler
       if (ui->cbAutoCQ->isChecked() || ui->cbAutoCall->isChecked()) clearDX();
     } else if (m_auto             // transmit allowed
                && ui->cbAutoSeq->isChecked () // auto-sequencing allowed
-          && !(have_selected_dx && directed_with_selected_dx && !directed_to_me)
+          && !(have_selected_dx && directed_with_selected_dx && !directed_to_me && !composite_rr73_for_me)
                && ((!m_bCallingCQ      // not calling CQ/QRZ
                     && !m_sentFirst73       // not finished QSO
                     && ((message_words.at (2).contains (m_baseCall)
