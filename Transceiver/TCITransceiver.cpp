@@ -3,6 +3,7 @@
 #include <QRegularExpression>
 #include <QLocale>
 #include <QThread>
+#include <QScopedValueRollback>
 #include <qmath.h>
 
 #if QT_VERSION >= QT_VERSION_CHECK(5, 15, 0)
@@ -19,6 +20,7 @@
 #include <QDebug>
 #include <QDateTime>
 #include <QTimer>
+#include <cstdio>
 
 namespace
 {
@@ -174,6 +176,7 @@ TCITransceiver::TCITransceiver (logger_type * logger, std::unique_ptr<Transceive
   , rig_power_ {(poll_interval & rig__power) == rig__power}
   , rig_power_off_ {(poll_interval & rig__power_off) == rig__power_off}
   , tci_audio_ {(poll_interval & tci__audio) == tci__audio}
+  , start_in_progress_ {false}
   , commander_ {nullptr}
   , tci_timer1_ {nullptr}
   , tci_loop1_ {nullptr}
@@ -293,6 +296,7 @@ void TCITransceiver::onError(QAbstractSocket::SocketError err)
 
 int TCITransceiver::do_start ()
 {
+  QScopedValueRollback<bool> start_guard {start_in_progress_, true};
   if (tci_audio_) QThread::currentThread()->setPriority(QThread::HighPriority);
   CAT_TRACE ("TCITransceiver entered TCI do_start and tci_Ready is " + QString::number(tci_Ready) + '\n');
   qDebug () << "qDebug says do_start tci_Ready is: " << tci_Ready;
@@ -674,6 +678,11 @@ void TCITransceiver::onMessageReceived(const QString &str)
           CAT_TRACE("Rx VFO Frequency from SDR is :");
           CAT_TRACE(rx_frequency_);
           if (!tci_Ready && requested_rx_frequency_.isEmpty()) requested_rx_frequency_ = rx_frequency_;
+          if (tci_Ready && !busy_rx_frequency_) {
+            requested_rx_frequency_ = rx_frequency_;
+            update_rx_frequency (string_to_frequency (rx_frequency_));
+            if (!start_in_progress_) update_complete (true);
+          }
           if (busy_rx_frequency_ && !band_change) {
             printf (" cmdvfo0 done1");
             tci_done7(); //was tci_done1 (do_frequency)
@@ -1000,8 +1009,7 @@ void TCITransceiver::rig_split ()
   if (busy_split_) return;
   if (tci_timer5_->isActive()) mysleep5(0);
   busy_split_ = true;
-  const QString cmd = CmdSplitEnable + SmDP + rx_ + SmCM +  "false" + SmTZ;  // changed from below so split always false
-  //const QString cmd = CmdSplitEnable + SmDP + rx_ + SmCM + (requested_split_ ? "true" : "false") + SmTZ;
+  const QString cmd = CmdSplitEnable + SmDP + rx_ + SmCM + (requested_split_ ? "true" : "false") + SmTZ;
   sendTextMessage(cmd);
   mysleep5(500);
   busy_split_ = false;
@@ -1192,9 +1200,10 @@ void TCITransceiver::do_tx_frequency (Frequency tx, MODE mode, bool no_ignore)
       } else {
         if (tci_timer2_->isActive()) mysleep2(0);
       }
-      if (requested_split_ != split_) rig_split();
+      bool const split_changed = requested_split_ != split_;
+      if (split_changed) rig_split();
       else update_split (split_);
-      if (other_frequency_ != requested_other_frequency_) {
+      if (split_changed || other_frequency_ != requested_other_frequency_) {
         busy_other_frequency_ = true;
         printf("%s TCI VFO1 command sent\n",QDateTime::QDateTime::currentDateTimeUtc().toString("hh:mm:ss.zzz").toStdString().c_str());
         const QString cmd = CmdVFO + SmDP + rx_ + SmCM + "1" + SmCM + requested_other_frequency_ + SmTZ;

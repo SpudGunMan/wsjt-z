@@ -349,9 +349,9 @@ void TransceiverBase::update_swr (unsigned int p)
 void TransceiverBase::update_complete (bool force_signal)
 {
   CAT_TRACE ("force signal: " << force_signal);
-  if ((do_pre_update ()
-       && actual_ != last_)
-      || force_signal)
+  bool const pre_update_ok = do_pre_update ();
+  bool const state_changed = actual_ != last_;
+  if ((pre_update_ok && state_changed) || force_signal)
     {
       Q_EMIT update (actual_, last_sequence_number_);
       last_ = actual_;
