@@ -67,7 +67,7 @@ Pre-built Windows installers and release notes are published on the GitHub **Rel
 - **QRZ.com lookup panel** — name, address, grid, biography
 - **Audio alerts** — configurable per-event sounds
 - **PSK Reporter integration** — spotting plus band-activity feedback highlighting
-- **UDP control server** — optional inbound UDP `Configure` requests (mode/frequency/DX call, Auto-CQ/Auto-Call) for companion apps; binds to `127.0.0.1` by default
+- **UDP control server** — optional inbound UDP `Configure` requests (mode/frequency/DX call, Auto-CQ/Auto-Call) for companion apps. Disabled by default; enabling it (**Accept UDP requests**) opens an unauthenticated control surface on all interfaces that can key your transmitter, so only enable it on a trusted network
 - **Larger Band Activity window** with improved column layout
 - **Custom alert rules**
 - **NA_VHF / EU_VHF contest flows** with associated UI tweaks

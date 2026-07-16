@@ -1,4 +1,12 @@
 == Changelog
+V2.0.18
+[fixes]
+- Auto-sequence now replies to composite RR73 messages addressed to you as the secondary caller: the "selected DX is working someone else" suppression guard gained the composite-RR73 exemption that its two sibling guards already had, so a station sending you a report while signing off with your selected DX no longer has your reply suppressed (PR #112, SpudGunMan).
+- No power out / dead tuning with emulated split restored: the TX-state tracking added in 2.0.17 could latch and suppress rig state updates during transmit, leaving some setups with no RF output including in Tune mode. The change is reverted to the 2.0.11 behavior (PR #108, SpudGunMan, reported in issue #111). Note: this also reverts the 2.0.17 TCI/ExpertSDR split-mode refinement, which will be re-implemented.
+
+[security]
+- IMPORTANT - the UDP control server no longer binds to loopback by default. The 2.0.17 note that the listener "defaults to 127.0.0.1 so it is loopback-only unless deliberately exposed" no longer applies: it binds to all interfaces again, because the 2.0.17 implementation reused the outgoing "UDP Server" destination address as the inbound bind address, which broke companion apps such as GridTracker running on another host (PR #114, SpudGunMan). The listener remains gated behind the "Accept UDP requests" setting, which is OFF by default. If you enable it, any host that can reach this machine on the UDP port can set mode/frequency/DX call and toggle Auto-CQ / Auto-Call - i.e. start your radio transmitting. Leave it off unless you need it, and firewall the port or keep the machine on a trusted network. A dedicated bind-address setting defaulting to loopback is planned.
+
 V2.0.17
 [fixes]
 - Auto-CQ no longer self-halts on QRM: the auto-QRM stop now only fires in Auto-Call (answering) mode, so an Auto-CQ session is not stopped when the selected DX is heard working someone else (PR #94, SpudGunMan).
