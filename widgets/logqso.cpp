@@ -73,6 +73,11 @@ LogQSO::~LogQSO ()
 {
 }
 
+void LogQSO::setDebugMode(bool debug)
+{
+  m_zdebug = debug;
+}
+
 void LogQSO::loadSettings ()
 {
   m_settings->beginGroup ("LogQSO");
@@ -107,9 +112,15 @@ void LogQSO::storeSettings () const
 void LogQSO::initLogQSO(QString const& hisCall, QString const& hisGrid, QString mode,
                         QString const& rptSent, QString const& rptRcvd,
                         QDateTime const& dateTimeOn, QDateTime const& dateTimeOff,
-                        Radio::Frequency dialFreq, bool noSuffix, QString xSent, QString xRcvd)
+                        Radio::Frequency dialFreq, bool noSuffix, QString xSent, QString xRcvd,
+                        bool shouldAutoAccept)
 {
-  if(!isHidden()) return;
+  Q_EMIT debugMessage("[LogQSO::initLogQSO] call=" + hisCall + " m_zdebug=" + QString::number(m_zdebug) + " isHidden=" + QString::number(isHidden()));
+  if (m_zdebug) Q_EMIT debugMessage("[LogQSO::initLogQSO] ENTRY call=" + hisCall + " isHidden=" + QString::number(isHidden()));
+  if(!isHidden()) {
+    if (m_zdebug) Q_EMIT debugMessage("[LogQSO::initLogQSO] REENTRANCE: Dialog already visible! Returning early.");
+    return;
+  }
 
   QPushButton* okBtn = ui->buttonBox->button(QDialogButtonBox::Ok);
   okBtn->setAutoDefault(true);
@@ -165,21 +176,29 @@ void LogQSO::initLogQSO(QString const& hisCall, QString const& hisGrid, QString 
 
   using SpOp = Configuration::SpecialOperatingActivity;
   auto special_op = m_config->special_op_id ();
-  if (SpOp::FOX == special_op
+  if (shouldAutoAccept
+      || SpOp::FOX == special_op
       || (m_config->autoLog ()
           && ((SpOp::NONE < special_op && special_op < SpOp::FOX) || SpOp::ARRL_DIGI == special_op)))
     {
-      // allow auto logging in Fox mode and contests
+      // allow auto logging in Fox mode and contests, or when AutoCQ/AutoCall requested
+      if (m_zdebug) {
+        QString reason = shouldAutoAccept ? "AutoCQ/AutoCall" : "special_op=" + QString::number((int)special_op);
+        Q_EMIT debugMessage("[LogQSO::initLogQSO] AUTO-LOGGING for call=" + hisCall + " reason=" + reason);
+      }
       accept();
     }
   else
     {
+      if (m_zdebug) Q_EMIT debugMessage("[LogQSO::initLogQSO] SHOWING DIALOG for call=" + hisCall + " special_op=" + QString::number((int)special_op));
       show();
     }
 }
 
 void LogQSO::accept()
 {
+  Q_EMIT debugMessage("[LogQSO::accept] m_zdebug=" + QString::number(m_zdebug));
+  if (m_zdebug) Q_EMIT debugMessage("[LogQSO::accept] ENTRY for call=" + ui->call->text());
   // Strip CR/LF/TAB and other control chars from any text field that flows into
   // the CSV log, ADIF record, or UDP broadcast. A decoded message (or pasted
   // text) containing newlines would inject spurious CSV rows / ADIF records and
@@ -324,6 +343,7 @@ void LogQSO::accept()
                                         , xsent
                                         , xrcvd
                                         , prop_mode));
+  if (m_zdebug) Q_EMIT debugMessage("[LogQSO::accept] COMPLETE - emitting acceptQSO signal");
   QDialog::accept();
 }
 
@@ -332,6 +352,9 @@ void LogQSO::accept()
 // window settings
 void LogQSO::hideEvent (QHideEvent * e)
 {
+  Q_EMIT debugMessage("[LogQSO::hideEvent] m_zdebug=" + QString::number(m_zdebug));
+  if (m_zdebug) Q_EMIT debugMessage("[LogQSO::hideEvent] ENTRY");
   storeSettings ();
   QDialog::hideEvent (e);
+  if (m_zdebug) Q_EMIT debugMessage("[LogQSO::hideEvent] COMPLETE - dialog now hidden");
 }
