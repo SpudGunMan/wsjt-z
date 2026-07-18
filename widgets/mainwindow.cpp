@@ -2290,11 +2290,25 @@ void MainWindow::dataSink(qint64 frames)
     freqcal_(&dec_data.d2[0], &k, &nkhz, &RxFreq, &ftol, &line[0], (FCL)80);
     QString t=QString::fromLatin1(line);
     DecodedText decodedtext {t};
-    if (m_bandActivityRawView) {
-      ui->decodedTextBrowser->insertText(decodedtext.clean_string().trimmed());
-    } else {
-      ui->decodedTextBrowser->displayDecodedText (decodedtext, m_config.my_callsign(),
-            m_mode, m_config.DXCC(), m_logBook, m_currentBand, m_config.ppfx());
+    // Check if we should hide our own call decodes
+    bool hideThisDecode = false;
+    if (m_config.hideOwnCall()) {
+      QString txCall = decodedtext.transmittingCall();
+      if (!txCall.isEmpty()) {
+        QString myBaseCall = m_config.my_callsign().split('/')[0].toUpper();
+        QString txBaseCall = txCall.split('/')[0].toUpper();
+        if (txBaseCall == myBaseCall) {
+          hideThisDecode = true;
+        }
+      }
+    }
+    if (!hideThisDecode) {
+      if (m_bandActivityRawView) {
+        ui->decodedTextBrowser->insertText(decodedtext.clean_string().trimmed());
+      } else {
+        ui->decodedTextBrowser->displayDecodedText (decodedtext, m_config.my_callsign(),
+              m_mode, m_config.DXCC(), m_logBook, m_currentBand, m_config.ppfx());
+      }
     }
     if (ui->measure_check_box->isChecked ()) {
       // Append results text to file "fmt.all".
@@ -2601,11 +2615,25 @@ void MainWindow::fastSink(qint64 frames)
   if(bmsk144 and (line[0]!=0)) {
     QString message {QString::fromLatin1 (line)};
     DecodedText decodedtext {message.replace (QChar::LineFeed, "")};
-    if (m_bandActivityRawView) {
-      ui->decodedTextBrowser->insertText(decodedtext.clean_string().trimmed());
-    } else {
-      ui->decodedTextBrowser->displayDecodedText (decodedtext, m_config.my_callsign (), m_mode, m_config.DXCC(),
+    // Check if we should hide our own call decodes
+    bool hideThisDecode = false;
+    if (m_config.hideOwnCall()) {
+      QString txCall = decodedtext.transmittingCall();
+      if (!txCall.isEmpty()) {
+        QString myBaseCall = m_config.my_callsign().split('/')[0].toUpper();
+        QString txBaseCall = txCall.split('/')[0].toUpper();
+        if (txBaseCall == myBaseCall) {
+          hideThisDecode = true;
+        }
+      }
+    }
+    if (!hideThisDecode) {
+      if (m_bandActivityRawView) {
+        ui->decodedTextBrowser->insertText(decodedtext.clean_string().trimmed());
+      } else {
+        ui->decodedTextBrowser->displayDecodedText (decodedtext, m_config.my_callsign (), m_mode, m_config.DXCC(),
            m_logBook, m_currentBand, m_config.ppfx ());
+      }
     }
     m_bDecoded=true;
     auto_sequence (decodedtext, ui->sbFtol->value (), std::numeric_limits<unsigned>::max ());
@@ -3232,8 +3260,23 @@ void MainWindow::handleVerifyMsg(int status, QDateTime ts, QString callsign, QSt
         if (m_bandActivityRawView) {
           ui->decodedTextBrowser->insertText(DecodedText{msg}.clean_string().trimmed());
         } else {
-          ui->decodedTextBrowser->displayDecodedText(DecodedText{msg}, m_config.my_callsign(), m_mode, m_config.DXCC(),
-                                                     m_logBook, m_currentBand, m_config.ppfx());
+          DecodedText decodedMsg{msg};
+          // Check if we should hide our own call decodes
+          bool hideThisDecode = false;
+          if (m_config.hideOwnCall()) {
+            QString txCall = decodedMsg.transmittingCall();
+            if (!txCall.isEmpty()) {
+              QString myBaseCall = m_config.my_callsign().split('/')[0].toUpper();
+              QString txBaseCall = txCall.split('/')[0].toUpper();
+              if (txBaseCall == myBaseCall) {
+                hideThisDecode = true;
+              }
+            }
+          }
+          if (!hideThisDecode) {
+            ui->decodedTextBrowser->displayDecodedText(decodedMsg, m_config.my_callsign(), m_mode, m_config.DXCC(),
+                                                       m_logBook, m_currentBand, m_config.ppfx());
+          }
         }
         write_all("Ck",msg);
       }
@@ -4892,7 +4935,19 @@ void::MainWindow::fast_decode_done()
 
 //Left (Band activity) window
     DecodedText decodedtext {message.replace (QChar::LineFeed, "")};
-    if(!m_bFastDone) {
+    // Check if we should hide our own call decodes
+    bool hideThisDecode = false;
+    if (m_config.hideOwnCall()) {
+      QString txCall = decodedtext.transmittingCall();
+      if (!txCall.isEmpty()) {
+        QString myBaseCall = m_config.my_callsign().split('/')[0].toUpper();
+        QString txBaseCall = txCall.split('/')[0].toUpper();
+        if (txBaseCall == myBaseCall) {
+          hideThisDecode = true;
+        }
+      }
+    }
+    if(!m_bFastDone && !hideThisDecode) {
       if (m_bandActivityRawView) {
         ui->decodedTextBrowser->insertText(decodedtext.clean_string().trimmed());
       } else {
@@ -5799,20 +5854,48 @@ void MainWindow::readFromStdout()                             //readFromStdout
                   QString stripped = line_read;
                   stripped.replace(kReAP, "");
                   DecodedText decodedtextNoAP {stripped};
-                  ui->decodedTextBrowser->displayDecodedText(decodedtextNoAP,m_baseCall,m_mode,dxcc,
-                                                             m_logBook,m_currentBand,m_config.ppfx(),
-                                                             ui->cbCQonly->isVisible() && ui->cbCQonly->isChecked(),
-                                                             haveFSpread, fSpread, bDisplayPoints, m_points, ui->cbCQonlyIncl73->isChecked(), m_config.colourAll(), distance, state, isFiltered);
-                  if (m_pskReporterReceivers.contains(decodedtextNoAP.transmittingCall().toUpper())) {
-                      ui->decodedTextBrowser->highlight_callsign_line(decodedtextNoAP.transmittingCall(), QColor{}, QColor{}, false, true);
+                  // Check if we should hide our own call decodes
+                  bool hideThisDecode = false;
+                  if (m_config.hideOwnCall()) {
+                    QString txCall = decodedtextNoAP.transmittingCall();
+                    if (!txCall.isEmpty()) {
+                      QString myBaseCall = m_config.my_callsign().split('/')[0].toUpper();
+                      QString txBaseCall = txCall.split('/')[0].toUpper();
+                      if (txBaseCall == myBaseCall) {
+                        hideThisDecode = true;
+                      }
+                    }
+                  }
+                  if (!hideThisDecode) {
+                    ui->decodedTextBrowser->displayDecodedText(decodedtextNoAP,m_baseCall,m_mode,dxcc,
+                                                               m_logBook,m_currentBand,m_config.ppfx(),
+                                                               ui->cbCQonly->isVisible() && ui->cbCQonly->isChecked(),
+                                                               haveFSpread, fSpread, bDisplayPoints, m_points, ui->cbCQonlyIncl73->isChecked(), m_config.colourAll(), distance, state, isFiltered);
+                    if (m_pskReporterReceivers.contains(decodedtextNoAP.transmittingCall().toUpper())) {
+                        ui->decodedTextBrowser->highlight_callsign_line(decodedtextNoAP.transmittingCall(), QColor{}, QColor{}, false, true);
+                    }
                   }
               } else {
-                  ui->decodedTextBrowser->displayDecodedText(decodedtext1,m_baseCall,m_mode,dxcc,
-                                                             m_logBook,m_currentBand,m_config.ppfx(),
-                                                             ui->cbCQonly->isVisible() && ui->cbCQonly->isChecked(),
-                                                             haveFSpread, fSpread, bDisplayPoints, m_points, ui->cbCQonlyIncl73->isChecked(), m_config.colourAll(), distance, state, isFiltered);
-                  if (m_pskReporterReceivers.contains(decodedtext1.transmittingCall().toUpper())) {
-                      ui->decodedTextBrowser->highlight_callsign_line(decodedtext1.transmittingCall(), QColor{}, QColor{}, false, true);
+                  // Check if we should hide our own call decodes
+                  bool hideThisDecode = false;
+                  if (m_config.hideOwnCall()) {
+                    QString txCall = decodedtext1.transmittingCall();
+                    if (!txCall.isEmpty()) {
+                      QString myBaseCall = m_config.my_callsign().split('/')[0].toUpper();
+                      QString txBaseCall = txCall.split('/')[0].toUpper();
+                      if (txBaseCall == myBaseCall) {
+                        hideThisDecode = true;
+                      }
+                    }
+                  }
+                  if (!hideThisDecode) {
+                    ui->decodedTextBrowser->displayDecodedText(decodedtext1,m_baseCall,m_mode,dxcc,
+                                                               m_logBook,m_currentBand,m_config.ppfx(),
+                                                               ui->cbCQonly->isVisible() && ui->cbCQonly->isChecked(),
+                                                               haveFSpread, fSpread, bDisplayPoints, m_points, ui->cbCQonlyIncl73->isChecked(), m_config.colourAll(), distance, state, isFiltered);
+                    if (m_pskReporterReceivers.contains(decodedtext1.transmittingCall().toUpper())) {
+                        ui->decodedTextBrowser->highlight_callsign_line(decodedtext1.transmittingCall(), QColor{}, QColor{}, false, true);
+                    }
                   }
               }
 
@@ -14061,6 +14144,19 @@ bool MainWindow::callsignFiltered(DecodedText dt)
     if (dxCall.endsWith("/R")) {
         if (m_zdebug) log("callsignFiltered: False decode (ends with /R). Skipping.");
         return true;
+    }
+
+    // Filter out our own transmissions if enabled
+    if (m_config.hideOwnCall()) {
+        QString txCall = dt.transmittingCall();
+        if (!txCall.isEmpty()) {
+            QString myBaseCall = m_config.my_callsign().split('/')[0].toUpper();
+            QString txBaseCall = txCall.split('/')[0].toUpper();
+            if (txBaseCall == myBaseCall) {
+                if (m_zdebug) log("callsignFiltered: Own call filtered (transmitter=" + txCall + ")");
+                return true;
+            }
+        }
     }
 
     bool is_73 = (message_words.size() >= 5 && (message_words.contains("73") || message_words.contains("RR73")));
