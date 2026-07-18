@@ -894,8 +894,8 @@ MainWindow::MainWindow(QDir const& temp_directory, bool multiple,
       if (m_unfilteredView) m_unfilteredView->setFont(font);
       if (m_pskReporterView) m_pskReporterView->setFont(font);
     });
-
-  setWindowTitle ("WSJT-Z by SQ9FVE " + QStringLiteral (VERSION_Z) + " " + m_revision);
+  // The string added program_title() is to help third-party apps like JTalert
+  setWindowTitle (program_title () +" MOD WSJT-Z by SQ9FVE " + QStringLiteral (VERSION_Z) + " " + m_revision);
 
 
   connect(&proc_jt9, &QProcess::readyReadStandardOutput, this, &MainWindow::readFromStdout);
@@ -2479,7 +2479,7 @@ void MainWindow::dataSink(qint64 frames)
       if((m_ndepth&7)==1) depth_args << "-qB"; //2 pass w subtract, no Block detection, no shift jittering
       if((m_ndepth&7)==2) depth_args << "-C" << "500" << "-o" << "4"; //3 pass, subtract, Block detection, OSD
       if((m_ndepth&7)==3) depth_args << "-C" << "500"  << "-o" << "4" << "-d"; //3 pass, subtract, Block detect, OSD, more candidates
-      if((m_ndepth&4)==4) depth_args << "-C" << "500"  << "-o" << "6" << "-d"; //3 pass, subtract, Block detect, OSD depth 6, even mere candidates
+      if((m_ndepth&7)==4) depth_args << "-C" << "500"  << "-o" << "6" << "-d"; //3 pass, subtract, Block detect, OSD depth 6, even mere candidates
       QStringList degrade;
       degrade << "-d" << QString {"%1"}.arg (m_config.degrade(), 4, 'f', 1);
       m_cmndP1.clear ();
@@ -4726,6 +4726,7 @@ void MainWindow::decode()                                       //decode()
   dec_data.params.lwidedxcsearch = m_FT8WideDxCallSearch;
   dec_data.params.lenabledxcsearch = false;
   dec_data.params.nagainfil = false;
+  dec_data.params.ldx_mode = m_dx_mode;  // DX Mode: true=integer-bin, false=parabolic
   // mybcall / hisbcall: derive from mycall/hiscall (base callsign before /portable)
   ::memcpy(dec_data.params.mybcall, (m_config.my_callsign() + "            ").toLatin1(), 12);
   ::memcpy(dec_data.params.hisbcall, (m_hisCall + "            ").toLatin1(), 12);
