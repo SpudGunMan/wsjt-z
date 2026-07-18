@@ -92,6 +92,7 @@ SignalMeter::SignalMeter (QWidget * parent)
 
   m_reading = new QLabel(this);
   m_reading->setAlignment(Qt::AlignCenter);
+  m_reading->setMinimumWidth(QFontMetrics {m_reading->font ()}.horizontalAdvance(QString::number(MAXDB)));
   m_unit = new QLabel(tr("dB"), this);
   m_unit->setAlignment(Qt::AlignCenter);
 
