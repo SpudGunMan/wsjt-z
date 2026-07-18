@@ -4877,6 +4877,7 @@ list. The list can be maintained in Settings (F2).</string>
     <addaction name="actionQuickDecode"/>
     <addaction name="actionMediumDecode"/>
     <addaction name="actionDeepestDecode"/>
+    <addaction name="actionMaximumDecode"/>
     <addaction name="separator"/>
     <addaction name="actionUse_multithreaded_FT8_decoder"/>
     <addaction name="menuParameters"/>
@@ -5187,6 +5188,17 @@ list. The list can be maintained in Settings (F2).</string>
    </property>
    <property name="text">
     <string>Deep</string>
+   </property>
+  </action>
+  <action name="actionMaximumDecode">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>false</bool>
+   </property>
+   <property name="text">
+    <string>Maximum</string>
    </property>
   </action>
   <action name="actionErase_ALL_TXT">

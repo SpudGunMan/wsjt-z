@@ -787,6 +787,7 @@ MainWindow::MainWindow(QDir const& temp_directory, bool multiple,
   ui->actionQuickDecode->setActionGroup(DepthGroup);
   ui->actionMediumDecode->setActionGroup(DepthGroup);
   ui->actionDeepestDecode->setActionGroup(DepthGroup);
+  ui->actionMaximumDecode->setActionGroup(DepthGroup);
 
   // FT8 thread-count radio group (ported from WSJTX 3.0 / JTDX)
   QActionGroup* FT8threadsGroup = new QActionGroup(this);
@@ -1286,6 +1287,7 @@ MainWindow::MainWindow(QDir const& temp_directory, bool multiple,
   if((m_ndepth&7)==1) ui->actionQuickDecode->setChecked(true);
   if((m_ndepth&7)==2) ui->actionMediumDecode->setChecked(true);
   if((m_ndepth&7)==3) ui->actionDeepestDecode->setChecked(true);
+  if((m_ndepth&7)==4) ui->actionMaximumDecode->setChecked(true);
   ui->actionInclude_averaging->setChecked(m_ndepth&16);
   ui->actionInclude_correlation->setChecked(m_ndepth&32);
   ui->actionEnable_AP_DXcall->setChecked(m_ndepth&64);
@@ -2476,6 +2478,7 @@ void MainWindow::dataSink(qint64 frames)
       if((m_ndepth&7)==1) depth_args << "-qB"; //2 pass w subtract, no Block detection, no shift jittering
       if((m_ndepth&7)==2) depth_args << "-C" << "500" << "-o" << "4"; //3 pass, subtract, Block detection, OSD
       if((m_ndepth&7)==3) depth_args << "-C" << "500"  << "-o" << "4" << "-d"; //3 pass, subtract, Block detect, OSD, more candidates
+      if((m_ndepth&4)==4) depth_args << "-C" << "500"  << "-o" << "6" << "-d"; //3 pass, subtract, Block detect, OSD depth 6, even mere candidates
       QStringList degrade;
       degrade << "-d" << QString {"%1"}.arg (m_config.degrade(), 4, 'f', 1);
       m_cmndP1.clear ();
@@ -9295,6 +9298,7 @@ void MainWindow::displayWidgets(qint64 n)
     if(i==19) ui->actionQuickDecode->setEnabled(b);
     if(i==19) ui->actionMediumDecode->setEnabled(b);
     if(i==19) ui->actionDeepestDecode->setEnabled(b);
+    if(i==19) ui->actionMaximumDecode->setEnabled(b);
     if(i==20) ui->actionInclude_averaging->setVisible (b);
     if(i==21) ui->actionInclude_correlation->setVisible (b);
     if(i==22) {
@@ -10119,12 +10123,13 @@ void MainWindow::on_actionWSPR_triggered()
 
 void MainWindow::on_actionEcho_triggered()
 {
-  int nd=int(m_ndepth&3);
+  int nd=int(m_ndepth&7);
   on_actionJT4_triggered();
 // Don't allow decoding depth to be changed just because Echo mode was entered:
   if(nd==1) ui->actionQuickDecode->setChecked (true);
   if(nd==2) ui->actionMediumDecode->setChecked (true);
   if(nd==3) ui->actionDeepestDecode->setChecked (true);
+  if(nd==4) ui->actionMaximumDecode->setChecked (true);
 
   m_mode="Echo";
   if(m_specOp==SpecOp::HOUND) {
@@ -10380,6 +10385,11 @@ void MainWindow::on_actionMediumDecode_toggled (bool checked)
 void MainWindow::on_actionDeepestDecode_toggled (bool checked)
 {
   m_ndepth ^= (-checked ^ m_ndepth) & 0x00000003;
+}
+
+void MainWindow::on_actionMaximumDecode_toggled (bool checked)
+{
+  m_ndepth ^= (-checked ^ m_ndepth) & 0x00000004;
 }
 
 void MainWindow::on_actionInclude_averaging_toggled (bool checked)

@@ -92,7 +92,7 @@ subroutine msk144decodeframe(c,softbits,msgreceived,nsuccess)
   llr(49:128)=softbits(65:65+80-1)
   llr=2.0*llr/(sigma*sigma)
   
-  max_iterations=10
+  max_iterations=15
   apmask=0
   dmin=0.0
   call bpdecode128_90(llr,apmask,max_iterations,decoded77,cw,nharderror,niterations)

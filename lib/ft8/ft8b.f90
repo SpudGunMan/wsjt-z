@@ -18,13 +18,14 @@ subroutine ft8b(dd0,newdat,nQSOProgress,nfqso,nftx,ndepth,nzhsym,lapon,     &
   real llra(174),llrb(174),llrc(174),llrd(174),llre(174),llrz(174)           !Soft symbols
   real dd0(15*12000)
   real ss(9)
+  real ss_freq(11)
   real temp(3)
   integer*1 message77(77),message91(91),apmask(174),cw(174)
   integer apsym(58),aph10(10)
   integer mcq(29),mcqru(29),mcqfd(29),mcqtest(29),mcqww(29)
   integer mrrr(19),m73(19),mrr73(19)
   integer itone(NN)
-  integer icos7(0:6),ip(1)
+  integer icos7(0:6),ip(1),ifreq_best
   integer nappasses(0:5)  !Number of decoding passes to use for each QSO state
   integer naptypes(0:5,4) ! (nQSOProgress, decoding pass)  maximum of 4 passes for now
   integer ncontest,ncontest0
@@ -127,11 +128,27 @@ subroutine ft8b(dd0,newdat,nQSOProgress,nfqso,nftx,ndepth,nzhsym,lapon,     &
       phi=mod(phi+dphi,twopi)
     enddo
     call sync8d(cd0,ibest,ctwk,1,sync)
+    ss_freq(ifr+6)=sync                   !Store sync values for interpolation
     if( sync .gt. smax ) then
       smax=sync
       delfbest=delf
+      ifreq_best=ifr
     endif
   enddo
+  
+  ! Parabolic interpolation for frequency peak refinement
+  ! Refine frequency offset using parabolic formula
+  if(ifreq_best.gt.-5 .and. ifreq_best.lt.5) then
+    y_m1=ss_freq(ifreq_best+5)    ! y[n-1]
+    y_n=ss_freq(ifreq_best+6)     ! y[n] (peak)
+    y_p1=ss_freq(ifreq_best+7)    ! y[n+1]
+    denom=2.0*y_n - y_m1 - y_p1
+    if(abs(denom).gt.1e-6) then
+      delta=(y_p1 - y_m1) / (2.0*denom)  ! Sub-bin offset
+      delfbest=delfbest + delta*0.5   ! Apply sub-bin refinement
+    endif
+  endif
+  
   a=0.0
   a(1)=-delfbest
   call twkfreq1(cd0,NP2,fs2,a,cd0)
@@ -148,8 +165,27 @@ subroutine ft8b(dd0,newdat,nQSOProgress,nfqso,nftx,ndepth,nzhsym,lapon,     &
   enddo
   smax=maxval(ss)
   iloc=maxloc(ss)
-  ibest=iloc(1)-5+ibest
-  xdt=(ibest-1)*dt2
+  ipk=iloc(1)-5
+  
+  ! Parabolic interpolation for sub-bin peak refinement
+  ! Refine peak position using parabolic formula
+  if(ipk.gt.-4 .and. ipk.lt.4) then
+    y_m1=ss(ipk+4)    ! y[n-1]
+    y_n=ss(ipk+5)     ! y[n] (peak)
+    y_p1=ss(ipk+6)    ! y[n+1]
+    denom=2.0*y_n - y_m1 - y_p1
+    if(abs(denom).gt.1e-6) then
+      delta=(y_p1 - y_m1) / (2.0*denom)  ! Sub-bin offset
+      xdt_offset=delta*dt2
+    else
+      xdt_offset=0.0
+    endif
+  else
+    xdt_offset=0.0
+  endif
+  
+  ibest=ipk+ibest
+  xdt=(ibest-1)*dt2 + xdt_offset
   sync=smax
 
   do k=1,NN

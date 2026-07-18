@@ -256,6 +256,7 @@ private slots:
   void on_actionQuickDecode_toggled (bool);
   void on_actionMediumDecode_toggled (bool);
   void on_actionDeepestDecode_toggled (bool);
+  void on_actionMaximumDecode_toggled (bool);
   void bumpFqso(int n);
   void on_actionErase_ALL_TXT_triggered();
   void on_reset_cabrillo_log_action_triggered ();
