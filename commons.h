@@ -104,6 +104,7 @@ typedef struct dec_data {
     bool lbandchanged;
     bool lenabledxcsearch;
     bool lwidedxcsearch;
+    bool ldx_mode;              // DX Mode: Integer Bin refinement (OFF by default, uses parabolic)
     bool lmultinst;
     bool lskiptx1;
     int ndecoderstart;

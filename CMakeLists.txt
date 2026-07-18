@@ -78,7 +78,7 @@ set (PROJECT_SAMPLES_URL https://sourceforge.net/projects/wsjt/files/)
 # WSJT-Z mod version suffix shown in UI and package metadata.
 set (VERSION_Z "2.19.a3")
 message (STATUS "******************************************************")
-message (STATUS "Building ${PROJECT_BUNDLE_NAME} ${VERSION_Z} (base WSJT-X ${PROJECT_VERSION}) for ${CMAKE_SYSTEM_NAME}-${PROJECT_ARCHITECTURE}")
+message (STATUS "Building ${PROJECT_BUNDLE_NAME} ${VERSION_Z} for ${CMAKE_SYSTEM_NAME}-${PROJECT_ARCHITECTURE}")
 message (STATUS "******************************************************")
 
 # make sure that the default configuration is a RELEASE
