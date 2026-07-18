@@ -14,6 +14,7 @@ subroutine msk144decodeframe(c,softbits,msgreceived,nsuccess)
   real pp(12)
   real softbits(144)
   real llr(128)
+  real xsnr_est
   logical first,unpk77_success
   data first/.true./
   data s8/0,1,1,1,0,0,1,0/
@@ -87,7 +88,10 @@ subroutine msk144decodeframe(c,softbits,msgreceived,nsuccess)
   ssig=sqrt(s2av-sav*sav)
   softbits=softbits/ssig
 
+  ! Estimate SNR from normalized softbits and apply SNR-dependent sigma
+  xsnr_est=10.0*log10(max(1.0, sum(softbits*softbits)/144.0))
   sigma=0.60
+  if(xsnr_est.lt.0.0) sigma=0.60-0.10*xsnr_est  ! Adaptive sigma for weak signals
   llr(1:48)=softbits(9:9+47)
   llr(49:128)=softbits(65:65+80-1)
   llr=2.0*llr/(sigma*sigma)
