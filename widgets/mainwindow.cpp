@@ -789,6 +789,7 @@ MainWindow::MainWindow(QDir const& temp_directory, bool multiple,
   ui->actionQuickDecode->setActionGroup(DepthGroup);
   ui->actionMediumDecode->setActionGroup(DepthGroup);
   ui->actionDeepestDecode->setActionGroup(DepthGroup);
+  ui->actionMaximumDecode->setActionGroup(DepthGroup);
 
   // FT8 thread-count radio group (ported from WSJTX 3.0 / JTDX)
   QActionGroup* FT8threadsGroup = new QActionGroup(this);
@@ -896,7 +897,7 @@ MainWindow::MainWindow(QDir const& temp_directory, bool multiple,
       if (m_pskReporterView) m_pskReporterView->setFont(font);
     });
 
-  setWindowTitle (program_title () + " (WSJT-Z MOD by SQ9FVE " + QStringLiteral (VERSION_Z) + ")");
+  setWindowTitle ("WSJT-Z by SQ9FVE " + QStringLiteral (VERSION_Z) + " " + m_revision);
 
 
   connect(&proc_jt9, &QProcess::readyReadStandardOutput, this, &MainWindow::readFromStdout);
@@ -1288,10 +1289,12 @@ MainWindow::MainWindow(QDir const& temp_directory, bool multiple,
   if((m_ndepth&7)==1) ui->actionQuickDecode->setChecked(true);
   if((m_ndepth&7)==2) ui->actionMediumDecode->setChecked(true);
   if((m_ndepth&7)==3) ui->actionDeepestDecode->setChecked(true);
+  if((m_ndepth&7)==4) ui->actionMaximumDecode->setChecked(true);
   ui->actionInclude_averaging->setChecked(m_ndepth&16);
   ui->actionInclude_correlation->setChecked(m_ndepth&32);
   ui->actionEnable_AP_DXcall->setChecked(m_ndepth&64);
   ui->actionAuto_Clear_Avg->setChecked(m_ndepth&128);
+  ui->actionDX_Mode->setChecked(m_dx_mode);
 
   m_UTCdisk=-1;
   m_UTCdiskDateTime=QDateTime{}; // UTCDateTime of file being read from disk.
@@ -2492,6 +2495,7 @@ void MainWindow::dataSink(qint64 frames)
       if((m_ndepth&7)==1) depth_args << "-qB"; //2 pass w subtract, no Block detection, no shift jittering
       if((m_ndepth&7)==2) depth_args << "-C" << "500" << "-o" << "4"; //3 pass, subtract, Block detection, OSD
       if((m_ndepth&7)==3) depth_args << "-C" << "500"  << "-o" << "4" << "-d"; //3 pass, subtract, Block detect, OSD, more candidates
+      if((m_ndepth&4)==4) depth_args << "-C" << "500"  << "-o" << "6" << "-d"; //3 pass, subtract, Block detect, OSD depth 6, even mere candidates
       QStringList degrade;
       degrade << "-d" << QString {"%1"}.arg (m_config.degrade(), 4, 'f', 1);
       m_cmndP1.clear ();
@@ -4723,6 +4727,8 @@ void MainWindow::decode()                                       //decode()
   if (!ui->actionInclude_correlation->isVisible ()) depth &= ~32;
   if (!ui->actionEnable_AP_DXcall->isVisible ()) depth &= ~64;
   if (!ui->actionAuto_Clear_Avg->isVisible()) depth &= ~128;
+  // Zero-initialize all params to ensure proper alignment and default values
+  ::memset(&dec_data.params, 0, sizeof(dec_data.params));
   dec_data.params.ndepth=depth;
   // ===== JTDX/3.0 ported FT8 decoder params (must mirror lib/jt9com.f90 params_block) =====
   // Wsjtz lacks UI for most JTDX-specific knobs; using sensible defaults from wsjtx-orig.
@@ -4765,6 +4771,7 @@ void MainWindow::decode()                                       //decode()
   dec_data.params.nsdecatt = 1;
   dec_data.params.fmaskact = true;
   dec_data.params.lwidedxcsearch = m_FT8WideDxCallSearch;
+  dec_data.params.ldx_mode = m_dx_mode;
   dec_data.params.lenabledxcsearch = false;
   dec_data.params.nagainfil = false;
   // mybcall / hisbcall: derive from mycall/hiscall (base callsign before /portable)
@@ -9399,6 +9406,7 @@ void MainWindow::displayWidgets(qint64 n)
     if(i==19) ui->actionQuickDecode->setEnabled(b);
     if(i==19) ui->actionMediumDecode->setEnabled(b);
     if(i==19) ui->actionDeepestDecode->setEnabled(b);
+    if(i==19) ui->actionMaximumDecode->setEnabled(b);
     if(i==20) ui->actionInclude_averaging->setVisible (b);
     if(i==21) ui->actionInclude_correlation->setVisible (b);
     if(i==22) {
@@ -10223,12 +10231,13 @@ void MainWindow::on_actionWSPR_triggered()
 
 void MainWindow::on_actionEcho_triggered()
 {
-  int nd=int(m_ndepth&3);
+  int nd=int(m_ndepth&7);
   on_actionJT4_triggered();
 // Don't allow decoding depth to be changed just because Echo mode was entered:
   if(nd==1) ui->actionQuickDecode->setChecked (true);
   if(nd==2) ui->actionMediumDecode->setChecked (true);
   if(nd==3) ui->actionDeepestDecode->setChecked (true);
+  if(nd==4) ui->actionMaximumDecode->setChecked (true);
 
   m_mode="Echo";
   if(m_specOp==SpecOp::HOUND) {
@@ -10486,6 +10495,11 @@ void MainWindow::on_actionDeepestDecode_toggled (bool checked)
   m_ndepth ^= (-checked ^ m_ndepth) & 0x00000003;
 }
 
+void MainWindow::on_actionMaximumDecode_toggled (bool checked)
+{
+  m_ndepth ^= (-checked ^ m_ndepth) & 0x00000004;
+}
+
 void MainWindow::on_actionInclude_averaging_toggled (bool checked)
 {
   m_ndepth ^= (-checked ^ m_ndepth) & 0x00000010;
@@ -10505,6 +10519,12 @@ void MainWindow::on_actionEnable_AP_DXcall_toggled (bool checked)
 void MainWindow::on_actionAuto_Clear_Avg_toggled (bool checked)
 {
   m_ndepth ^= (-checked ^ m_ndepth) & 0x00000080;
+}
+
+void MainWindow::on_actionDX_Mode_toggled (bool checked)
+{
+  m_dx_mode = checked;
+  statusChanged();
 }
 
 void MainWindow::on_actionErase_ALL_TXT_triggered()          //Erase ALL.TXT
