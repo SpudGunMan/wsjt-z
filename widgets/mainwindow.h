@@ -309,7 +309,6 @@ private slots:
   void on_actionInclude_correlation_toggled (bool);
   void on_actionEnable_AP_DXcall_toggled (bool);
   void on_actionAuto_Clear_Avg_toggled (bool);
-  void on_actionDX_Mode_toggled (bool);
   void VHF_features_enabled(bool b);
   void on_sbSubmode_valueChanged(int n);
   void on_cbSendMsg_toggled(bool b);
@@ -539,9 +538,6 @@ private:
   qint32 m_nFT8Cycles = 3;
   // Wideband DX call search (Decode > Wideband DX Call search). Drives dec_data.params.lwidedxcsearch.
   bool m_FT8WideDxCallSearch = false;
-
-  // DX Mode: Enable Integer Bin refinement (OFF by default; parabolic is default)
-  bool m_dx_mode = false;
 
   // Cached state of actionWSJT_Z_Debug to avoid widget lookup on every log() call.
   // Updated by the action's toggled signal in the ctor. Hot-path log() sites should

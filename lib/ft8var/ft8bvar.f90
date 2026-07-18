@@ -1,4 +1,4 @@
-subroutine ft8bvar(newdat1,nQSOProgress,nfqso,nftx,napwid,lsubtract,ldx_mode,npos,freqsub, &
+subroutine ft8bvar(newdat1,nQSOProgress,nfqso,nftx,napwid,lsubtract,npos,freqsub, &
      tmpcqdec,tmpmyc,nagainfil,iaptype,f1,xdt,nbadcrc,lft8sdec,msg37,msg37_2,     &
      xsnr,stophint,nthr,lFreeText,ipass,lft8subpass,lspecial,lcqcand,ncqsignal,   &
      nmycsignal,npass,i3bit,lft8s,lmycallstd,lhiscallstd,levenint,loddint,lft8sd, &
@@ -35,7 +35,7 @@ subroutine ft8bvar(newdat1,nQSOProgress,nfqso,nftx,napwid,lsubtract,ldx_mode,npo
   integer*1 message77(77),apmask(174),cw(174),nsmax(8)
   integer itone(79),ip(1),ka(1),nqsoend(3)
   integer, intent(in) :: nQSOProgress,nfqso,nftx,napwid,nthr,ipass,nft8rxfsens
-  logical newdat1,lsubtract,lFreeText,nagainfil,lspecial,unpk77_successvar,ldx_mode
+  logical newdat1,lsubtract,lFreeText,nagainfil,lspecial,unpk77_successvar
   logical(1), intent(in) :: stophint,lft8subpass,lmycallstd,lhiscallstd,          &
        lqsothread,lft8lowth,lhighsens,lcqcand,levenint,loddint,lnohiscall,        &
        lnomycall,lnohisgrid

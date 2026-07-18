@@ -897,7 +897,7 @@ MainWindow::MainWindow(QDir const& temp_directory, bool multiple,
       if (m_pskReporterView) m_pskReporterView->setFont(font);
     });
 
-  setWindowTitle ("WSJT-Z by SQ9FVE " + QStringLiteral (VERSION_Z) + " " + m_revision);
+  setWindowTitle (program_title () + " (WSJT-Z MOD by SQ9FVE " + QStringLiteral (VERSION_Z) + ")");
 
 
   connect(&proc_jt9, &QProcess::readyReadStandardOutput, this, &MainWindow::readFromStdout);
@@ -1294,7 +1294,6 @@ MainWindow::MainWindow(QDir const& temp_directory, bool multiple,
   ui->actionInclude_correlation->setChecked(m_ndepth&32);
   ui->actionEnable_AP_DXcall->setChecked(m_ndepth&64);
   ui->actionAuto_Clear_Avg->setChecked(m_ndepth&128);
-  ui->actionDX_Mode->setChecked(m_dx_mode);
 
   m_UTCdisk=-1;
   m_UTCdiskDateTime=QDateTime{}; // UTCDateTime of file being read from disk.
@@ -4769,7 +4768,6 @@ void MainWindow::decode()                                       //decode()
   dec_data.params.nsdecatt = 1;
   dec_data.params.fmaskact = true;
   dec_data.params.lwidedxcsearch = m_FT8WideDxCallSearch;
-  dec_data.params.ldx_mode = m_dx_mode;
   dec_data.params.lenabledxcsearch = false;
   dec_data.params.nagainfil = false;
   // mybcall / hisbcall: derive from mycall/hiscall (base callsign before /portable)
@@ -10517,12 +10515,6 @@ void MainWindow::on_actionEnable_AP_DXcall_toggled (bool checked)
 void MainWindow::on_actionAuto_Clear_Avg_toggled (bool checked)
 {
   m_ndepth ^= (-checked ^ m_ndepth) & 0x00000080;
-}
-
-void MainWindow::on_actionDX_Mode_toggled (bool checked)
-{
-  m_dx_mode = checked;
-  statusChanged();
 }
 
 void MainWindow::on_actionErase_ALL_TXT_triggered()          //Erase ALL.TXT

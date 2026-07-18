@@ -1,5 +1,5 @@
 subroutine ft8b(dd0,newdat,nQSOProgress,nfqso,nftx,ndepth,nzhsym,lapon,     &
-     lapcqonly,napwid,lsubtract,nagain,ncontest,ldx_mode,imetric,iaptype,mycall12,hiscall12, &
+     lapcqonly,napwid,lsubtract,nagain,ncontest,imetric,iaptype,mycall12,hiscall12, &
      f1,xdt,xbase,apsym,aph10,nharderrors,dmin,nbadcrc,ipass,               &
      msg37,xsnr,itone)
 
@@ -36,7 +36,7 @@ subroutine ft8b(dd0,newdat,nQSOProgress,nfqso,nftx,ndepth,nzhsym,lapon,     &
   complex ctwk(32)
   complex csymb(32)
   complex cs(0:7,NN)
-  logical first,newdat,lsubtract,lapon,lapcqonly,nagain,unpk77_success,ldx_mode
+  logical first,newdat,lsubtract,lapon,lapcqonly,nagain,unpk77_success
   data icos7/3,1,4,0,6,5,2/  ! Flipped w.r.t. original FT8 sync array
   data     mcq/0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0/
   data   mcqru/0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,1,1,1,1,0,0,1,1,0,0/
@@ -137,17 +137,15 @@ subroutine ft8b(dd0,newdat,nQSOProgress,nfqso,nftx,ndepth,nzhsym,lapon,     &
   enddo
   
   ! Parabolic interpolation for frequency peak refinement
-  ! Refine frequency offset using parabolic formula (disabled in DX Mode for Integer Bin)
-  if(.not. ldx_mode) then
-    if(ifreq_best.gt.-5 .and. ifreq_best.lt.5) then
-      y_m1=ss_freq(ifreq_best+5)    ! y[n-1]
-      y_n=ss_freq(ifreq_best+6)     ! y[n] (peak)
-      y_p1=ss_freq(ifreq_best+7)    ! y[n+1]
-      denom=2.0*y_n - y_m1 - y_p1
-      if(abs(denom).gt.1e-6) then
-        delta=(y_p1 - y_m1) / (2.0*denom)  ! Sub-bin offset
-        delfbest=delfbest + delta*0.5   ! Apply sub-bin refinement
-      endif
+  ! Refine frequency offset using parabolic formula
+  if(ifreq_best.gt.-5 .and. ifreq_best.lt.5) then
+    y_m1=ss_freq(ifreq_best+5)    ! y[n-1]
+    y_n=ss_freq(ifreq_best+6)     ! y[n] (peak)
+    y_p1=ss_freq(ifreq_best+7)    ! y[n+1]
+    denom=2.0*y_n - y_m1 - y_p1
+    if(abs(denom).gt.1e-6) then
+      delta=(y_p1 - y_m1) / (2.0*denom)  ! Sub-bin offset
+      delfbest=delfbest + delta*0.5   ! Apply sub-bin refinement
     endif
   endif
   
@@ -169,20 +167,16 @@ subroutine ft8b(dd0,newdat,nQSOProgress,nfqso,nftx,ndepth,nzhsym,lapon,     &
   iloc=maxloc(ss)
   ipk=iloc(1)-5
   
-  ! Parabolic interpolation for sub-bin peak refinement (disabled in DX Mode for Integer Bin)
-  if(.not. ldx_mode) then
-    ! Refine peak position using parabolic formula
-    if(ipk.gt.-4 .and. ipk.lt.4) then
-      y_m1=ss(ipk+4)    ! y[n-1]
-      y_n=ss(ipk+5)     ! y[n] (peak)
-      y_p1=ss(ipk+6)    ! y[n+1]
-      denom=2.0*y_n - y_m1 - y_p1
-      if(abs(denom).gt.1e-6) then
-        delta=(y_p1 - y_m1) / (2.0*denom)  ! Sub-bin offset
-        xdt_offset=delta*dt2
-      else
-        xdt_offset=0.0
-      endif
+  ! Parabolic interpolation for sub-bin peak refinement
+  ! Refine peak position using parabolic formula
+  if(ipk.gt.-4 .and. ipk.lt.4) then
+    y_m1=ss(ipk+4)    ! y[n-1]
+    y_n=ss(ipk+5)     ! y[n] (peak)
+    y_p1=ss(ipk+6)    ! y[n+1]
+    denom=2.0*y_n - y_m1 - y_p1
+    if(abs(denom).gt.1e-6) then
+      delta=(y_p1 - y_m1) / (2.0*denom)  ! Sub-bin offset
+      xdt_offset=delta*dt2
     else
       xdt_offset=0.0
     endif

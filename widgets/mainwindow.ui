@@ -4891,7 +4891,6 @@ list. The list can be maintained in Settings (F2).</string>
     <addaction name="actionAuto_Clear_Avg"/>
     <addaction name="actionDisable_clicks_on_waterfall"/>
     <addaction name="actionReduce_false_decodes"/>
-    <addaction name="actionDX_Mode"/>
     <addaction name="separator"/>
     <addaction name="actionFT8WidebandDXCallSearch"/>
     <addaction name="actionHide_FT8_dupe_messages"/>
@@ -5031,7 +5030,6 @@ list. The list can be maintained in Settings (F2).</string>
   <action name="actionDecFT8cycles3"><property name="checkable"><bool>true</bool></property><property name="checked"><bool>true</bool></property><property name="text"><string>3</string></property></action>
   <action name="actionDisable_clicks_on_waterfall"><property name="checkable"><bool>true</bool></property><property name="text"><string>Disable clicks on waterfall</string></property></action>
   <action name="actionReduce_false_decodes"><property name="checkable"><bool>true</bool></property><property name="text"><string>Reduce false decodes</string></property></action>
-  <action name="actionDX_Mode"><property name="checkable"><bool>true</bool></property><property name="checked"><bool>false</bool></property><property name="text"><string>DX Mode (Integer Bin Refinement)</string></property></action>
   <action name="actionHide_AP_info"><property name="checkable"><bool>true</bool></property><property name="text"><string>Hide AP information</string></property></action>
   <action name="actionFT8WidebandDXCallSearch"><property name="checkable"><bool>true</bool></property><property name="text"><string>Wideband DX Call search</string></property></action>
   <action name="actionHide_FT8_dupe_messages"><property name="checkable"><bool>true</bool></property><property name="checked"><bool>true</bool></property><property name="text"><string>Hide FT8 dupe messages</string></property></action>
