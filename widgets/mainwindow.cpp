@@ -4726,6 +4726,8 @@ void MainWindow::decode()                                       //decode()
   if (!ui->actionInclude_correlation->isVisible ()) depth &= ~32;
   if (!ui->actionEnable_AP_DXcall->isVisible ()) depth &= ~64;
   if (!ui->actionAuto_Clear_Avg->isVisible()) depth &= ~128;
+  // Zero-initialize all params to ensure proper alignment and default values
+  ::memset(&dec_data.params, 0, sizeof(dec_data.params));
   dec_data.params.ndepth=depth;
   // ===== JTDX/3.0 ported FT8 decoder params (must mirror lib/jt9com.f90 params_block) =====
   // Wsjtz lacks UI for most JTDX-specific knobs; using sensible defaults from wsjtx-orig.
