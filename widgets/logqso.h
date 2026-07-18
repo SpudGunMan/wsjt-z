@@ -29,12 +29,14 @@ public:
   void initLogQSO(QString const& hisCall, QString const& hisGrid, QString mode,
                   QString const& rptSent, QString const& rptRcvd, QDateTime const& dateTimeOn,
                   QDateTime const& dateTimeOff, Radio::Frequency dialFreq, 
-                  bool noSuffix, QString xSent, QString xRcvd);
+                  bool noSuffix, QString xSent, QString xRcvd, bool shouldAutoAccept = false);
+  void setDebugMode(bool debug);
 
 public slots:
   void accept();
 
 signals:
+  void debugMessage(QString const& msg);
   void acceptQSO (QDateTime const& QSO_date_off, QString const& call, QString const& grid
                   , Radio::Frequency dial_freq, QString const& mode
                   , QString const& rpt_sent, QString const& rpt_received
@@ -60,6 +62,7 @@ private:
   Radio::Frequency m_dialFreq;
   QString m_myCall;
   QString m_myGrid;
+  bool m_zdebug {false};
 };
 
 #endif // LogQSO_H

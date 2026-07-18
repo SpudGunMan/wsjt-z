@@ -537,8 +537,9 @@ MainWindow::MainWindow(QDir const& temp_directory, bool multiple,
           this, &MainWindow::invalidateFilterCache);
   // Cache WSJT-Z debug flag so log() and hot-path call sites can gate without a widget lookup.
   m_zdebug = ui->actionWSJT_Z_Debug->isChecked();
+  m_logDlg->setDebugMode(m_zdebug);  // Pass debug flag to LogQSO
   connect(ui->actionWSJT_Z_Debug, &QAction::toggled,
-          this, [this](bool b){ m_zdebug = b; });
+          this, [this](bool b){ m_zdebug = b; if(m_logDlg) m_logDlg->setDebugMode(b); });
   ui->dxGridEntry->setValidator (new MaidenheadLocatorValidator {this});
   ui->dxCallEntry->setValidator (new CallsignValidator {this});
   ui->sbTR->values ({5, 10, 15, 30, 60, 120, 300, 900, 1800});
@@ -647,6 +648,7 @@ MainWindow::MainWindow(QDir const& temp_directory, bool multiple,
 
   // setup the log QSO dialog
   connect (m_logDlg.data (), &LogQSO::acceptQSO, this, &MainWindow::acceptQSO);
+  connect (m_logDlg.data (), &LogQSO::debugMessage, this, [this](QString const& msg) { log(msg); });
   connect (this, &MainWindow::finished, m_logDlg.data (), &LogQSO::close);
 
   // hook up the log book
@@ -9230,9 +9232,13 @@ void MainWindow::on_logQSOButton_clicked()                 //Log QSO button
           int n=m_rptSent.toInt();
           m_rptSent = m_rptSent.asprintf("%+2.2d",n);
       }
+      if (m_zdebug) log("[logQSO] calling initLogQSO for " + m_hisCall);
       m_logDlg->initLogQSO (m_hisCall, grid, m_mode, m_rptSent , m_rptRcvd,
                             m_dateTimeQSOOn, dateTimeQSOOff, m_freqNominal +
-                           ui->TxFreqSpinBox->value(), m_noSuffix, m_xSent, m_xRcvd);
+                           ui->TxFreqSpinBox->value(), m_noSuffix, m_xSent, m_xRcvd,
+                           ui->cbAutoCQ->isChecked() || ui->cbAutoCall->isChecked());
+      if (m_zdebug) log("[logQSO] after initLogQSO AutoCQ=" + QString::number(ui->cbAutoCQ->isChecked())
+               + " AutoCall=" + QString::number(ui->cbAutoCall->isChecked()) + " isHidden=" + QString::number(m_logDlg->isHidden()));
 
          if (m_config.rxTotxFreq()) on_pbT2R_clicked();
          if (m_zdebug) log("Updating m_lastCall from " + m_lastCall + " to " + m_hisCall);
@@ -9243,7 +9249,14 @@ void MainWindow::on_logQSOButton_clicked()                 //Log QSO button
              // (NA_VHF/EU_VHF/etc.). Calling accept() again double-runs the QSO
              // pipeline (CabrilloLog::add_QSO + acceptQSO signal) and crashes
              // intermittently. Hidden dialog == already auto-accepted.
-             if (m_logDlg && !m_logDlg->isHidden()) m_logDlg->accept();
+             if (m_zdebug) log("[logQSO] isHidden check: m_logDlg=" + QString(m_logDlg ? "valid" : "null") 
+                      + " isHidden=" + QString(!m_logDlg ? "N/A" : QString::number(m_logDlg->isHidden())));
+             if (m_logDlg && !m_logDlg->isHidden()) {
+                 if (m_zdebug) log("[logQSO] Dialog not hidden, calling accept() again");
+                 m_logDlg->accept();
+             } else {
+                 if (m_zdebug) log("[logQSO] Dialog is hidden or null, NOT calling accept() again");
+             }
              if (ui->cbAutoCall->isChecked()) auto_tx_mode (false);
              resetAutoSwitch();
          }
