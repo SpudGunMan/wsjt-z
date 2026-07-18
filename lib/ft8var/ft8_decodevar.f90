@@ -24,7 +24,7 @@ contains
   subroutine decodevar(this,callback,nQSOProgress,nfqso,nft8rxfsens,nftx,nutc,  &
        nfa,nfb,ncandthin,ndtcenter,nsec,napwid,lmycallstd,lhiscallstd,          &
        stophint,nthr,numthreads,nagainfil,lft8lowth,lft8subpass,lhideft8dupes,  &
-       lft8apon,ncontest)
+       lft8apon,ncontest,ldx_mode)
 
     use timer_module, only: timer
     use omp_lib
@@ -44,8 +44,8 @@ contains
     real candidate(4,460),freqsub(200)
     real qual !ft8md
     integer, intent(in) :: nQSOProgress,nfqso,nft8rxfsens,nftx,nfa,nfb,         &
-         ncandthin,ndtcenter,nsec,napwid,nthr,numthreads
-    logical, intent(in) :: nagainfil
+         ncandthin,ndtcenter,nsec,napwid,nthr,numthreads,ncontest
+    logical, intent(in) :: nagainfil,ldx_mode
     logical(1), intent(in) :: stophint,lft8lowth,lft8subpass,lhideft8dupes,     &
          lmycallstd,lhiscallstd,lft8apon
     logical newdat1,lsubtract,ldupe,lFreeText,lspecial
@@ -273,7 +273,7 @@ contains
           i3=16
           n3=16
 
-          call ft8bvar(newdat1,nQSOProgress,nfqso,nftx,napwid,lsubtract,npos,   &
+          call ft8bvar(newdat1,nQSOProgress,nfqso,nftx,napwid,lsubtract,ldx_mode,npos,   &
                freqsub,tmpcqdec,tmpmyc,nagainfil,iaptype,f1,xdt,nbadcrc,        &
                lft8sdec,msg37,msg37_2,xsnr,stophint,nthr,lFreeText,ipass,       &
                lft8subpass,lspecial,lcqcand,ncqsignal,nmycsignal,npass,i3bit,   &

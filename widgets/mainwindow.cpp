@@ -4726,6 +4726,7 @@ void MainWindow::decode()                                       //decode()
   dec_data.params.lwidedxcsearch = m_FT8WideDxCallSearch;
   dec_data.params.lenabledxcsearch = false;
   dec_data.params.nagainfil = false;
+  dec_data.params.ldx_mode = m_dx_mode;  // DX Mode: true=integer-bin, false=parabolic
   // mybcall / hisbcall: derive from mycall/hiscall (base callsign before /portable)
   ::memcpy(dec_data.params.mybcall, (m_config.my_callsign() + "            ").toLatin1(), 12);
   ::memcpy(dec_data.params.hisbcall, (m_hisCall + "            ").toLatin1(), 12);
