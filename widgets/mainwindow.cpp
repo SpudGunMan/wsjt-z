@@ -6372,6 +6372,14 @@ void MainWindow::auto_sequence (DecodedText const& message, unsigned start_toler
               // Always target the tertiary regardless of whether we're primary or secondary
               m_hisCall = fields.tertiary_caller;
               if (m_zdebug) log (QString ("Composite RR73 for me: setting target to %1").arg (m_hisCall));
+              
+              // For composite RR73, just log the QSO without processing through full state machine
+              // to avoid unwanted state transitions
+              m_bTUmsg = false;
+              if (m_config.prompt_to_log() || m_config.autoLog()) {
+                logQSOTimer.start(0);
+              }
+              return;  // Don't process through normal state machine
             }
           
           // Z
