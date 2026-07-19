@@ -6151,12 +6151,20 @@ void MainWindow::auto_sequence (DecodedText const& message, unsigned start_toler
                     .arg(composite_rr73_detected)
                     .arg(raw_words.size())
                     .arg(raw_words.size() > 1 ? raw_words.at(1) : "N/A"));
-  // Check if we're either primary or secondary caller in composite RR73
-  bool composite_rr73_for_me = composite_rr73_detected
-    && ((token_matches_call (raw_words.value (0), m_config.my_callsign ())
-         || token_matches_call (raw_words.value (0), m_baseCall))
-        || (raw_words.size() > 2 && (token_matches_call (raw_words.value (2), m_config.my_callsign ())
-                                      || token_matches_call (raw_words.value (2), m_baseCall))));
+  // Check if we're in composite RR73
+  // Format: PRIMARY RR73; SECONDARY <TERTIARY> REPORT
+  // Process if we're PRIMARY (receiving RR73) or SECONDARY (being informed we're next)
+  bool composite_rr73_for_me = false;
+  if (composite_rr73_detected && message.is_composite_message())
+    {
+      auto const& fields = message.composite_message_fields();
+      // PRIMARY: we're receiving the RR73 from tertiary
+      // SECONDARY: we're being informed we're next
+      composite_rr73_for_me = token_matches_call(fields.primary_caller, m_config.my_callsign())
+                              || token_matches_call(fields.primary_caller, m_baseCall)
+                              || token_matches_call(fields.secondary_caller, m_config.my_callsign())
+                              || token_matches_call(fields.secondary_caller, m_baseCall);
+    }
   if (m_zdebug && composite_rr73_detected) 
     log(QString("composite_rr73_for_me=%1 (primary[0]=%2, secondary[2]=%3)")
         .arg(composite_rr73_for_me)
@@ -6231,6 +6239,25 @@ void MainWindow::auto_sequence (DecodedText const& message, unsigned start_toler
       return;
     }
 
+    // Handle composite RR73 BEFORE auto gate so it processes regardless of m_auto status
+    if(SpecOp::FOX != m_specOp && composite_rr73_for_me && message.is_composite_message())
+    {
+      auto const& fields = message.composite_message_fields ();
+      bool const is_secondary = token_matches_call(fields.secondary_caller, m_config.my_callsign())
+                                || token_matches_call(fields.secondary_caller, m_baseCall);
+      
+      if (is_secondary)
+        {
+          // We're being informed we're next: save context and skip processing
+          m_hisCall = fields.tertiary_caller;
+          m_lastCall = fields.primary_caller;
+          m_QSOProgress = REPLYING;
+          if (m_zdebug) log (QString ("auto_sequence: Composite RR73 SECONDARY, we're next after %1 to work %2").arg (fields.primary_caller).arg(m_hisCall));
+          return;
+        }
+      // Note: PRIMARY composite RR73 falls through to normal processing
+    }
+
     // Z TODO: This is inccorect - fix !m_config.superFox() && (SpecOp::HOUND != m_specOp)
     bool const auto_qrm_guard_state = m_QSOProgress == CALLING
                       || m_QSOProgress == REPLYING
@@ -6278,7 +6305,7 @@ void MainWindow::auto_sequence (DecodedText const& message, unsigned start_toler
                            || message_words.at (2).contains (m_baseCall))))) {
       if(SpecOp::FOX != m_specOp)
       {
-          // Handle composite RR73 messages by setting target call to tertiary caller
+          // Handle composite RR73 messages
           if (m_zdebug) log (QString ("composite_rr73_for_me=%1 is_composite=%2 specOp=%3")
                             .arg(composite_rr73_for_me)
                             .arg(message.is_composite_message())
@@ -6286,9 +6313,19 @@ void MainWindow::auto_sequence (DecodedText const& message, unsigned start_toler
           if (composite_rr73_for_me && message.is_composite_message ())
             {
               auto const& fields = message.composite_message_fields ();
-              // Always target the tertiary regardless of whether we're primary or secondary
-              m_hisCall = fields.tertiary_caller;
-              if (m_zdebug) log (QString ("Composite RR73 for me: setting target to %1").arg (m_hisCall));
+              bool const is_secondary = token_matches_call(fields.secondary_caller, m_config.my_callsign())
+                                        || token_matches_call(fields.secondary_caller, m_baseCall);
+              
+              if (is_secondary)
+                {
+                  // We're being informed we're next: save the tertiary as our next call
+                  m_hisCall = fields.tertiary_caller;
+                  m_lastCall = fields.primary_caller;
+                  m_QSOProgress = REPLYING;  // Position state machine for next message from tertiary
+                  if (m_zdebug) log (QString ("Composite RR73 SECONDARY (auto_sequence): we're next after %1 to work %2, m_QSOProgress=%3").arg (fields.primary_caller).arg(m_hisCall).arg(m_QSOProgress));
+                  return;  // Skip further processing for now
+                }
+              // Note: PRIMARY composite RR73 falls through to normal processMessage handling for proper transmission
             }
           
           // Z
@@ -7754,10 +7791,37 @@ void MainWindow::processMessage (DecodedText const& message, Qt::KeyboardModifie
 
   QStringList w=message.clean_string ().mid(22).remove("<").remove(">").split(" ",SkipEmptyParts);
   auto const& raw_words = message.clean_string().split(" ", SkipEmptyParts);
-  bool const composite_rr73_detected = composite_rr73(raw_words);
-  bool const composite_rr73_for_me = composite_rr73_detected
-    && (token_matches_call(raw_words.value(0), m_config.my_callsign())
-        || token_matches_call(raw_words.value(0), m_baseCall));
+  // Handle composite RR73 FIRST before any state machine logic
+  if (message.is_composite_message()) {
+    auto const& fields = message.composite_message_fields ();
+    bool const is_primary = token_matches_call(fields.primary_caller, m_config.my_callsign())
+                            || token_matches_call(fields.primary_caller, m_baseCall);
+    bool const is_secondary = token_matches_call(fields.secondary_caller, m_config.my_callsign())
+                              || token_matches_call(fields.secondary_caller, m_baseCall);
+    
+    if (m_zdebug) log(QString("processMessage: composite handler executing - is_primary=%1 is_secondary=%2").arg(is_primary).arg(is_secondary));
+    
+    if (is_primary) {
+      // We're receiving the RR73: log and send acknowledgment
+      if (m_zdebug) log (QString ("processMessage: Composite RR73 PRIMARY from %1").arg (fields.tertiary_caller));
+      m_hisCall = fields.tertiary_caller;
+      m_QSOProgress = SIGNOFF;
+      m_ntx=6;
+      ui->txrb6->setChecked(true);
+      if (m_zdebug) log (QString ("processMessage: Before log - m_hisCall=%1 m_QSOProgress=%2").arg(m_hisCall).arg(m_QSOProgress));
+      cease_auto_Tx_after_QSO ();
+      on_logQSOButton_clicked();
+      return;
+    }
+    else if (is_secondary) {
+      // We're being informed we're next: save the tertiary as our next call
+      m_hisCall = fields.tertiary_caller;
+      m_lastCall = fields.primary_caller;
+      m_QSOProgress = REPLYING;
+      if (m_zdebug) log (QString ("processMessage: Composite RR73 SECONDARY, we're next after %1 to work %2").arg (fields.primary_caller).arg(m_hisCall));
+      return;
+    }
+  }
 
   // Z
   dxLookup(hiscall, hisgrid);
@@ -8085,19 +8149,6 @@ void MainWindow::processMessage (DecodedText const& message, Qt::KeyboardModifie
             return;
           }
       }
-    }
-    else if (composite_rr73_for_me
-             || (5 == message_words.size ()
-                 && m_baseCall == message_words.at (1))) {
-      // dual Fox style message, possibly from MSHV
-      if (m_config.prompt_to_log() || m_config.autoLog()) {
-        logQSOTimer.start(0);
-      }
-      else {
-        cease_auto_Tx_after_QSO ();
-      }
-      m_ntx=6;
-      ui->txrb6->setChecked(true);
     }
     else if (m_QSOProgress >= ROGERS
              && message_words.size () > 3 && message_words.at (2).contains (m_baseCall)
