@@ -527,6 +527,9 @@ MainWindow::MainWindow(QDir const& temp_directory, bool multiple,
   setUnifiedTitleAndToolBarOnMac (true);
   createStatusBar();
   add_child_to_event_filter (this);
+  // Reuse on_btn_addToIgnore_clicked for ignoreButton
+  connect(ui->ignoreButton, &QPushButton::clicked,
+          this, &MainWindow::on_btn_addToIgnore_clicked);
   // Invalidate cached parsed-filter lists when the user edits any filter pane.
   // callsignFiltered() reuses the cache instead of re-parsing per decode.
   connect(ui->pte_IgnoredStations, &QPlainTextEdit::textChanged,
