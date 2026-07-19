@@ -13982,6 +13982,13 @@ void MainWindow::on_btn_addToIgnore_clicked( ) {
       {
         ui->pte_IgnoredStations->appendPlainText(candidate);
       }
+    
+    // Clear tx1-5 messages
+    ui->tx1->clear();
+    ui->tx2->clear();
+    ui->tx3->clear();
+    ui->tx4->clear();
+    ui->tx5->clear();
 }
 
 void MainWindow::on_btn_clearIgnore_clicked( ) {
