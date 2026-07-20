@@ -78,7 +78,8 @@ public:
                           , QString const& name, QDateTime time_on, QString const& operator_call
                           , QString const& my_call, QString const& my_grid
                           , QString const& exchange_sent, QString const& exchange_rcvd
-                          , QString const& propmode);
+                          , QString const& propmode, QString const& satellite
+                          , QString const& satmode, QString const& freqRx);
 
   // ADIF_record argument should be valid ADIF excluding any <EOR> end
   // of record marker

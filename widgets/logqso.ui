@@ -514,6 +514,85 @@
     </layout>
    </item>
    <item>
+    <layout class="QHBoxLayout" name="horizontalLayout_9" stretch="0,0,0">
+     <item>
+      <widget class="QLabel" name="label_6">
+       <property name="text">
+        <string>Satellite</string>
+       </property>
+       <property name="buddy">
+        <cstring>comboBoxSatellite</cstring>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QComboBox" name="comboBoxSatellite">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QCheckBox" name="cbSatellite">
+       <property name="text">
+        <string>Retain</string>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+   <item>
+    <layout class="QHBoxLayout" name="horizontalLayout_10" stretch="0,0,0">
+     <item>
+      <widget class="QLabel" name="label_7">
+       <property name="text">
+        <string>Sat Mode</string>
+       </property>
+       <property name="buddy">
+        <cstring>comboBoxSatMode</cstring>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QComboBox" name="comboBoxSatMode"/>
+     </item>
+     <item>
+      <widget class="QCheckBox" name="cbSatMode">
+       <property name="text">
+        <string>Retain</string>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+   <item>
+    <layout class="QHBoxLayout" name="horizontalLayout_11" stretch="0,0,0">
+     <item>
+      <widget class="QLabel" name="label_8">
+       <property name="text">
+        <string>RX Freq</string>
+       </property>
+       <property name="buddy">
+        <cstring>freqRx</cstring>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QLineEdit" name="freqRx"/>
+     </item>
+     <item>
+      <widget class="QCheckBox" name="cbFreqRx">
+       <property name="text">
+        <string>Retain</string>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+   <item>
     <spacer name="verticalSpacer">
      <property name="orientation">
       <enum>Qt::Vertical</enum>
@@ -557,6 +636,12 @@
   <tabstop>exchRcvd</tabstop>
   <tabstop>comboBoxPropMode</tabstop>
   <tabstop>cbPropMode</tabstop>
+  <tabstop>comboBoxSatellite</tabstop>
+  <tabstop>cbSatellite</tabstop>
+  <tabstop>comboBoxSatMode</tabstop>
+  <tabstop>cbSatMode</tabstop>
+  <tabstop>freqRx</tabstop>
+  <tabstop>cbFreqRx</tabstop>
  </tabstops>
  <resources/>
  <connections>
