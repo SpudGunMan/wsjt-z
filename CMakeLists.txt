@@ -292,6 +292,7 @@ set (wsjtx_CXXSRCS
   widgets/astro.cpp
   widgets/messageaveraging.cpp
   widgets/activeStations.cpp
+  widgets/DXStationMap.cpp
   widgets/QSYMessage.cpp
   widgets/QSYMessageCreator.cpp
   widgets/qsymonitor.cpp
@@ -837,6 +838,8 @@ set (TOP_LEVEL_RESOURCES
   icons/Darwin/wsjtx.iconset/icon_128x128.png
   contrib/gpl-v3-logo.svg
   artwork/splash.png
+  artwork/worldmap.jpg
+  artwork/worldmap_iaru.jpg
   )
 
 set (PALETTE_FILES

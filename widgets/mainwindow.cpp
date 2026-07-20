@@ -59,6 +59,7 @@
 #include <QSqlError>
 #include "unfilteredview.h"
 #include "pskreporterwidget.h"
+#include "DXStationMap.h"
 
 #include "helper_functions.h"
 #include "revision_utils.hpp"
@@ -568,6 +569,14 @@ MainWindow::MainWindow(QDir const& temp_directory, bool multiple,
     m_pskReporterView->setFont(m_config.decoded_text_font());
     m_pskReporterView->hide();
   }
+
+  // Initialize DXStationMap as a popup window
+  m_dxStationMap.reset(new DXStationMap {nullptr});
+  connect(this, &MainWindow::finished, m_dxStationMap.data(), &QWidget::close);
+  m_dxStationMap->setMyCall(m_config.my_callsign());
+  m_dxStationMap->setHomeGrid(m_config.my_grid());
+  m_dxStationMap->setDistanceInMiles(m_config.miles());
+  m_dxStationMap->hide();
 
   m_optimizingProgress.setWindowModality (Qt::WindowModal);
   m_optimizingProgress.setAutoReset (false);
@@ -2607,6 +2616,33 @@ void MainWindow::fastSink(qint64 frames)
       ui->decodedTextBrowser->displayDecodedText (decodedtext, m_config.my_callsign (), m_mode, m_config.DXCC(),
            m_logBook, m_currentBand, m_config.ppfx ());
     }
+    
+    // Plot on DXStationMap if calling ME
+    if (m_dxStationMap) {
+      QString myCall = m_config.my_callsign();
+      if (!myCall.isEmpty()) {
+        auto for_me = decodedtext.string().contains(" " + myCall + " ") or
+                      decodedtext.string().contains(" " + myCall) or
+                      decodedtext.string().contains(myCall + " ") or
+                      decodedtext.string().contains(" <" + myCall + "> ");
+        if (for_me) {
+          QString dxCall, dxGrid;
+          decodedtext.deCallAndGrid(dxCall, dxGrid);
+          if (!dxCall.isEmpty() && !dxGrid.isEmpty()) {
+            PlottedStation s;
+            s.call = dxCall;
+            s.grid = dxGrid.toUpper().left(4);
+            s.snr = decodedtext.snr();
+            s.freqHz = decodedtext.frequencyOffset();
+            s.forMe = true;
+            s.isCQ = false;
+            s.period = 0;
+            m_dxStationMap->addStation(s);
+          }
+        }
+      }
+    }
+    
     m_bDecoded=true;
     auto_sequence (decodedtext, ui->sbFtol->value (), std::numeric_limits<unsigned>::max ());
     postDecode (true, decodedtext.string ());
@@ -5988,6 +6024,29 @@ void MainWindow::readFromStdout()                             //readFromStdout
         if(!m_bBestSPArmed or (m_mode!="FT4" and m_mode!="FT2")) {
           ui->decodedTextBrowser2->displayDecodedText (decodedtext0, my_call, m_mode, dxcc,
                 m_logBook, m_currentBand, m_config.ppfx (), false, false, 0.0, bDisplayPoints, m_points, false, false, "", "", isFiltered);
+          
+          // Plot on DXStationMap if calling ME
+          if (m_dxStationMap) {
+            auto for_me = decodedtext0.string().contains(" " + my_call + " ") or
+                          decodedtext0.string().contains(" " + my_call) or
+                          decodedtext0.string().contains(my_call + " ") or
+                          decodedtext0.string().contains(" <" + my_call + "> ");
+            if (for_me) {
+              QString dxCall, dxGrid;
+              decodedtext0.deCallAndGrid(dxCall, dxGrid);
+              if (!dxCall.isEmpty() && !dxGrid.isEmpty()) {
+                PlottedStation s;
+                s.call = dxCall;
+                s.grid = dxGrid.toUpper().left(4);
+                s.snr = decodedtext0.snr();
+                s.freqHz = decodedtext0.frequencyOffset();
+                s.forMe = true;
+                s.isCQ = false;
+                s.period = 0;
+                m_dxStationMap->addStation(s);
+              }
+            }
+          }
         }
         m_QSOText = decodedtext.string ().trimmed ();
       }
@@ -8184,6 +8243,32 @@ void MainWindow::processMessage (DecodedText const& message, Qt::KeyboardModifie
     if (!s2.contains(m_baseCall) or m_mode=="MSK144") {  // Taken care of elsewhere if for_us and slow mode
       ui->decodedTextBrowser2->displayDecodedText (message, m_config.my_callsign (), m_mode, m_config.DXCC (),
       m_logBook, m_currentBand, m_config.ppfx ());
+      
+      // Plot on DXStationMap if calling ME
+      if (m_dxStationMap) {
+        QString myCall = m_config.my_callsign();
+        if (!myCall.isEmpty()) {
+          auto for_me = message.string().contains(" " + myCall + " ") or
+                        message.string().contains(" " + myCall) or
+                        message.string().contains(myCall + " ") or
+                        message.string().contains(" <" + myCall + "> ");
+          if (for_me) {
+            QString dxCall, dxGrid;
+            message.deCallAndGrid(dxCall, dxGrid);
+            if (!dxCall.isEmpty() && !dxGrid.isEmpty()) {
+              PlottedStation s;
+              s.call = dxCall;
+              s.grid = dxGrid.toUpper().left(4);
+              s.snr = message.snr();
+              s.freqHz = message.frequencyOffset();
+              s.forMe = true;
+              s.isCQ = false;
+              s.period = 0;
+              m_dxStationMap->addStation(s);
+            }
+          }
+        }
+      }
     }
     m_QSOText = s2;
   }
@@ -9177,6 +9262,11 @@ void MainWindow::acceptQSO (QDateTime const& QSO_date_off, QString const& call, 
       MessageBox::warning_message (this, tr ("Log file error"),
                                    tr ("Cannot open \"%1\"").arg (m_logBook.path ()));
     }
+
+  // ── Plot logged QSO on DXStationMap ───────────────────────────────────────
+  if (m_dxStationMap) {
+    m_dxStationMap->addLoggedStation(call, grid, dial_freq);
+  }
 
   m_messageClient->qso_logged (QSO_date_off, call, grid, dial_freq, mode, rpt_sent, rpt_received
                                , tx_power, comments, name, QSO_date_on, operator_call, my_call, my_grid
@@ -15733,6 +15823,18 @@ void MainWindow::on_actionPSKReporter_triggered() {
         m_pskReporterView->setFont(m_config.decoded_text_font ());
         m_pskReporterView->raise ();
         m_pskReporterView->activateWindow ();
+    }
+}
+
+void MainWindow::on_actionDXStationMap_triggered() {
+    if (m_dxStationMap) {
+        if (m_dxStationMap->isVisible()) {
+            m_dxStationMap->hide();
+        } else {
+            m_dxStationMap->showNormal();
+            m_dxStationMap->raise();
+            m_dxStationMap->activateWindow();
+        }
     }
 }
 
