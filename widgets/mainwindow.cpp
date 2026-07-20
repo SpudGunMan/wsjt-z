@@ -894,8 +894,8 @@ MainWindow::MainWindow(QDir const& temp_directory, bool multiple,
       if (m_unfilteredView) m_unfilteredView->setFont(font);
       if (m_pskReporterView) m_pskReporterView->setFont(font);
     });
-
-  setWindowTitle ("WSJT-Z by SQ9FVE " + QStringLiteral (VERSION_Z) + " " + m_revision);
+  // The string added program_title() is to help third-party apps like JTalert
+  setWindowTitle (program_title () +" MOD WSJT-Z by SQ9FVE " + QStringLiteral (VERSION_Z) + " " + m_revision);
 
 
   connect(&proc_jt9, &QProcess::readyReadStandardOutput, this, &MainWindow::readFromStdout);
