@@ -8096,8 +8096,7 @@ void MainWindow::processMessage (DecodedText const& message, Qt::KeyboardModifie
       else {
         cease_auto_Tx_after_QSO ();
       }
-      m_ntx=6;
-      ui->txrb6->setChecked(true);
+      m_QSOProgress = SIGNOFF;
     }
     else if (m_QSOProgress >= ROGERS
              && message_words.size () > 3 && message_words.at (2).contains (m_baseCall)
