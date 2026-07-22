@@ -88,6 +88,38 @@ LogQSO::LogQSO(QString const& programTitle, QSettings * settings
 {
   ui->setupUi(this);
   setWindowTitle(programTitle + " - Log QSO");
+  ui->comboBoxSatellite->addItem ("", "");
+  QString sat_file_location;
+  QDir dataPath {QStandardPaths::writableLocation (QStandardPaths::DataLocation)};
+  sat_file_location = dataPath.exists("sat.dat") ? dataPath.absoluteFilePath("sat.dat") : m_config->data_dir ().absoluteFilePath ("sat.dat");
+  QFile file {sat_file_location};
+  QStringList wordList;
+  QTextStream stream(&file);
+  if(file.open (QIODevice::ReadOnly | QIODevice::Text)) {
+      while (!stream.atEnd()) {
+          QString line = stream.readLine();
+          wordList = line.split('|');
+          if(wordList.size() >= 2) {
+              ui->comboBoxSatellite->addItem (wordList[1], wordList[0]);
+          }
+      }
+      stream.flush();
+      file.close();
+  } else {
+      // Fallback to common satellites if sat.dat not found
+      ui->comboBoxSatellite->addItem ("ISS", "ISS");
+      ui->comboBoxSatellite->addItem ("AO-91", "AO-91");
+      ui->comboBoxSatellite->addItem ("AO-92", "AO-92");
+      ui->comboBoxSatellite->addItem ("AO-95", "AO-95");
+      ui->comboBoxSatellite->addItem ("FM-4 (AO-73)", "FM-4");
+      ui->comboBoxSatellite->addItem ("SO-50", "SO-50");
+      ui->comboBoxSatellite->addItem ("RS-44", "RS-44");
+      ui->comboBoxSatellite->addItem ("XW-2A", "XW-2A");
+      ui->comboBoxSatellite->addItem ("XW-2B", "XW-2B");
+      ui->comboBoxSatellite->addItem ("XW-2C", "XW-2C");
+      ui->comboBoxSatellite->addItem ("XW-2D", "XW-2D");
+      ui->comboBoxSatellite->addItem ("XW-2F", "XW-2F");
+  }
   for (auto const& prop_mode : prop_modes)
     {
       ui->comboBoxPropMode->addItem (prop_mode.name_, prop_mode.id_);
@@ -96,36 +128,6 @@ LogQSO::LogQSO(QString const& programTitle, QSettings * settings
     {
       ui->comboBoxSatMode->addItem (sat_mode.name_, sat_mode.id_);
     }
-  // Load satellites from sat.dat file
-  ui->comboBoxSatellite->addItem ("", "");
-  QString sat_file_location;
-  QDir dataPath {QStandardPaths::writableLocation (QStandardPaths::DataLocation)};
-  sat_file_location = dataPath.exists("sat.dat") ? dataPath.absoluteFilePath("sat.dat") : m_config->data_dir ().absoluteFilePath ("sat.dat");
-  QFile file {sat_file_location};
-  QTextStream stream(&file);
-  if(file.open (QIODevice::ReadOnly | QIODevice::Text)) {
-    while(!stream.atEnd()) {
-      QString line = stream.readLine();
-      if(!line.isEmpty()) {
-        ui->comboBoxSatellite->addItem (line, line);
-      }
-    }
-    file.close();
-  } else {
-    // Fallback to common satellites if sat.dat not found
-    ui->comboBoxSatellite->addItem ("ISS", "ISS");
-    ui->comboBoxSatellite->addItem ("AO-91", "AO-91");
-    ui->comboBoxSatellite->addItem ("AO-92", "AO-92");
-    ui->comboBoxSatellite->addItem ("AO-95", "AO-95");
-    ui->comboBoxSatellite->addItem ("FM-4 (AO-73)", "FM-4");
-    ui->comboBoxSatellite->addItem ("SO-50", "SO-50");
-    ui->comboBoxSatellite->addItem ("RS-44", "RS-44");
-    ui->comboBoxSatellite->addItem ("XW-2A", "XW-2A");
-    ui->comboBoxSatellite->addItem ("XW-2B", "XW-2B");
-    ui->comboBoxSatellite->addItem ("XW-2C", "XW-2C");
-    ui->comboBoxSatellite->addItem ("XW-2D", "XW-2D");
-    ui->comboBoxSatellite->addItem ("XW-2F", "XW-2F");
-  }
   loadSettings ();
   connect (ui->comboBoxPropMode, &QComboBox::currentTextChanged, this, &LogQSO::propModeChanged);
   auto date_time_format = QLocale {}.dateFormat (QLocale::ShortFormat) + " hh:mm:ss";
@@ -167,11 +169,14 @@ void LogQSO::loadSettings ()
       satellite = ui->comboBoxSatellite->findData (m_settings->value ("Satellite", "").toString());
     }
   ui->comboBoxSatellite->setCurrentIndex (satellite);
+  if (m_settings->value ("PropMode", "") != "SAT")
+  {
+      ui->cbSatellite->setDisabled(true);
+      ui->comboBoxSatellite->setDisabled(true);
+      ui->cbSatMode->setDisabled(true);
+      ui->comboBoxSatMode->setDisabled(true);
+  }
   m_freqRx = m_settings->value ("FreqRx", "").toString ();
-  if (ui->cbFreqRx->isChecked ())
-    {
-      ui->freqRx->setText (m_freqRx);
-    }
   ui->cbFreqRx->setChecked (m_settings->value ("SaveFreqRx", false).toBool ());
   m_settings->endGroup ();
 }
@@ -252,6 +257,11 @@ void LogQSO::initLogQSO(QString const& hisCall, QString const& hisGrid, QString 
   if (!ui->cbPropMode->isChecked ())
     {
       ui->comboBoxPropMode->setCurrentIndex (-1);
+    }
+  if (!ui->cbSatellite->isChecked ())
+    {
+      ui->comboBoxSatellite->setCurrentIndex (-1);
+      ui->comboBoxSatMode->setCurrentIndex (-1);
     }
   // Restore retained RX frequency if Retain checkbox is checked
   if (ui->cbFreqRx->isChecked ())
@@ -452,14 +462,17 @@ void LogQSO::hideEvent (QHideEvent * e)
 
 void LogQSO::propModeChanged()
 {
-  // Enable/disable satellite controls based on PropMode selection
-  auto propmode = ui->comboBoxPropMode->currentData().toString();
-  bool isSatellite = (propmode == "SAT");
-  
-  // Enable satellite/mode comboboxes and retain checkboxes only when PropMode is "SAT"
-  // But keep RX frequency field always enabled for user input
-  ui->comboBoxSatellite->setEnabled(isSatellite);
-  ui->comboBoxSatMode->setEnabled(isSatellite);
-  ui->cbSatellite->setEnabled(isSatellite);
-  ui->cbSatMode->setEnabled(isSatellite);
+  if (ui->comboBoxPropMode->currentData() != "SAT") {
+      ui->comboBoxSatellite->setCurrentIndex(0);
+      ui->comboBoxSatellite->setDisabled(true);
+      ui->cbSatellite->setDisabled(true);
+      ui->comboBoxSatMode->setCurrentIndex(0);
+      ui->comboBoxSatMode->setDisabled(true);
+      ui->cbSatMode->setDisabled(true);
+  } else {
+      ui->comboBoxSatellite->setDisabled(false);
+      ui->cbSatellite->setDisabled(false);
+      ui->comboBoxSatMode->setDisabled(false);
+      ui->cbSatMode->setDisabled(false);
+  }
 }
