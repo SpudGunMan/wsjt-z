@@ -253,16 +253,14 @@ void LogQSO::initLogQSO(QString const& hisCall, QString const& hisGrid, QString 
     {
       ui->comboBoxPropMode->setCurrentIndex (-1);
     }
-  // Auto-populate RX frequency with current TX frequency in MHz
-  QString freqStr = QString::number(dialFreq / 1e6, 'f', 6).trimmed();
-  if (!freqStr.isEmpty() && freqStr != "0")
-    {
-      ui->freqRx->setText(freqStr);
-    }
-  // Override with retained value if Retain checkbox is checked
+  // Restore retained RX frequency if Retain checkbox is checked
   if (ui->cbFreqRx->isChecked ())
     {
       ui->freqRx->setText (m_freqRx);
+    }
+  else
+    {
+      ui->freqRx->clear ();
     }
 
   using SpOp = Configuration::SpecialOperatingActivity;
