@@ -12,6 +12,9 @@
 #include <QXmlStreamReader>
 #include "logbook/AD1CCty.hpp"
 #include <QString>
+#include <QSettings>
+#include <QCloseEvent>
+#include <QShowEvent>
 
 PSKReporterWidget::PSKReporterWidget(QWidget *parent, Configuration * cfg, LogBook * log) :
     QWidget(parent),
@@ -24,18 +27,13 @@ PSKReporterWidget::PSKReporterWidget(QWidget *parent, Configuration * cfg, LogBo
 
     ui->pskTable->horizontalHeader()->setSectionResizeMode(QHeaderView::ResizeToContents);
     ui->pskTable->horizontalHeader()->setStretchLastSection(true);
+    ui->pskTable->horizontalHeader()->setSectionsMovable(true);
     ui->pskTable->setFont(m_config->decoded_text_font());
-    ui->pskTable->setColumnHidden(7,  true);
+    ui->pskTable->setColumnHidden(7, true);
 
-    QPushButton *topRightButton = new QPushButton("R", this);
-    topRightButton->setGeometry(20, 20, 40, 30);
-
-     // Connect the button to a slot (if needed)
-     connect(topRightButton, &QPushButton::clicked, this, &PSKReporterWidget::refresh);
-
-    QTimer *timer = new QTimer(this);
-    connect(timer, SIGNAL(timeout()), this, SLOT(refresh()));
-    timer->start(5 * 60 * 1000);
+    m_refreshTimer = new QTimer(this);
+    connect(m_refreshTimer, SIGNAL(timeout()), this, SLOT(refresh()));
+    m_refreshTimer->start(5 * 60 * 1000);
 
     connect(networkManager, &QNetworkAccessManager::finished,
             this, &PSKReporterWidget::responseHandler);
@@ -47,6 +45,17 @@ PSKReporterWidget::PSKReporterWidget(QWidget *parent, Configuration * cfg, LogBo
 PSKReporterWidget::~PSKReporterWidget()
 {
     delete ui;
+}
+
+void PSKReporterWidget::showEvent(QShowEvent * event)
+{
+    QWidget::showEvent(event);
+    // Restore saved size if available
+    QSettings settings;
+    QSize savedSize = settings.value("PSKReporter/size", QSize()).toSize();
+    if (!savedSize.isEmpty()) {
+        resize(savedSize);
+    }
 }
 
 void PSKReporterWidget::refresh(bool init) {
@@ -161,3 +170,14 @@ void PSKReporterWidget::on_pskTable_cellDoubleClicked(int row, int /*column*/)
     QString band = ui->pskTable->item(row, 7)->text();
     emit clicked(callsign, band);
 }
+
+void PSKReporterWidget::closeEvent(QCloseEvent * event)
+{
+    // Save window size only
+    QSettings settings;
+    settings.setValue("PSKReporter/size", size());
+    settings.sync();
+    event->accept();
+}
+
+
