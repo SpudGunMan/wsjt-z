@@ -15433,6 +15433,7 @@ void MainWindow::ZProcess ()
         tx_watchdog(false);
         if (m_zdebug) log("Next call: " + m_priorityCall);
         m_nextCall = m_priorityCall;
+        if (ui->cbAutoCall->isChecked()) ui->dxCallEntry->setText("");
         m_nextGrid = m_prioGrid;
         dxLookup(m_nextCall, m_prioGrid);
         ui->rptSpinBox->setValue(m_nextRpt.toInt());
