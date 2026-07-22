@@ -7138,6 +7138,7 @@ void MainWindow::guiUpdate()
 
     if(m_mode=="FST4") chk_FST4_freq_range();
     m_currentBand=m_config.bands()->find(m_freqNominal);
+    m_pskReporterReceivers.clear();  // Clear PSK Reporter receivers when band changes to avoid stale highlighting
     // Z
     /*
     if( SpecOp::HOUND == m_specOp ) {
