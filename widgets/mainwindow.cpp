@@ -7843,6 +7843,15 @@ void MainWindow::processMessage (DecodedText const& message, Qt::KeyboardModifie
     && (token_matches_call(raw_words.value(0), m_config.my_callsign())
         || token_matches_call(raw_words.value(0), m_baseCall));
 
+  // Z - DEBUG composite RR73 detection in processMessage
+  if (m_zdebug && composite_rr73_detected) {
+    log(QString("processMessage EARLY: composite_rr73_detected=1 raw_words[0]=%1 m_config.my_callsign()=%2 m_baseCall=%3 composite_rr73_for_me=%4")
+        .arg(raw_words.value(0))
+        .arg(m_config.my_callsign())
+        .arg(m_baseCall)
+        .arg(composite_rr73_for_me));
+  }
+
   // Z
   dxLookup(hiscall, hisgrid);
   int nw=w.size();
@@ -7902,12 +7911,38 @@ void MainWindow::processMessage (DecodedText const& message, Qt::KeyboardModifie
 // Determine appropriate response to received message
   auto dtext = " " + message.clean_string () + " ";
   dtext=dtext.remove("<").remove(">");
-  if(dtext.contains (" " + m_baseCall + " ")
+  bool addressed_to_me_check = (dtext.contains (" " + m_baseCall + " ")
      || dtext.contains ("<" + m_baseCall + "> ")
 //###???     || dtext.contains ("<" + m_baseCall + " " + hiscall + "> ")
      || dtext.contains ("/" + m_baseCall + " ")
      || dtext.contains (" " + m_baseCall + "/")
-     || (firstcall == "DE")) {
+     || (firstcall == "DE"));
+  if (m_zdebug) log(QString("processMessage: message addressed check: composite_rr73_for_me=%1 addressed_to_me_check=%2 dtext contains m_baseCall=%3 m_baseCall=%4")
+                    .arg(composite_rr73_for_me)
+                    .arg(addressed_to_me_check)
+                    .arg(dtext.contains(" " + m_baseCall + " "))
+                    .arg(m_baseCall));
+
+  // Handle composite RR73 FIRST before any other logic
+  if (composite_rr73_for_me) {
+    if (m_zdebug) log(QString("processMessage: COMPOSITE RR73 FOR ME - skipping grid logic, jumping to handler"));
+    if (raw_words.size() > 0) {
+      hiscall = raw_words.at(0);  // Use primary caller for logging
+      if (m_zdebug) log(QString("processMessage: Composite RR73 PRIMARY from %1").arg(hiscall));
+    }
+    m_hisCall = hiscall;  // Update the call to log
+    if (m_zdebug) log(QString("processMessage: Before log - m_hisCall=%1 m_QSOProgress=%2").arg(m_hisCall).arg(m_QSOProgress));
+    if (m_config.prompt_to_log() || m_config.autoLog()) {
+      logQSOTimer.start(0);
+    }
+    else {
+      cease_auto_Tx_after_QSO ();
+    }
+    m_QSOProgress = SIGNOFF;
+    return;  // Don't process further
+  }
+
+  if(addressed_to_me_check) {
 
     QString w2;
     int nw=w.size();
@@ -8173,15 +8208,12 @@ void MainWindow::processMessage (DecodedText const& message, Qt::KeyboardModifie
     else if (composite_rr73_for_me
              || (5 == message_words.size ()
                  && m_baseCall == message_words.at (1))) {
-      // dual Fox style message, possibly from MSHV
-      if (m_config.prompt_to_log() || m_config.autoLog()) {
-        logQSOTimer.start(0);
-      }
-      else {
+      // dual Fox style message, possibly from MSHV - QSO is complete, always log
+      logQSOTimer.start(0);
+      if (!m_config.prompt_to_log() && !m_config.autoLog()) {
         cease_auto_Tx_after_QSO ();
       }
-      m_ntx=6;
-      ui->txrb6->setChecked(true);
+      m_QSOProgress = SIGNOFF;
     }
     else if (m_QSOProgress >= ROGERS
              && message_words.size () > 3 && message_words.at (2).contains (m_baseCall)
