@@ -1747,6 +1747,7 @@ void MainWindow::writeSettings()
   m_settings->setValue ("smartModeSwitchEnabled", m_smartModeSwitch);
   m_settings->setValue ("autoCQCount", ui->sb_autoCQCount->value ());
   m_settings->setValue ("autoCallCount", ui->sb_autoCallCount->value ());
+  m_settings->setValue ("autoRxCount", ui->sb_autoRxCount->value ());
 
 
   m_settings->setValue ("bandHopperEnabled", ui->cb_bandHopper->isChecked());
@@ -1987,10 +1988,12 @@ void MainWindow::readSettings()
   ui->cbAutoCQAlternateEvenOdd->setChecked(m_settings->value("autoCQAlternateEvenOdd", false).toBool());
   m_smartModeSwitch = m_settings->value("smartModeSwitchEnabled", false).toBool();
   update_auto_mode_switch_widget ();
-  ui->sb_autoCQCount->setValue(m_settings->value("autoCQCount", 5).toInt());
-  ui->sb_autoCallCount->setValue(m_settings->value("autoCallCount", 5).toInt());
+  ui->sb_autoCQCount->setValue(qMax(1, m_settings->value("autoCQCount", 5).toInt()));
+  ui->sb_autoCallCount->setValue(qMax(1, m_settings->value("autoCallCount", 5).toInt()));
+  ui->sb_autoRxCount->setValue(m_settings->value("autoRxCount", 0).toInt());
   ui->le_autoCQLeft->setText(m_settings->value("autoCQCount", 5).toString());
   ui->le_autoCallLeft->setText(m_settings->value("autoCallCount", 5).toString());
+  ui->le_autoRxLeft->setText(m_settings->value("autoRxCount", 0).toString());
   ui->cb_bandHopper->setChecked(m_settings->value("bandHopperEnabled", false).toBool());
   ui->pb_BandChangeNow->setVisible(ui->cb_bandHopper->isChecked());
   ui->pte_bandHopper->setPlainText(m_settings->value("bandHopper", "").toString());
@@ -3600,15 +3603,20 @@ void MainWindow::update_mode_switch_status_label ()
 
   int auto_call_left = ui->le_autoCallLeft->text ().toInt ();
   int auto_cq_left = ui->le_autoCQLeft->text ().toInt ();
+  int auto_rx_left = ui->le_autoRxLeft->text ().toInt ();
   int auto_call_total = ui->sb_autoCallCount->value ();
   int auto_cq_total = ui->sb_autoCQCount->value ();
+  int auto_rx_total = ui->sb_autoRxCount->value ();
 
   if (auto_call_total < 0) auto_call_total = 0;
   if (auto_cq_total < 0) auto_cq_total = 0;
+  if (auto_rx_total < 0) auto_rx_total = 0;
   if (auto_call_left < 0) auto_call_left = 0;
   if (auto_cq_left < 0) auto_cq_left = 0;
+  if (auto_rx_left < 0) auto_rx_left = 0;
   if (auto_call_left > auto_call_total) auto_call_left = auto_call_total;
   if (auto_cq_left > auto_cq_total) auto_cq_left = auto_cq_total;
+  if (auto_rx_left > auto_rx_total) auto_rx_left = auto_rx_total;
 
   if (ui->cb_autoModeSwitch->isChecked ())
     {
@@ -3620,6 +3628,9 @@ void MainWindow::update_mode_switch_status_label ()
       } else if (ui->cbAutoCQ->isChecked ()) {
         ms_remaining = auto_cq_left;
         ms_total = auto_cq_total;
+      } else if (!ui->cbAutoCall->isChecked () && !ui->cbAutoCQ->isChecked () && auto_rx_total > 0) {
+        ms_remaining = auto_rx_left;
+        ms_total = auto_rx_total;
       }
 
       if (ms_total > 0)
@@ -3705,6 +3716,11 @@ void MainWindow::update_mode_switch_status_label ()
                   if (ui->cb_autoModeSwitch->isChecked ()) {
                     bh_remaining += auto_call_total;
                   }
+                }
+              else if (!ui->cbAutoCall->isChecked () && !ui->cbAutoCQ->isChecked () && auto_rx_total > 0)
+                {
+                  // AutoRx is active, band hop will occur after RX + CQ + Call all complete
+                  bh_remaining = auto_rx_left + auto_cq_total + auto_call_total;
                 }
 
               if (bh_remaining > 0)
@@ -15347,6 +15363,10 @@ void MainWindow::on_cb_autoModeSwitch_toggled(bool b) {
     ui->le_autoCallLeft->setText("");
     ui->le_autoCQLeft->setText("");
     }
+  // Keep spinboxes enabled for editing even when groupbox is unchecked
+  ui->sb_autoCQCount->setEnabled(true);
+  ui->sb_autoCallCount->setEnabled(true);
+  ui->sb_autoRxCount->setEnabled(true);
   update_auto_mode_switch_widget ();
   update_mode_switch_status_label ();
 }
@@ -15574,7 +15594,8 @@ void MainWindow::ZProcess ()
     if (m_QSOProgress == CALLING) {
         if (m_zdebug) log("ZProcess: m_QSOProgress = CALLING");
 
-        if (ui->cbAutoCall->isChecked() || ui->cbAutoCQ->isChecked()) {
+        if (ui->cbAutoCall->isChecked() || ui->cbAutoCQ->isChecked() || 
+            (!ui->cbAutoCall->isChecked() && !ui->cbAutoCQ->isChecked() && ui->sb_autoRxCount->value() > 0)) {
 
                 if (ui->cbAutoCall->isChecked()) {
                     int l = ui->le_autoCallLeft->text().toInt();
@@ -15584,43 +15605,50 @@ void MainWindow::ZProcess ()
                         resetAutoSwitch();
                         if (ui->cb_autoModeSwitch->isChecked()) {
                             m_autoModeSwitch = true;
-                            ui->cbAutoCall->setChecked(false);
-                            ui->cbAutoCQ->setChecked(true);
-                            // With auto mode switch enabled, hop at the
-                            // AutoCall -> AutoCQ boundary.
-                            if (ui->cb_bandHopper->isChecked()) toggleBands();
-                            if (m_smartModeSwitch) {
-                              ui->cbHoldTxFreq->setChecked(true);
-                              if (m_config.autoTXFreq()) {
-                                bool freeSlotFound = (busySlots.size() >= 2 && setFreeFreq());
-                                m_autoTXFreq = !freeSlotFound;
-                                auto_tx_mode(freeSlotFound);
-                              } else {
-                                // Respect config: no free-slot search on mode change.
-                                m_autoTXFreq = false;
-                                auto_tx_mode(true);
+                            // Check if AutoRx should be next (if count > 0)
+                            if (ui->sb_autoRxCount->value() > 0) {
+                              ui->cbAutoCall->setChecked(false);
+                              ui->cbAutoCQ->setChecked(false);
+                              ui->le_autoRxLeft->setText(QString::number(ui->sb_autoRxCount->value()));
+                              if (m_zdebug) log("ZProcess: Switched to AutoRx");
+                            } else if (ui->sb_autoCQCount->value() > 0) {
+                              ui->cbAutoCall->setChecked(false);
+                              ui->cbAutoCQ->setChecked(true);
+                              if (m_smartModeSwitch) {
+                                ui->cbHoldTxFreq->setChecked(true);
+                                if (m_config.autoTXFreq()) {
+                                  bool freeSlotFound = (busySlots.size() >= 2 && setFreeFreq());
+                                  m_autoTXFreq = !freeSlotFound;
+                                  auto_tx_mode(freeSlotFound);
+                                } else {
+                                  m_autoTXFreq = false;
+                                  auto_tx_mode(true);
+                                }
+                              } else if (m_config.autoTXFreq()) {
+                                m_autoTXFreq = true;
                               }
-                            } else if (m_config.autoTXFreq()) {
-                              m_autoTXFreq = true;
+                              if  (!m_TxFirstLock) {
+                                      QDateTime now {QDateTime::currentDateTimeUtc()};
+                                      int n=fmod(double(now.time().second()),m_TRperiod);
+                                      int periodTotal = now.time().second() - n + m_TRperiod;
+                                      bool txf = !(fmod(periodTotal/m_TRperiod, 2) == 0);
+                                      ui->txFirstCheckBox->setChecked(txf);
+                              }
+                              ui->cbAutoCall->setEnabled(false);
+                              ui->cbFirst->setChecked(true);
+                              ui->cbAutoSeq->setChecked(true);
+                              ui->txrb6->setChecked(true);
+                              if (m_smartModeSwitch && ui->cb_autoModeSwitch->isChecked()) {
+                                ui->cbHoldTxFreq->setChecked(true);
+                              }
+                              resetAutoSwitch();
+                              clearDX();
+                              if (m_zdebug) log("ZProcess: Switched to AutoCQ");
+                              tx_watchdog(false);
                             }
-                            if  (!m_TxFirstLock) {
-                                    QDateTime now {QDateTime::currentDateTimeUtc()};
-                                    int n=fmod(double(now.time().second()),m_TRperiod);
-                                    int periodTotal = now.time().second() - n + m_TRperiod;
-                                    bool txf = !(fmod(periodTotal/m_TRperiod, 2) == 0);
-                                    ui->txFirstCheckBox->setChecked(txf);
-                            }
-                            ui->cbAutoCall->setEnabled(false);
-                            ui->cbFirst->setChecked(true);
-                            ui->cbAutoSeq->setChecked(true);
-                            ui->txrb6->setChecked(true);
-                            if (m_smartModeSwitch && ui->cb_autoModeSwitch->isChecked()) {
-                              ui->cbHoldTxFreq->setChecked(true);
-                            }
-                            resetAutoSwitch();
-                            clearDX();
-                            if (m_zdebug) log("ZProcess: Switched to AutoCQ");
-                            tx_watchdog(false);
+                            // With auto mode switch enabled, hop at the
+                            // AutoCall -> next boundary.
+                            if (ui->cb_bandHopper->isChecked()) toggleBands();
                         } else {
                             toggleBands();
                         }
@@ -15643,16 +15671,56 @@ void MainWindow::ZProcess ()
                           resetAutoSwitch();
                           if (ui->cb_autoModeSwitch->isChecked()) {
                               m_autoModeSwitch = true;
-                              ui->cbAutoCQ->setChecked(false);
-                              ui->cbAutoCall->setChecked(true);
-                              if (m_smartModeSwitch) {
-                                ui->cbHoldTxFreq->setChecked(false);
+                              if (ui->sb_autoCallCount->value() > 0) {
+                                  ui->cbAutoCQ->setChecked(false);
+                                  ui->cbAutoCall->setChecked(true);
+                                  if (m_smartModeSwitch) {
+                                    ui->cbHoldTxFreq->setChecked(false);
+                                  }
+                                  if (m_zdebug) log("ZProcess: Switched to AutoCall");
                               }
-                              if (m_zdebug) log("ZProcess: Switched to AutoCall");
                           } else {
                               toggleBands();
                           }
                     }
+                    }
+                } else if (!ui->cbAutoCall->isChecked() && !ui->cbAutoCQ->isChecked()) {
+                    // AutoRx mode is active
+                    int l = ui->le_autoRxLeft->text().toInt();
+                    if (l > 1) {
+                        ui->le_autoRxLeft->setText(QString::number(l-1));
+                    } else {
+                        // AutoRx counter reached 0, cycle back to AutoCQ
+                        resetAutoSwitch();
+                        if (ui->cb_autoModeSwitch->isChecked()) {
+                            m_autoModeSwitch = true;
+                            if (ui->sb_autoCQCount->value() > 0) {
+                              ui->cbAutoCQ->setChecked(true);
+                              if (m_smartModeSwitch) {
+                                ui->cbHoldTxFreq->setChecked(true);
+                                if (m_config.autoTXFreq()) {
+                                  bool freeSlotFound = (busySlots.size() >= 2 && setFreeFreq());
+                                  m_autoTXFreq = !freeSlotFound;
+                                  auto_tx_mode(freeSlotFound);
+                                } else {
+                                  m_autoTXFreq = false;
+                                  auto_tx_mode(true);
+                                }
+                              }
+                              ui->cbAutoCall->setEnabled(false);
+                              ui->cbFirst->setChecked(true);
+                              ui->cbAutoSeq->setChecked(true);
+                              ui->txrb6->setChecked(true);
+                              if (m_smartModeSwitch && ui->cb_autoModeSwitch->isChecked()) {
+                                ui->cbHoldTxFreq->setChecked(true);
+                              }
+                              if (m_zdebug) log("ZProcess: Switched from AutoRx to AutoCQ");
+                              // With auto mode switch enabled, hop at the AutoRx -> AutoCQ boundary.
+                              if (ui->cb_bandHopper->isChecked()) toggleBands();
+                            }
+                        } else {
+                            toggleBands();
+                        }
                     }
                 }
 
@@ -15679,6 +15747,7 @@ void MainWindow::on_pb_WDReset_clicked() {
 void MainWindow::resetAutoSwitch() {
     ui->le_autoCallLeft->setText(QString::number(ui->sb_autoCallCount->value()));
     ui->le_autoCQLeft->setText(QString::number(ui->sb_autoCQCount->value()));
+    ui->le_autoRxLeft->setText(QString::number(ui->sb_autoRxCount->value()));
     clearPounceState();
     update_mode_switch_status_label ();
 }
@@ -16043,15 +16112,30 @@ void MainWindow::on_pb_FreeFreq_clicked() {
 }
 
 void MainWindow::on_pb_ModeChangeNow_clicked() {
-  if (ui->cbAutoCall->isChecked() && !ui->cbAutoCQ->isChecked()) {
-    ui->cbAutoCall->setChecked(false);
-    ui->cbAutoCQ->setChecked(true);
+  // Cycle: AutoCQ -> AutoCall -> AutoRx (if count > 0) -> AutoCQ
+  if (ui->cbAutoCQ->isChecked() && !ui->cbAutoCall->isChecked()) {
+    // AutoCQ is active, switch to AutoCall
+    ui->cbAutoCQ->setChecked(false);
+    ui->cbAutoCall->setChecked(true);
     return;
   }
 
-  if (!ui->cbAutoCall->isChecked() && ui->cbAutoCQ->isChecked()) {
-    ui->cbAutoCQ->setChecked(false);
-    ui->cbAutoCall->setChecked(true);
+  if (!ui->cbAutoCQ->isChecked() && ui->cbAutoCall->isChecked()) {
+    // AutoCall is active, switch to AutoRx (if enabled) or back to AutoCQ
+    if (ui->sb_autoRxCount->value() > 0) {
+      ui->cbAutoCall->setChecked(false);
+      ui->cbAutoCQ->setChecked(false);
+      ui->le_autoRxLeft->setText(QString::number(ui->sb_autoRxCount->value()));
+    } else {
+      ui->cbAutoCall->setChecked(false);
+      ui->cbAutoCQ->setChecked(true);
+    }
+    return;
+  }
+
+  if (!ui->cbAutoCQ->isChecked() && !ui->cbAutoCall->isChecked()) {
+    // AutoRx is active, switch back to AutoCQ
+    ui->cbAutoCQ->setChecked(true);
     return;
   }
 }
