@@ -634,6 +634,10 @@ void DXStationMap::mouseReleaseEvent(QMouseEvent *e)
                     update();
                     emit stationClicked(found->call,found->freqHz,found->grid);
                     showStationTooltip();  // Show popup with station details
+                } else {
+                    // Click on empty space — clear selection and arc line
+                    m_selCall.clear(); m_selGrid.clear();
+                    update();
                 }
             }
         }
