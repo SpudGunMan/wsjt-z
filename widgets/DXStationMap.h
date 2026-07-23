@@ -12,6 +12,7 @@
 #include <QWheelEvent>
 #include <QLabel>
 #include <QMenu>
+#include <QToolTip>
 
 
 struct PlottedStation {
@@ -54,14 +55,14 @@ protected:
     void resizeEvent(QResizeEvent *) override;
     void closeEvent(QCloseEvent *) override;
     void mousePressEvent(QMouseEvent *) override;
-    void mouseDoubleClickEvent(QMouseEvent *) override;
+
     void mouseReleaseEvent(QMouseEvent *) override;
     void mouseMoveEvent(QMouseEvent *) override;
     void wheelEvent(QWheelEvent *) override;
 
 private:
     // ── Map geometry ──────────────────────────────────────────────────────────
-    static constexpr int INFO_H = 85;   // bottom info panel height
+    static constexpr int INFO_H = 0;    // bottom info panel height (removed in favor of popup tooltip)
     QPointF project(double lon, double lat) const;
     bool    gridToLatLon(QString const& grid, double &lat, double &lon) const;
     double  haversineKm(double, double, double, double) const;
@@ -70,7 +71,7 @@ private:
     void    drawArc(QPainter &, double, double, double, double) const;
     void    drawHomeMarker(QPainter &) const;
     void    drawStationMarker(QPainter &, double, double, QString const&, QColor) const;
-    void    drawInfoPanel(QPainter &) const;
+    void    showStationTooltip();        // Show popup with station details
     void    drawGreyline(QPainter &) const;
 
     // ── State ─────────────────────────────────────────────────────────────────

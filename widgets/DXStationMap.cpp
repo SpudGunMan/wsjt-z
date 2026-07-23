@@ -379,57 +379,32 @@ void DXStationMap::drawStationMarker(QPainter &p,double lat,double lon,
     p.setRenderHint(QPainter::Antialiasing,false);
 }
 
-// ── Rich info panel ───────────────────────────────────────────────────────────
-void DXStationMap::drawInfoPanel(QPainter &p) const
+// ── Popup tooltip with station details ─────────────────────────────────────
+void DXStationMap::showStationTooltip()
 {
-    const int mapH = height() - INFO_H;
-    const int w    = width();
+    if (m_selCall.isEmpty()) return;
 
-    // Background
-    p.fillRect(0, mapH, w, INFO_H, QColor(5, 12, 22));
-    p.setPen(QPen(QColor(0, 90, 140), 1));
-    p.drawLine(0, mapH, w, mapH);
-
-    if (m_selCall.isEmpty()) {
-        p.setFont(QFont("sans-serif", 9));
-        p.setPen(QColor(40, 80, 110));
-        p.drawText(QRect(0, mapH, w, INFO_H), Qt::AlignCenter,
-                   tr("Click a station dot to see details"));
-        return;
+    // Build tooltip text with station details
+    const double km  = haversineKm(m_homeLat, m_homeLon, m_selLat, m_selLon);
+    const double brg = bearingDeg(m_homeLat, m_homeLon, m_selLat, m_selLon);
+    
+    QString text = QString("<b>%1</b><br>").arg(m_selCall);
+    text += QString("Grid: %1<br>").arg(m_selGrid);
+    text += QString("SNR: %1 dB<br>").arg(m_selSNR);
+    
+    if (m_distanceInMiles) {
+        text += QString("Dist: %1 mi / %2°<br>")
+                .arg(int(km*0.621371+0.5)).arg(int(brg+0.5));
+    } else {
+        text += QString("Dist: %1 km / %2°<br>")
+                .arg(int(km+0.5)).arg(int(brg+0.5));
     }
+    
+    if (!m_extraDxcc.isEmpty())      text += QString("DXCC: %1<br>").arg(m_extraDxcc);
+    if (!m_extraContinent.isEmpty()) text += QString("Cont: %1<br>").arg(m_extraContinent);
+    if (m_extraCqZone > 0)           text += QString("CQ/ITU: %1 / %2").arg(m_extraCqZone).arg(m_extraItuZone);
 
-    // ── Callsign (large) ──────────────────────────────────────────────────────
-    int ty = mapH + 8;
-    const int textX = 8;
-    const int textW = w - 12;
-    p.setFont(QFont("Courier New", 15, QFont::Bold));
-    p.setPen(QColor(0, 210, 255));
-    p.drawText(QRect(textX, ty, textW, 22), Qt::AlignLeft|Qt::AlignVCenter, m_selCall);
-
-    // Grid / SNR / Distance / Bearing — two-column mini-table
-    ty += 22;
-    const double km  = haversineKm(m_homeLat,m_homeLon,m_selLat,m_selLon);
-    const double brg = bearingDeg(m_homeLat,m_homeLon,m_selLat,m_selLon);
-
-    struct Row { QString k, v; };
-    QList<Row> rows = {
-        {"Grid",    m_selGrid},
-        {"SNR",     QString("%1 dB").arg(m_selSNR)},
-        {"Dist",    m_distanceInMiles ? 
-                    QString("%1 mi / %2°").arg(int(km*0.621371+0.5)).arg(int(brg+0.5)) :
-                    QString("%1 km / %2°").arg(int(km+0.5)).arg(int(brg+0.5))},
-    };
-    if (!m_extraDxcc.isEmpty())      rows.append({"DXCC",  m_extraDxcc});
-    if (!m_extraContinent.isEmpty()) rows.append({"Cont",  m_extraContinent});
-    if (m_extraCqZone > 0)           rows.append({"CQ/ITU",QString("%1 / %2").arg(m_extraCqZone).arg(m_extraItuZone)});
-
-    p.setFont(QFont("Courier New", 8));
-    for (auto const& row : rows) {
-        if (ty > mapH + INFO_H - 10) break;
-        p.setPen(QColor(50,100,140)); p.drawText(QRect(textX,ty,38,13),Qt::AlignLeft,row.k);
-        p.setPen(QColor(160,210,240)); p.drawText(QRect(textX+40,ty,textW-40,13),Qt::AlignLeft,row.v);
-        ty += 14;
-    }
+    QToolTip::showText(QCursor::pos(), text, this);
 }
 
 // ── paintEvent ───────────────────────────────────────────────────────────────
@@ -574,9 +549,6 @@ void DXStationMap::paintEvent(QPaintEvent *)
     drawHomeMarker(p);
     if (!m_selCall.isEmpty())
         drawStationMarker(p,m_selLat,m_selLon,m_selCall,QColor(255,100,80));
-
-    // Info panel
-    drawInfoPanel(p);
 }
 
 // ── Events ────────────────────────────────────────────────────────────────────
@@ -661,30 +633,12 @@ void DXStationMap::mouseReleaseEvent(QMouseEvent *e)
                     gridToLatLon(m_selGrid,m_selLat,m_selLon);
                     update();
                     emit stationClicked(found->call,found->freqHz,found->grid);
+                    showStationTooltip();  // Show popup with station details
                 }
             }
         }
     }
     QWidget::mouseReleaseEvent(e);
-}
-
-void DXStationMap::mouseDoubleClickEvent(QMouseEvent *e)
-{
-    const int mapH = height() - INFO_H;
-    if (e->pos().y() <= mapH) {
-        double minDist = 18; PlottedStation const *found = nullptr;
-        for (auto const& s : m_stations) {
-            double lat, lon; if (!gridToLatLon(s.grid, lat, lon)) continue;
-            const QPointF pt = project(lon, lat);
-            const double d = hypot(e->pos().x() - pt.x(), e->pos().y() - pt.y());
-            if (d < minDist) { minDist = d; found = &s; }
-        }
-        if (found) {
-            emit stationDoubleClicked(found->call, found->freqHz, found->grid);
-            return;
-        }
-    }
-    clearStations();   // double-click on empty map area still resets the plot
 }
 
 void DXStationMap::mousePressEvent(QMouseEvent *e)
