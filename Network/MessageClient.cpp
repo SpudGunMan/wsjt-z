@@ -658,7 +658,8 @@ void MessageClient::qso_logged (QDateTime time_off, QString const& dx_call, QStr
                                 , QString const& comments, QString const& name, QDateTime time_on
                                 , QString const& operator_call, QString const& my_call
                                 , QString const& my_grid, QString const& exchange_sent
-                                , QString const& exchange_rcvd, QString const& propmode)
+                                , QString const& exchange_rcvd, QString const& propmode
+                                , QString const& satellite, QString const& satmode, QString const& freqRx)
 {
    if (m_->server_port_ && !m_->server_.isNull ())
     {
@@ -667,8 +668,9 @@ void MessageClient::qso_logged (QDateTime time_off, QString const& dx_call, QStr
       out << time_off << dx_call.toUtf8 () << dx_grid.toUtf8 () << dial_frequency << mode.toUtf8 ()
           << report_sent.toUtf8 () << report_received.toUtf8 () << tx_power.toUtf8 () << comments.toUtf8 ()
           << name.toUtf8 () << time_on << operator_call.toUtf8 () << my_call.toUtf8 () << my_grid.toUtf8 ()
-          << exchange_sent.toUtf8 () << exchange_rcvd.toUtf8 () << propmode.toUtf8 ();
-      TRACE_UDP ("time off:" << time_off << "DX:" << dx_call << "DX grid:" << dx_grid << "dial:" << dial_frequency << "mode:" << mode << "sent:" << report_sent << "rcvd:" << report_received << "pwr:" << tx_power << "comments:" << comments << "name:" << name << "time on:" << time_on << "op:" << operator_call << "DE:" << my_call << "DE grid:" << my_grid << "exch sent:" << exchange_sent << "exch rcvd:" << exchange_rcvd  << "prop_mode:" << propmode);
+          << exchange_sent.toUtf8 () << exchange_rcvd.toUtf8 () << propmode.toUtf8 () << satellite.toUtf8 ()
+          << satmode.toUtf8 () << freqRx.toUtf8 ();
+      TRACE_UDP ("time off:" << time_off << "DX:" << dx_call << "DX grid:" << dx_grid << "dial:" << dial_frequency << "mode:" << mode << "sent:" << report_sent << "rcvd:" << report_received << "pwr:" << tx_power << "comments:" << comments << "name:" << name << "time on:" << time_on << "op:" << operator_call << "DE:" << my_call << "DE grid:" << my_grid << "exch sent:" << exchange_sent << "exch rcvd:" << exchange_rcvd  << "prop_mode:" << propmode << "sat_name:" << satellite << "sat_mode:" << satmode << "freq_rx:" << freqRx);
       m_->send_message (out, message);
     }
 }

@@ -79,7 +79,8 @@ QByteArray LogBook::QSOToADIF (QString const& hisCall, QString const& hisGrid, Q
                                QDateTime const& dateTimeOff, QString const& band, QString const& comments,
                                QString const& name, QString const& strDialFreq, QString const& myCall,
                                QString const& myGrid, QString const& txPower, QString const& operator_call,
-                               QString const& xSent, QString const& xRcvd, QString const& propmode)
+                               QString const& xSent, QString const& xRcvd, QString const& propmode,
+                               QString const& satellite, QString const& satmode, QString const& freqRx)
 {
   QString t;
   t = "<call:" + QString::number(hisCall.size()) + ">" + hisCall;
@@ -107,6 +108,9 @@ QByteArray LogBook::QSOToADIF (QString const& hisCall, QString const& hisGrid, Q
   if(name!="") t += " <name:" + QString::number(name.size()) + ">" + name;
   if(operator_call!="") t+=" <operator:" + QString::number(operator_call.size()) + ">" + operator_call;
   if(propmode!="") t += " <prop_mode:" + QString::number(propmode.size()) + ">" + propmode;
+  if(satellite!="") t += " <sat_name:" + QString::number(satellite.size()) + ">" + satellite;
+  if(satmode!="") t += " <sat_mode:" + QString::number(satmode.size()) + ">" + satmode;
+  if(freqRx!="") t += " <freq_rx:" + QString::number(freqRx.size()) + ">" + freqRx;
   if (xSent.size ())
     {
       auto words = xSent.split (' '

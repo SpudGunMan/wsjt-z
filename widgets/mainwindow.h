@@ -281,7 +281,8 @@ private slots:
                   , QString const& name, QDateTime const& QSO_date_on, QString const& operator_call
                   , QString const& my_call, QString const& my_grid
                   , QString const& exchange_sent, QString const& exchange_rcvd
-                  , QString const& propmode, QByteArray const& ADIF);
+                  , QString const& propmode, QString const& satellite
+                  , QString const& satmode, QString const& freqRx, QByteArray const& ADIF);
   void on_bandComboBox_currentIndexChanged (int index);
   void on_bandComboBox_editTextChanged (QString const& text);
   void on_bandComboBox_activated (int index);
