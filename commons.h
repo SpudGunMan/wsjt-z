@@ -106,6 +106,7 @@ typedef struct dec_data {
     bool lwidedxcsearch;
     bool lmultinst;
     bool lskiptx1;
+    bool ldx_mode;
     int ndecoderstart;
   } params;
 } dec_data_t;

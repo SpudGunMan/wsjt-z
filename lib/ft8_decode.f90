@@ -33,7 +33,7 @@ module ft8_decode
 contains
 
   subroutine decode(this,callback,iwave,nQSOProgress,nfqso,nftx,newdat,  &
-       nutc,nfa,nfb,nzhsym,ndepth,emedelay,ncontest,nagain,lft8apon,     &
+       nutc,nfa,nfb,nzhsym,ndepth,emedelay,ncontest,nagain,lft8apon,ldx_mode,     &
        ltry_a8,lapcqonly,napwid,mycall12,hiscall12,hisgrid,ldiskdat)
     use iso_c_binding, only: c_bool, c_int
     use timer_module, only: timer
@@ -49,7 +49,7 @@ contains
     real sbase(NH1)
     real candidate(3,MAXCAND)
     real dd(NPTS),dd1(NPTS)
-    logical, intent(in) :: lft8apon,lapcqonly,nagain
+    logical, intent(in) :: lft8apon,lapcqonly,nagain,ldx_mode
     logical newdat,lsubtract,ldupe,lrefinedt,ltry_a8
     logical*1 ldiskdat
     logical lsubtracted(MAX_EARLY)
@@ -207,7 +207,7 @@ contains
         msg37='                                     '
         call timer('ft8b    ',0)
         call ft8b(dd,newdat,nQSOProgress,nfqso,nftx,ndepth,nzhsym,lft8apon,  &
-             lapcqonly,napwid,lsubtract,nagain,ncontest,imetric,iaptype,mycall12,   &
+             lapcqonly,napwid,lsubtract,nagain,ncontest,ldx_mode,imetric,iaptype,mycall12,   &
              hiscall12,f1,xdt,xbase,apsym2,aph10,nharderrors,dmin,          &
              nbadcrc,iappass,msg37,xsnr,itone)
         call timer('ft8b    ',1)
