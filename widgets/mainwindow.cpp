@@ -9178,13 +9178,14 @@ void MainWindow::cease_auto_Tx_after_QSO ()
 void MainWindow::on_logQSOButton_clicked()                 //Log QSO button
 {
       // Z
-    if (m_zdebug) log("on_logQSOButton_clicked!");
+    if (m_zdebug) log("on_logQSOButton_clicked! m_hisCall=[" + m_hisCall + "] m_lastCall=[" + m_lastCall + "]");
     if (!m_hisCall.size () || m_lastCall == m_hisCall) {
-        if (m_zdebug) log("on_logQSOButton_clicked: m_hisCall is empty, or callsign already logged. Exiting.");
+        if (m_zdebug) log("on_logQSOButton_clicked: EARLY RETURN - m_hisCall empty or already logged");
         clearDX();
         m_inQSOwith="";
         return;
     }
+    if (m_zdebug) log("on_logQSOButton_clicked: PROCEEDING - first QSO with " + m_hisCall);
 
   if (!m_hisCall.size ()) {
     MessageBox::warning_message (this, tr ("Warning:  DX Call field is empty."));
@@ -9239,6 +9240,7 @@ void MainWindow::on_logQSOButton_clicked()                 //Log QSO button
 
   // Z
   if (m_lastCall != m_hisCall) {
+      QString callLogged = m_hisCall;  // Save before initLogQSO triggers signal/slot that clears DX
       if (m_rptSent.isEmpty()) {
           m_rptSent = QString::number(ui->rptSpinBox->value());
           int n=m_rptSent.toInt();
@@ -9246,17 +9248,14 @@ void MainWindow::on_logQSOButton_clicked()                 //Log QSO button
       }
       m_logDlg->initLogQSO (m_hisCall, grid, m_mode, m_rptSent , m_rptRcvd,
                             m_dateTimeQSOOn, dateTimeQSOOff, m_freqNominal +
-                           ui->TxFreqSpinBox->value(), m_noSuffix, m_xSent, m_xRcvd);
+                           ui->TxFreqSpinBox->value(), m_noSuffix, m_xSent, m_xRcvd,
+                           ui->cbAutoCQ->isChecked() || ui->cbAutoCall->isChecked());
 
          if (m_config.rxTotxFreq()) on_pbT2R_clicked();
-         if (m_zdebug) log("Updating m_lastCall from " + m_lastCall + " to " + m_hisCall);
-         m_lastCall = m_hisCall;
+         if (m_zdebug) log("Updating m_lastCall from " + m_lastCall + " to " + callLogged);
+         m_lastCall = callLogged;
          if (ui->cbAutoCQ->isChecked() || ui->cbAutoCall->isChecked()) {
-             if (m_zdebug) log("QSO Logged: " + m_hisCall);
-             // initLogQSO already calls accept() when autoLog is on for contests
-             // (NA_VHF/EU_VHF/etc.). Calling accept() again double-runs the QSO
-             // pipeline (CabrilloLog::add_QSO + acceptQSO signal) and crashes
-             // intermittently. Hidden dialog == already auto-accepted.
+             if (m_zdebug) log("QSO Logged: " + callLogged);
              if (m_logDlg && !m_logDlg->isHidden()) m_logDlg->accept();
              if (ui->cbAutoCall->isChecked()) auto_tx_mode (false);
              resetAutoSwitch();
