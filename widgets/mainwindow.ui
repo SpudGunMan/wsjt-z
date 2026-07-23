@@ -4685,7 +4685,7 @@ list. The list can be maintained in Settings (F2).</string>
            <number>12</number>
           </property>
           <property name="sizeConstraint">
-           <enum>QLayout::SetMinimumSize</enum>
+           <enum>QLayout::SetDefaultConstraint</enum>
           </property>
           <item>
            <widget class="QLabel" name="label_16">
