@@ -189,7 +189,16 @@ void DXStationMap::addLoggedStation(QString const& call, QString const& grid, in
     
     QString g = grid.toUpper().left(4);
     if (!isValidGrid(g)) return;
-    
+    // Check if station already exists to preserve data like SNR during transitions
+    for (auto &e : m_stations) {
+        if (e.call == call) {
+            e.isLogged = true;
+            e.freqHz = freqHz;
+            update();
+            return;
+        }
+    }
+
     PlottedStation s;
     s.call = call;
     s.grid = g;
@@ -498,46 +507,51 @@ void DXStationMap::paintEvent(QPaintEvent *)
         if (!gridToLatLon(s.grid, lat, lon)) continue;
         const QPointF pt = project(lon, lat);
 
+        // --- Unified SNR Color Calculation ---
+        QColor snrCol;
+        if (s.snr < -10)      snrCol = QColor(204, 85, 0);   // Dark Orange (-30 to -10)
+        else if (s.snr < 0)   snrCol = QColor(255, 165, 0);  // Orange (-10 to 0)
+        else if (s.snr < 10)  snrCol = QColor(173, 255, 47); // Lime Green (0 to 10)
+        else if (s.snr < 20)  snrCol = QColor(50, 205, 50);  // Grass Green (10 to 20)
+        else                  snrCol = QColor(34, 139, 34);   // Forest Green (20 to 30)
+
         if (s.isLogged) {
-            // ── Logged QSO: green, static (no animation) ──────────────────────
-            p.setBrush(QColor(76,200,100,200)); p.setPen(Qt::NoPen);
+            // ── Logged QSO: Signal-color based ---
+            p.setBrush(snrCol); 
+            p.setPen(Qt::NoPen);
             p.drawEllipse(pt, dotR, dotR);
-            // Callsign label (small, white)
             p.setFont(QFont("Courier New", 7));
-            p.setPen(QColor(200,255,200));
             p.drawText(QPointF(pt.x()+dotR+2, pt.y()-3), s.call.left(10));
 
         } else if (s.forMe) {
-            // ── Calling ME: red + pulsing radar halo ──────────────────────────
+            // ── Calling ME: Signal-color center + pulsing halo ---
             if (animOn) {
-                // Outer radar ring (expands on alternate frames)
                 p.setBrush(Qt::NoBrush);
-                p.setPen(QPen(QColor(255,60,60,120), 1));
+                p.setPen(QPen(QColor(255,60,60,120), 1)); // Outer alert ring red
                 p.drawEllipse(pt, dotR*3.5, dotR*3.5);
                 p.setPen(QPen(QColor(255,80,80,60), 1));
                 p.drawEllipse(pt, dotR*5, dotR*5);
             }
             p.setPen(Qt::NoPen);
-            p.setBrush(animOn ? QColor(255,80,80) : QColor(220,40,40));
+            p.setBrush(snrCol); // Use the SNR color for the center point
             p.drawEllipse(pt, dotR*1.4, dotR*1.4);
-            // White call label
             p.setFont(QFont("Courier New", 8, QFont::Bold));
             p.setPen(QColor(255,200,200));
             p.drawText(QPointF(pt.x()+dotR*1.5, pt.y()-4), s.call.left(12));
 
         } else if (s.isCQ) {
-            // ── CQ: blue, flashing brightness ─────────────────────────────────
-            const QColor col = animOn ? QColor(80,180,255,240) : QColor(50,120,200,180);
-            p.setBrush(col); p.setPen(Qt::NoPen);
+            // ── CQ: Signal-color based ---
+            p.setBrush(snrCol);
+            p.setPen(Qt::NoPen);
             p.drawEllipse(pt, dotR, dotR);
-            // Callsign label (small, crisp white)
             p.setFont(QFont("Courier New", 7));
-            p.setPen(QColor(160,210,255));
+            p.setPen(QColor(160,210,255)); // Keep light blue-ish label
             p.drawText(QPointF(pt.x()+dotR+2, pt.y()-3), s.call.left(10));
 
         } else {
-            // ── Other directed messages ────────────────────────────────────────
-            p.setBrush(QColor(90,110,150,160)); p.setPen(Qt::NoPen);
+            // ── Other directed messages (SNR Color Mapped) ---
+            p.setBrush(snrCol);
+            p.setPen(Qt::NoPen);
             p.drawEllipse(pt, dotR*0.85, dotR*0.85);
         }
     }
