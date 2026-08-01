@@ -100,6 +100,7 @@ class WSPRBandHopping;
 // Z
 class UnfilteredView;
 class PSKReporterWidget;
+class DXStationMap;
 
 class HelpTextWindow;
 class WSPRNet;
@@ -458,6 +459,7 @@ private slots:
     double watchdog();
      void on_actionUnfiltered_View_triggered();
      void on_actionPSKReporter_triggered();
+     void on_actionDXStationMap_triggered();
      void updateQsoCounter(bool increment);
      void on_txFirstCheckBox_toggled();
     void update_tx5(const QString &qsy_text);
@@ -767,6 +769,7 @@ private:
   bool    m_autoCQAlternateEvenOddNext = false;
   QScopedPointer<UnfilteredView> m_unfilteredView;
   QScopedPointer<PSKReporterWidget> m_pskReporterView;
+  QScopedPointer<DXStationMap> m_dxStationMap;
   QSet<QString> m_pskReporterReceivers;
   QThread * m_pskReporterThread;
   QDateTime m_ignoreListReset;
