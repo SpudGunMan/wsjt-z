@@ -96,6 +96,7 @@ private:
     double    m_tickerAvgDb = 0.0;
     double    m_tickerDbSum = 0.0;
     int       m_tickerDbCount = 0;
+    QMap<QString, int> m_tickerModeCounts;
     QDateTime m_tickerStartedUtc;
     QDateTime m_tickerLastLogUtc;
     double    m_homeLat = 53.0, m_homeLon = -2.0;

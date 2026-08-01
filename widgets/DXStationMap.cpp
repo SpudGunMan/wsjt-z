@@ -185,14 +185,9 @@ double DXStationMap::averageLoggedDb() const
 
 QString DXStationMap::modeSummary() const
 {
-    QMap<QString, int> modeCounts;
-    for (auto const& station : m_stations) {
-        if (!station.isLogged || station.mode.isEmpty()) continue;
-        ++modeCounts[station.mode];
-    }
-
     QStringList parts;
-    for (auto it = modeCounts.constBegin(); it != modeCounts.constEnd(); ++it) {
+    for (auto it = m_tickerModeCounts.constBegin(); it != m_tickerModeCounts.constEnd(); ++it) {
+        if (it.value() <= 0) continue;
         parts << QString("%1:%2").arg(it.key()).arg(it.value());
     }
     return parts.isEmpty() ? QString() : QString("modes %1").arg(parts.join(" "));
@@ -307,6 +302,7 @@ void DXStationMap::clearStations()
     m_tickerDbSum = 0.0;
     m_tickerDbCount = 0;
     m_tickerAvgDb = 0.0;
+    m_tickerModeCounts.clear();
     m_selCall.clear(); m_selGrid.clear();
     m_selSNR=0; m_selFreqHz=0; m_selLat=0.0; m_selLon=0.0;
     refreshStatusMessage();
@@ -380,6 +376,9 @@ void DXStationMap::addLoggedStation(QString const& call, QString const& grid, in
             e.snr = (snr != 0) ? snr : e.snr;
             e.grid = effectiveGrid;
             e.mode = mode;
+            if (!mode.isEmpty()) {
+                ++m_tickerModeCounts[mode];
+            }
             if (snr != 0) {
                 m_tickerDbSum += snr;
                 ++m_tickerDbCount;
@@ -402,6 +401,9 @@ void DXStationMap::addLoggedStation(QString const& call, QString const& grid, in
     if (s.snr != 0) {
         m_tickerDbSum += s.snr;
         ++m_tickerDbCount;
+    }
+    if (!mode.isEmpty()) {
+        ++m_tickerModeCounts[mode];
     }
     s.mode = mode;
     s.period = 0;
