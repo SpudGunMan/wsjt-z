@@ -6237,16 +6237,22 @@ void MainWindow::auto_sequence (DecodedText const& message, unsigned start_toler
                       || (!ui->tx1->isEnabled () && m_QSOProgress == REPORT);
     bool const qrm_stop_window_match = m_QSOProgress == CALLING
       || qAbs (ui->TxFreqSpinBox->value () - df) <= int (stop_tolerance);
+    bool const directed_exchange_to_other_station = !directed_to_me
+      && !composite_rr73_for_me
+      && message_words.at (2) != "DE"
+      && !message_words.at (2).contains (QRegularExpression {"(^(CQ|QRZ))|" + m_baseCall});
+    bool const selected_dx_stop_match = have_selected_dx
+      && directed_with_selected_dx
+      && directed_exchange_to_other_station;
+    bool const no_selected_dx_stop_match = !have_selected_dx
+      && directed_exchange_to_other_station
+      && !message_words.at (3).isEmpty ();
+    bool const anti_qrm_stop_match = selected_dx_stop_match || no_selected_dx_stop_match;
     if (m_auto
         && ui->cbAutoCall->isChecked()
         && auto_qrm_guard_state
         && (SpecOp::HOUND != m_specOp) && qrm_stop_window_match //
-        && message_words.at (2) != "DE"
-        && !message_words.at (2).contains (QRegularExpression {"(^(CQ|QRZ))|" + m_baseCall})
-        && have_selected_dx
-        // Selected DX station is in a directed exchange with someone else, not us.
-      && directed_with_selected_dx
-      && !directed_to_me && !composite_rr73_for_me) {
+        && anti_qrm_stop_match) {
       // auto stop to avoid accidental QRM
         // Z
       if (m_zdebug) log(QString("auto_sequence stop branch: df=%1 stop_tolerance=%2 m_QSOProgress=%3 message_words[2]=%4 message_words[3]=%5 dxCall=%6")
