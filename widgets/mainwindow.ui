@@ -3326,6 +3326,16 @@ list. The list can be maintained in Settings (F2).</string>
                           </widget>
                          </item>
                          <item>
+                          <widget class="QPushButton" name="btn_addToPermIgnore">
+                           <property name="toolTip">
+                            <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Save the current ignore list into the persistent configuration.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                           </property>
+                           <property name="text">
+                            <string>Add to permaIgnore</string>
+                           </property>
+                          </widget>
+                         </item>
+                         <item>
                           <widget class="QPushButton" name="btn_clearIgnore">
                            <property name="toolTip">
                             <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Clear Ignored stations list.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>

@@ -1008,6 +1008,33 @@ double Configuration::wd_FT2() const {return m_->wd_FT2_;}
 bool Configuration::wd_Timer() const {return m_->wd_Timer_;}
 bool Configuration::processTailenders() const {return m_->processTailenders_;}
 QString Configuration::permIgnoreList() const {return m_->permIgnoreList_;}
+void Configuration::set_permIgnoreList(QString const& value)
+{
+  auto const existing_lines = m_->permIgnoreList_.split(QRegularExpression{"[\r\n]+"}, Qt::SkipEmptyParts);
+  auto const incoming_lines = value.split(QRegularExpression{"[\r\n]+"}, Qt::SkipEmptyParts);
+
+  QStringList merged_lines = existing_lines;
+  for (auto const& line : incoming_lines)
+    {
+      auto const trimmed = line.trimmed();
+      if (trimmed.isEmpty ())
+        {
+          continue;
+        }
+      if (!merged_lines.contains (trimmed, Qt::CaseInsensitive))
+        {
+          merged_lines << trimmed;
+        }
+    }
+
+  m_->permIgnoreList_ = merged_lines.join (QChar {'\n'});
+  if (m_->ui_)
+    {
+      m_->ui_->te_permIgnoreList->setPlainText(m_->permIgnoreList_);
+    }
+  m_->settings_->setValue("permIgnoreList", m_->permIgnoreList_);
+  m_->settings_->sync();
+}
 bool Configuration::showDistance() const {return m_->showDistance_;}
 bool Configuration::showBearing() const {return m_->showBearing_;}
 bool Configuration::autoTune() const {return m_->autoTune_;}
