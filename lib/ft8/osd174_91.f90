@@ -132,7 +132,7 @@ subroutine osd174_91(llr,k,apmask,ndeep,message91,cw,nhardmin,dmin)
    npre2=0
 
    if(ndeep.eq.0) goto 998  ! norder=0
-   if(ndeep.gt.6) ndeep=6
+   if(ndeep.gt.7) ndeep=7
    if( ndeep.eq. 1) then
       nord=1
       npre1=0
