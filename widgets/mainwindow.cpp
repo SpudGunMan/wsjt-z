@@ -117,6 +117,20 @@
 
 #define FCL fortran_charlen_t
 
+namespace {
+bool isProceduralSignoff(QString const& text)
+{
+  if (text.isEmpty()) return false;
+  const QStringList words = text.split(QRegularExpression{"\\s+"}, Qt::SkipEmptyParts);
+  for (auto const& word : words) {
+    const QString token = word.trimmed().toUpper();
+    if (token == "RRR" || token == "73" || token == "RR73" || token == "R" || token == "R-" || token == "+")
+      return true;
+  }
+  return false;
+}
+}
+
 extern "C" {
   //----------------------------------------------------- C and Fortran routines
   void symspec_(struct dec_data *, int* k, double* trperiod, int* nsps, int* ingain,
@@ -2625,7 +2639,7 @@ void MainWindow::fastSink(qint64 frames)
                       decodedtext.string().contains(" " + myCall) or
                       decodedtext.string().contains(myCall + " ") or
                       decodedtext.string().contains(" <" + myCall + "> ");
-        if (for_me) {
+        if (for_me && !isProceduralSignoff(decodedtext.string())) {
           QString dxCall, dxGrid;
           decodedtext.deCallAndGrid(dxCall, dxGrid);
           if (!dxCall.isEmpty() && !dxGrid.isEmpty()) {
@@ -6031,7 +6045,7 @@ void MainWindow::readFromStdout()                             //readFromStdout
                           decodedtext0.string().contains(" " + my_call) or
                           decodedtext0.string().contains(my_call + " ") or
                           decodedtext0.string().contains(" <" + my_call + "> ");
-            if (for_me) {
+            if (for_me && !isProceduralSignoff(decodedtext0.string())) {
               QString dxCall, dxGrid;
               decodedtext0.deCallAndGrid(dxCall, dxGrid);
               if (!dxCall.isEmpty() && !dxGrid.isEmpty()) {
@@ -8252,7 +8266,7 @@ void MainWindow::processMessage (DecodedText const& message, Qt::KeyboardModifie
                         message.string().contains(" " + myCall) or
                         message.string().contains(myCall + " ") or
                         message.string().contains(" <" + myCall + "> ");
-          if (for_me) {
+          if (for_me && !isProceduralSignoff(message.string())) {
             QString dxCall, dxGrid;
             message.deCallAndGrid(dxCall, dxGrid);
             if (!dxCall.isEmpty() && !dxGrid.isEmpty()) {
