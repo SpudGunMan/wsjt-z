@@ -132,7 +132,7 @@ DXStationMap::DXStationMap(QWidget *parent)
     });
     m_tickerTimer->start();
 
-    setTickerStats(0, 0, QDateTime::currentDateTimeUtc(), QDateTime());
+    setTickerStats(0, 0, QDateTime::currentDateTimeUtc(), QDateTime(), 0.0);
 }
 
 QString DXStationMap::normalizeGrid(QString const& grid)
@@ -180,14 +180,7 @@ void DXStationMap::showEvent(QShowEvent *event)
 
 double DXStationMap::averageLoggedDb() const
 {
-    double sum = 0.0;
-    int count = 0;
-    for (auto const& station : m_stations) {
-        if (!station.isLogged) continue;
-        sum += station.snr;
-        ++count;
-    }
-    return count > 0 ? sum / double(count) : 0.0;
+    return m_tickerAvgDb;
 }
 
 QString DXStationMap::modeSummary() const
@@ -206,10 +199,12 @@ QString DXStationMap::modeSummary() const
 }
 
 void DXStationMap::setTickerStats(int loggedQsoTotal, int loggedQsoToday,
-                                  QDateTime const& startedUtc, QDateTime const& lastLogUtc)
+                                  QDateTime const& startedUtc, QDateTime const& lastLogUtc,
+                                  double avgDb)
 {
     m_tickerLoggedTotal = loggedQsoTotal;
     m_tickerLoggedToday = loggedQsoToday;
+    m_tickerAvgDb = avgDb;
     m_tickerStartedUtc = startedUtc;
     m_tickerLastLogUtc = lastLogUtc;
 
@@ -230,7 +225,7 @@ void DXStationMap::setTickerStats(int loggedQsoTotal, int loggedQsoToday,
     if (m_tickerStartedUtc.isValid()) {
         const qint64 elapsedSeconds = qMax<qint64>(60, m_tickerStartedUtc.secsTo(nowUtc));
         const double elapsedHours = double(elapsedSeconds) / 3600.0;
-        const double qsoPerHour = elapsedHours > 0.0 ? double(m_tickerLoggedTotal) / elapsedHours : 0.0;
+        const double qsoPerHour = elapsedHours > 0.0 ? double(m_tickerLoggedToday) / elapsedHours : 0.0;
         parts << QString("QSO/h %1").arg(qsoPerHour, 0, 'f', 1);
         parts << QString("Station Runtime %1").arg(formatDuration(elapsedSeconds));
     }

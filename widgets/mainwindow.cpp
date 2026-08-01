@@ -9423,7 +9423,7 @@ void MainWindow::acceptQSO (QDateTime const& QSO_date_off, QString const& call, 
   updateQsoCounter(true);
   m_dxMapLastLogUtc = nowUtc;
   if (m_dxStationMap) {
-    m_dxStationMap->setTickerStats(qso_total, qso_new, m_dxMapStartedUtc, m_dxMapLastLogUtc);
+    m_dxStationMap->setTickerStats(qso_total, qso_new, m_dxMapStartedUtc, m_dxMapLastLogUtc, 0.0);
   }
   clearDX();
 

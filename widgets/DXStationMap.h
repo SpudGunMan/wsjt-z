@@ -51,7 +51,8 @@ public:
     void setDistanceInMiles(bool miles);
     void setStatusMessage(QString const& message);
     void setTickerStats(int loggedQsoTotal, int loggedQsoToday,
-                        QDateTime const& startedUtc, QDateTime const& lastLogUtc);
+                        QDateTime const& startedUtc, QDateTime const& lastLogUtc,
+                        double avgDb = 0.0);
 
 signals:
     void stationClicked(QString call, int freqHz, QString grid);
@@ -92,6 +93,7 @@ private:
     QString   m_tickerMessage;
     int       m_tickerLoggedTotal = 0;
     int       m_tickerLoggedToday = 0;
+    double    m_tickerAvgDb = 0.0;
     QDateTime m_tickerStartedUtc;
     QDateTime m_tickerLastLogUtc;
     double    m_homeLat = 53.0, m_homeLon = -2.0;
