@@ -27,6 +27,8 @@ class DXStationMap : public QWidget
 public:
     explicit DXStationMap(QWidget *parent = nullptr);
 
+    static QString normalizeGrid(QString const& grid);
+
     void setHomeGrid(QString const& grid);
     void showStation(QString const& call, QString const& grid, int snr,
                      bool isCQ = false, bool forMe = false);
@@ -45,6 +47,7 @@ public:
     // so it shows in this panel exactly as if its dot had been clicked.
     void selectStationByCall(QString const& call, QString const& grid, int freqHz = 0, int snr = 0);
     void setDistanceInMiles(bool miles);
+    void setStatusMessage(QString const& message);
 
 signals:
     void stationClicked(QString call, int freqHz, QString grid);
@@ -73,9 +76,11 @@ private:
     void    drawStationMarker(QPainter &, double, double, QString const&, QColor) const;
     void    showStationTooltip();        // Show popup with station details
     void    drawGreyline(QPainter &) const;
+    void    refreshStatusMessage();
 
     // ── State ─────────────────────────────────────────────────────────────────
     QString   m_homeGrid;
+    QString   m_statusMessage;
     double    m_homeLat = 53.0, m_homeLon = -2.0;
     QString   m_selCall, m_selGrid;
     int       m_selSNR = 0, m_selFreqHz = 0;
