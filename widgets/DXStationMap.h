@@ -8,6 +8,7 @@
 #include <QPixmap>
 #include <QPushButton>
 #include <QTimer>
+#include <QDateTime>
 #include <QMap>
 #include <QWheelEvent>
 #include <QLabel>
@@ -16,7 +17,7 @@
 
 
 struct PlottedStation {
-    QString call, grid;
+    QString call, grid, mode;
     int snr = 0, freqHz = 0, period = 0;
     bool isCQ = false, forMe = false, isLogged = false;
 };
@@ -34,7 +35,8 @@ public:
                      bool isCQ = false, bool forMe = false);
     void clearStations();
     void addStation(PlottedStation const& s);
-    void addLoggedStation(QString const& call, QString const& grid, int freqHz, int snr = 0);
+    void addLoggedStation(QString const& call, QString const& grid, int freqHz, int snr = 0,
+                          QString const& mode = QString());
     void tryAddCallsign(QString const& call, int freqHz, int snr, bool forMe);
     void setMyCall(QString const& call);
     void expireStations(int currentPeriod, int maxAge = 20);
@@ -48,12 +50,16 @@ public:
     void selectStationByCall(QString const& call, QString const& grid, int freqHz = 0, int snr = 0);
     void setDistanceInMiles(bool miles);
     void setStatusMessage(QString const& message);
+    void setTickerStats(int loggedQsoTotal, int loggedQsoToday,
+                        QDateTime const& startedUtc, QDateTime const& lastLogUtc,
+                        double avgDb = 0.0);
 
 signals:
     void stationClicked(QString call, int freqHz, QString grid);
     void stationDoubleClicked(QString call, int freqHz, QString grid);
 
 protected:
+    void showEvent(QShowEvent *event) override;
     void paintEvent(QPaintEvent *) override;
     void resizeEvent(QResizeEvent *) override;
     void closeEvent(QCloseEvent *) override;
@@ -77,10 +83,22 @@ private:
     void    showStationTooltip();        // Show popup with station details
     void    drawGreyline(QPainter &) const;
     void    refreshStatusMessage();
+    double  averageLoggedDb() const;
+    QString modeSummary() const;
 
     // ── State ─────────────────────────────────────────────────────────────────
     QString   m_homeGrid;
     QString   m_statusMessage;
+    QString   m_unknownGridMessage;
+    QString   m_tickerMessage;
+    int       m_tickerLoggedTotal = 0;
+    int       m_tickerLoggedToday = 0;
+    double    m_tickerAvgDb = 0.0;
+    double    m_tickerDbSum = 0.0;
+    int       m_tickerDbCount = 0;
+    QMap<QString, int> m_tickerModeCounts;
+    QDateTime m_tickerStartedUtc;
+    QDateTime m_tickerLastLogUtc;
     double    m_homeLat = 53.0, m_homeLon = -2.0;
     QString   m_selCall, m_selGrid;
     int       m_selSNR = 0, m_selFreqHz = 0;
@@ -104,8 +122,9 @@ private:
     bool    m_leftButtonDown = false;   // plain left button currently held
     bool    m_leftIsPanning  = false;   // drag distance exceeded click threshold
 
-    // ── Animation ─────────────────────────────────────────────────────────────
+    // ── Animation / ticker ─────────────────────────────────────────────────
     QTimer *m_animTimer = nullptr;
+    QTimer *m_tickerTimer = nullptr;
     int     m_animFrame = 0;           // increments every 500ms
     QString m_myCall;                  // used to detect "calling me"
 
