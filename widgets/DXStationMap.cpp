@@ -230,6 +230,7 @@ void DXStationMap::setTickerStats(int loggedQsoTotal, int loggedQsoToday,
     }
     parts << QString("avg dB %1").arg(averageLoggedDb(), 0, 'f', 1);
     parts << QString("logs %1/%2").arg(m_tickerLoggedToday).arg(m_tickerLoggedTotal);
+    parts << QString("logs since 00:UTC %1").arg(m_tickerLoggedToday);
     const QString summary = modeSummary();
     if (!summary.isEmpty()) {
         parts << summary;
