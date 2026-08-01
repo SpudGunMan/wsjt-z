@@ -7,6 +7,7 @@
 #include <QRegularExpression>
 #include <QDateTime>
 #include <QSettings>
+#include <QShowEvent>
 #include <cmath>
 
 static constexpr double DEG = M_PI / 180.0;
@@ -122,6 +123,16 @@ DXStationMap::DXStationMap(QWidget *parent)
     m_animTimer->setInterval(500);
     connect(m_animTimer, &QTimer::timeout, this, [this]{ ++m_animFrame; update(); });
     m_animTimer->start();
+
+    // Ticker timer — refreshes the footer age and rate without involving MainWindow.
+    m_tickerTimer = new QTimer(this);
+    m_tickerTimer->setInterval(5000);
+    connect(m_tickerTimer, &QTimer::timeout, this, [this]() {
+        setTickerStats(m_tickerLoggedTotal, m_tickerLoggedToday, m_tickerStartedUtc, m_tickerLastLogUtc);
+    });
+    m_tickerTimer->start();
+
+    setTickerStats(0, 0, QDateTime::currentDateTimeUtc(), QDateTime());
 }
 
 QString DXStationMap::normalizeGrid(QString const& grid)
@@ -156,7 +167,85 @@ void DXStationMap::setDistanceInMiles(bool miles)
 
 void DXStationMap::setStatusMessage(QString const& message)
 {
-    m_statusMessage = message;
+    m_tickerMessage = message;
+    refreshStatusMessage();
+    update();
+}
+
+void DXStationMap::showEvent(QShowEvent *event)
+{
+    QWidget::showEvent(event);
+    setTickerStats(m_tickerLoggedTotal, m_tickerLoggedToday, m_tickerStartedUtc, m_tickerLastLogUtc);
+}
+
+double DXStationMap::averageLoggedDb() const
+{
+    double sum = 0.0;
+    int count = 0;
+    for (auto const& station : m_stations) {
+        if (!station.isLogged) continue;
+        sum += station.snr;
+        ++count;
+    }
+    return count > 0 ? sum / double(count) : 0.0;
+}
+
+QString DXStationMap::modeSummary() const
+{
+    QMap<QString, int> modeCounts;
+    for (auto const& station : m_stations) {
+        if (!station.isLogged || station.mode.isEmpty()) continue;
+        ++modeCounts[station.mode];
+    }
+
+    QStringList parts;
+    for (auto it = modeCounts.constBegin(); it != modeCounts.constEnd(); ++it) {
+        parts << QString("%1:%2").arg(it.key()).arg(it.value());
+    }
+    return parts.isEmpty() ? QString() : QString("modes %1").arg(parts.join(" "));
+}
+
+void DXStationMap::setTickerStats(int loggedQsoTotal, int loggedQsoToday,
+                                  QDateTime const& startedUtc, QDateTime const& lastLogUtc)
+{
+    m_tickerLoggedTotal = loggedQsoTotal;
+    m_tickerLoggedToday = loggedQsoToday;
+    m_tickerStartedUtc = startedUtc;
+    m_tickerLastLogUtc = lastLogUtc;
+
+    QStringList parts;
+    const auto nowUtc = QDateTime::currentDateTimeUtc();
+    auto formatDuration = [](qint64 seconds) {
+        const qint64 hours = seconds / 3600;
+        const qint64 minutes = (seconds % 3600) / 60;
+        const qint64 secs = seconds % 60;
+        if (hours > 0) {
+            return QString("%1h%2m%3s").arg(hours).arg(minutes).arg(secs);
+        }
+        if (minutes > 0) {
+            return QString("%1m%2s").arg(minutes).arg(secs);
+        }
+        return QString("%1s").arg(secs);
+    };
+    if (m_tickerStartedUtc.isValid()) {
+        const qint64 elapsedSeconds = qMax<qint64>(1, m_tickerStartedUtc.secsTo(nowUtc));
+        const double elapsedHours = double(elapsedSeconds) / 3600.0;
+        const double qsoPerHour = elapsedHours > 0.0 ? double(m_tickerLoggedTotal) / elapsedHours : 0.0;
+        parts << QString("QSO/h %1").arg(qsoPerHour, 0, 'f', 1);
+        parts << QString("Station Runtime %1").arg(formatDuration(elapsedSeconds));
+    }
+    parts << QString("avg dB %1").arg(averageLoggedDb(), 0, 'f', 1);
+    const QString summary = modeSummary();
+    if (!summary.isEmpty()) {
+        parts << summary;
+    }
+    parts << QString("logs %1/%2").arg(m_tickerLoggedToday).arg(m_tickerLoggedTotal);
+    if (m_tickerLastLogUtc.isValid()) {
+        const qint64 ageSeconds = qMax<qint64>(0, m_tickerLastLogUtc.secsTo(nowUtc));
+        parts << QString("last log %1 ago").arg(formatDuration(ageSeconds));
+    }
+    m_tickerMessage = parts.join(" | ");
+    refreshStatusMessage();
     update();
 }
 
@@ -199,7 +288,16 @@ void DXStationMap::refreshStatusMessage()
             unknownCalls << station.call;
         }
     }
-    m_statusMessage = unknownCalls.isEmpty() ? QString() : QString("Waiting for grid: %1").arg(unknownCalls.join(", "));
+    m_unknownGridMessage = unknownCalls.isEmpty() ? QString() : QString("Waiting for grid: %1").arg(unknownCalls.join(", "));
+
+    QStringList parts;
+    if (!m_unknownGridMessage.isEmpty()) {
+        parts << m_unknownGridMessage;
+    }
+    if (!m_tickerMessage.isEmpty()) {
+        parts << m_tickerMessage;
+    }
+    m_statusMessage = parts.join(" | ");
 }
 
 void DXStationMap::clearStations()
@@ -263,7 +361,8 @@ void DXStationMap::addStation(PlottedStation const& s)
     update();
 }
 
-void DXStationMap::addLoggedStation(QString const& call, QString const& grid, int freqHz, int snr)
+void DXStationMap::addLoggedStation(QString const& call, QString const& grid, int freqHz, int snr,
+                                    QString const& mode)
 {
     if (call.isEmpty()) return;
 
@@ -277,6 +376,7 @@ void DXStationMap::addLoggedStation(QString const& call, QString const& grid, in
             e.freqHz = freqHz;
             e.snr = (snr != 0) ? snr : e.snr;
             e.grid = effectiveGrid;
+            e.mode = mode;
             if (!effectiveGrid.isEmpty()) m_callGrid[call] = effectiveGrid;
             refreshStatusMessage();
             update();
@@ -292,6 +392,7 @@ void DXStationMap::addLoggedStation(QString const& call, QString const& grid, in
     s.isCQ = false;
     s.forMe = false;
     s.snr = (snr != 0) ? snr : m_recentSNR.value(call, 0);
+    s.mode = mode;
     s.period = 0;
     addStation(s);
 }
@@ -654,7 +755,7 @@ void DXStationMap::paintEvent(QPaintEvent *)
         const int textWidth = fm.horizontalAdvance(m_statusMessage);
         const int travel = qMax(1, textWidth + w + 20);
         const int offset = (m_animFrame * 6) % travel;
-        const int x = offset - (textWidth + 20);
+        const int x = w + 20 - offset;
         p.setPen(QColor(220, 240, 255));
         p.drawText(QRect(x, h - 20, textWidth, 20), Qt::AlignLeft | Qt::AlignVCenter, m_statusMessage);
     }
