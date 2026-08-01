@@ -822,6 +822,7 @@ private:
   bool rxTotxFreq_;
   bool udpFiltering_;
   bool highlightDX_;
+  bool hideOwnCall_;
   bool dbgScreen_;
   bool dbgFile_;
   bool dbgBoth_;
@@ -995,6 +996,7 @@ bool Configuration::pileupMode() const {return m_->pileupMode_;}
 bool Configuration::rxTotxFreq() const {return m_->rxTotxFreq_;}
 bool Configuration::udpFiltering() const {return m_->udpFiltering_;}
 bool Configuration::highlightDX() const {return m_->highlightDX_;}
+bool Configuration::hideOwnCall() const {return m_->hideOwnCall_;}
 bool Configuration::dbgScreen() const {return m_->dbgScreen_;}
 bool Configuration::dbgFile() const {return m_->dbgFile_;}
 bool Configuration::dbgBoth() const {return m_->dbgBoth_;}
@@ -1838,6 +1840,7 @@ void Configuration::impl::initialize_models ()
   ui_->cb_rxTotxFreq->setChecked(rxTotxFreq_);
   ui_->cb_udpFiltering->setChecked(udpFiltering_);
   ui_->cb_highlightDX->setChecked(highlightDX_);
+  ui_->cb_hideOwnCall->setChecked(hideOwnCall_);
   ui_->rb_dbg_Both->setChecked(dbgBoth_);
   ui_->rb_dbg_File->setChecked(dbgFile_);
   ui_->rb_dbg_Screen->setChecked(dbgScreen_);
@@ -2126,6 +2129,7 @@ void Configuration::impl::read_settings ()
   rxTotxFreq_ = settings_->value("rxTotxFreq").toBool();
   udpFiltering_ = settings_->value("udpFiltering").toBool();
   highlightDX_ = settings_->value("highlightDX").toBool();
+  hideOwnCall_ = settings_->value("hideOwnCall", true).toBool();
   dbgScreen_ = settings_->value("dbgScreen").toBool();
   dbgBoth_ = settings_->value("dbgBoth").toBool();
   autoFreqNarrow_ = settings_->value("autoFreqNarrow").toBool();
@@ -2327,6 +2331,7 @@ void Configuration::impl::write_settings ()
   settings_->setValue("rxTotxFreq", rxTotxFreq_);
   settings_->setValue("udpFiltering", udpFiltering_);
   settings_->setValue("highlightDX", highlightDX_);
+  settings_->setValue("hideOwnCall", hideOwnCall_);
   settings_->setValue("dbgScreen", dbgScreen_);
   settings_->setValue("dbgFile", dbgFile_);
   settings_->setValue("dbgBoth", dbgBoth_);
@@ -2905,6 +2910,7 @@ void Configuration::impl::accept ()
   autoCQfiltering_ = ui_->cb_autoCQfiltering->isChecked();
   udpFiltering_ = ui_->cb_udpFiltering->isChecked();
   highlightDX_ = ui_->cb_highlightDX->isChecked();
+  hideOwnCall_ = ui_->cb_hideOwnCall->isChecked();
   dbgScreen_ = ui_->rb_dbg_Screen->isChecked();
   dbgFile_ = ui_->rb_dbg_File->isChecked();
   dbgBoth_ = ui_->rb_dbg_Both->isChecked();

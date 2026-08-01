@@ -2561,6 +2561,13 @@ Right click for insert and delete options.</string>
             </property>
            </widget>
           </item>
+          <item row="6" column="0">
+           <widget class="QCheckBox" name="cb_hideOwnCall">
+            <property name="text">
+             <string>Hide own call on decode</string>
+            </property>
+           </widget>
+          </item>
          </layout>
         </widget>
        </item>
