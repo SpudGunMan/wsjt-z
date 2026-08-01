@@ -218,15 +218,30 @@ void DXStationMap::addStation(PlottedStation const& s)
     PlottedStation updated = s;
     const QString normalizedGrid = normalizeGrid(s.grid);
     const bool proceduralSignoff = isProceduralGrid(s.grid);
+
+    QString existingGrid;
+    for (auto const& existing : m_stations) {
+        if (existing.call == s.call) {
+            existingGrid = existing.grid;
+            break;
+        }
+    }
+
     if (!normalizedGrid.isEmpty()) {
         updated.grid = normalizedGrid;
         m_callGrid[s.call] = updated.grid;
-    } else if (!proceduralSignoff && m_callGrid.contains(s.call)) {
+    } else if (proceduralSignoff) {
+        updated.grid = existingGrid.isEmpty() ? m_callGrid.value(s.call) : existingGrid;
+    } else if (m_callGrid.contains(s.call)) {
         updated.grid = m_callGrid.value(s.call);
     } else {
-        updated.grid.clear();
+        updated.grid = existingGrid;
     }
-    if (updated.grid.isEmpty() || proceduralSignoff) {
+
+    if (proceduralSignoff) {
+        updated.forMe = false;
+        updated.isLogged = false;
+    } else if (updated.grid.isEmpty()) {
         updated.forMe = false;
         updated.isLogged = updated.isLogged || proceduralSignoff;
     }
@@ -242,7 +257,9 @@ void DXStationMap::addStation(PlottedStation const& s)
         }
     }
 
-    m_stations.append(updated);
+    if (!updated.grid.isEmpty()) {
+        m_stations.append(updated);
+    }
     refreshStatusMessage();
     update();
 }
