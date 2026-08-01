@@ -228,7 +228,7 @@ void DXStationMap::setTickerStats(int loggedQsoTotal, int loggedQsoToday,
         return QString("%1s").arg(secs);
     };
     if (m_tickerStartedUtc.isValid()) {
-        const qint64 elapsedSeconds = qMax<qint64>(1, m_tickerStartedUtc.secsTo(nowUtc));
+        const qint64 elapsedSeconds = qMax<qint64>(60, m_tickerStartedUtc.secsTo(nowUtc));
         const double elapsedHours = double(elapsedSeconds) / 3600.0;
         const double qsoPerHour = elapsedHours > 0.0 ? double(m_tickerLoggedTotal) / elapsedHours : 0.0;
         parts << QString("QSO/h %1").arg(qsoPerHour, 0, 'f', 1);
