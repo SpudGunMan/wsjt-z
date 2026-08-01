@@ -23,6 +23,12 @@ static bool isValidGrid(QString const& grid)
     return s_gridRe.match(grid).hasMatch();
 }
 
+static bool isProceduralGrid(QString const& grid)
+{
+    const QString value = grid.trimmed().toUpper();
+    return value == "RR73" || value == "73" || value == "RRR" || value == "R" || value == "R-" || value == "R+";
+}
+
 DXStationMap::DXStationMap(QWidget *parent)
     : QWidget(parent)
 {
@@ -124,7 +130,7 @@ QString DXStationMap::normalizeGrid(QString const& grid)
 
     const QString value = grid.trimmed().toUpper();
     if (value.isEmpty()) return {};
-    if (value == "RR73" || value == "73" || value == "RRR" || value == "R" || value == "R-" || value == "R+")
+    if (isProceduralGrid(value))
         return {};
     if (value.size() < 2) return {};
     if (!s_gridRe.match(value).hasMatch()) return {};
@@ -211,13 +217,31 @@ void DXStationMap::addStation(PlottedStation const& s)
 {
     PlottedStation updated = s;
     const QString normalizedGrid = normalizeGrid(s.grid);
+    const bool proceduralSignoff = isProceduralGrid(s.grid);
+
+    QString existingGrid;
+    for (auto const& existing : m_stations) {
+        if (existing.call == s.call) {
+            existingGrid = existing.grid;
+            break;
+        }
+    }
+
     if (!normalizedGrid.isEmpty()) {
         updated.grid = normalizedGrid;
         m_callGrid[s.call] = updated.grid;
+    } else if (proceduralSignoff) {
+        updated.grid = existingGrid.isEmpty() ? m_callGrid.value(s.call) : existingGrid;
     } else if (m_callGrid.contains(s.call)) {
         updated.grid = m_callGrid.value(s.call);
+    } else {
+        updated.grid = existingGrid;
     }
-    if (updated.grid.isEmpty()) {
+
+    if (proceduralSignoff) {
+        updated.forMe = false;
+        updated.isLogged = false;
+    } else if (updated.grid.isEmpty()) {
         updated.forMe = false;
     }
     m_recentSNR[s.call] = updated.snr;
@@ -232,7 +256,9 @@ void DXStationMap::addStation(PlottedStation const& s)
         }
     }
 
-    m_stations.append(updated);
+    if (!updated.grid.isEmpty()) {
+        m_stations.append(updated);
+    }
     refreshStatusMessage();
     update();
 }
