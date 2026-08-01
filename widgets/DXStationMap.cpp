@@ -217,6 +217,9 @@ void DXStationMap::addStation(PlottedStation const& s)
     } else if (m_callGrid.contains(s.call)) {
         updated.grid = m_callGrid.value(s.call);
     }
+    if (updated.grid.isEmpty()) {
+        updated.forMe = false;
+    }
     m_recentSNR[s.call] = updated.snr;
 
     for (auto &e : m_stations) {
@@ -561,21 +564,6 @@ void DXStationMap::paintEvent(QPaintEvent *)
         double lat = 0.0, lon = 0.0;
         const bool hasGrid = !s.grid.isEmpty() && gridToLatLon(s.grid, lat, lon);
         if (!hasGrid) {
-            lat = m_homeGrid.isEmpty() ? 20.0 : m_homeLat;
-            lon = m_homeGrid.isEmpty() ? 0.0 : m_homeLon;
-            if (!s.call.isEmpty()) {
-                quint64 hash = 14695981039346656037ull;
-                for (auto ch : s.call.toUpper()) {
-                    hash ^= static_cast<unsigned char>(ch.unicode());
-                    hash *= 1099511628211ull;
-                }
-                const int latJitter = int(hash % 7) - 3;
-                const int lonJitter = int((hash >> 8) % 7) - 3;
-                lat += latJitter * 0.35;
-                lon += lonJitter * 0.35;
-            }
-        }
-        if (!hasGrid) {
             continue;
         }
         const QPointF pt = project(lon, lat);
@@ -596,7 +584,7 @@ void DXStationMap::paintEvent(QPaintEvent *)
             p.setFont(QFont("Courier New", 7));
             p.drawText(QPointF(pt.x()+dotR+2, pt.y()-3), s.call.left(10));
 
-        } else if (s.forMe) {
+        } else if (s.forMe && !s.grid.isEmpty()) {
             // ── Calling ME: Signal-color center + pulsing halo ---
             if (animOn) {
                 p.setBrush(Qt::NoBrush);
