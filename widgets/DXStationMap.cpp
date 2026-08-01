@@ -235,11 +235,11 @@ void DXStationMap::setTickerStats(int loggedQsoTotal, int loggedQsoToday,
         parts << QString("Station Runtime %1").arg(formatDuration(elapsedSeconds));
     }
     parts << QString("avg dB %1").arg(averageLoggedDb(), 0, 'f', 1);
+    parts << QString("logs %1/%2").arg(m_tickerLoggedToday).arg(m_tickerLoggedTotal);
     const QString summary = modeSummary();
     if (!summary.isEmpty()) {
         parts << summary;
     }
-    parts << QString("logs %1/%2").arg(m_tickerLoggedToday).arg(m_tickerLoggedTotal);
     if (m_tickerLastLogUtc.isValid()) {
         const qint64 ageSeconds = qMax<qint64>(0, m_tickerLastLogUtc.secsTo(nowUtc));
         parts << QString("last log %1 ago").arg(formatDuration(ageSeconds));
