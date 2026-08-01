@@ -3450,14 +3450,8 @@ bool MainWindow::eventFilter (QObject * object, QEvent * event)
       if (object == ui->EraseButton) {
         auto const *mouseEvent = static_cast<QMouseEvent const *> (event);
         if (mouseEvent->button() == Qt::RightButton) {
-          ui->tx1->clear();
-          ui->tx2->clear();
-          ui->tx3->clear();
-          ui->tx4->clear();
-          ui->tx5->clearEditText();
-          ui->dxCallEntry->clear();
-          ui->dxGridEntry->clear();
-          ui->txrb6->setChecked(true);
+          clearDX();
+          ui->tx5->clearEditText();  // match triple-click behavior
           if (ui->cbAutoCall->isChecked()) {
             ui->stopTxButton->click (); // halt any transmission
             if (m_zdebug) log("Tx stopped by right-click on Erase button");
