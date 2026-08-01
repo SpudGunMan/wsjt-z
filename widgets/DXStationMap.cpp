@@ -118,6 +118,19 @@ DXStationMap::DXStationMap(QWidget *parent)
     m_animTimer->start();
 }
 
+QString DXStationMap::normalizeGrid(QString const& grid)
+{
+    if (grid.isEmpty()) return {};
+
+    const QString value = grid.trimmed().toUpper();
+    if (value.isEmpty()) return {};
+    if (value == "RR73" || value == "73" || value == "RRR" || value == "R" || value == "R-" || value == "R+")
+        return {};
+    if (value.size() < 2) return {};
+    if (!s_gridRe.match(value).hasMatch()) return {};
+    return value.left(4);
+}
+
 void DXStationMap::setMyCall(QString const& call) { m_myCall = call.toUpper(); }
 
 void DXStationMap::setExtraInfo(QString const& dxcc, QString const& continent, int cqZone, int ituZone)
@@ -135,10 +148,16 @@ void DXStationMap::setDistanceInMiles(bool miles)
     update();
 }
 
+void DXStationMap::setStatusMessage(QString const& message)
+{
+    m_statusMessage = message;
+    update();
+}
+
 void DXStationMap::selectStationByCall(QString const& call, QString const& grid, int freqHz, int snr)
 {
     m_selCall = call;
-    m_selGrid = grid.toUpper().left(4);
+    m_selGrid = normalizeGrid(grid);
     m_selSNR = snr;
     m_selFreqHz = freqHz;
     gridToLatLon(m_selGrid, m_selLat, m_selLon);
@@ -147,7 +166,7 @@ void DXStationMap::selectStationByCall(QString const& call, QString const& grid,
 
 void DXStationMap::setHomeGrid(QString const& grid)
 {
-    m_homeGrid = grid.toUpper().left(4);
+    m_homeGrid = normalizeGrid(grid);
     if (!gridToLatLon(m_homeGrid, m_homeLat, m_homeLon)) {
         // Invalid grid; fallback to defaults
         m_homeLat = 53.0;
@@ -160,10 +179,21 @@ void DXStationMap::setHomeGrid(QString const& grid)
 void DXStationMap::showStation(QString const& call, QString const& grid, int snr,
                                 bool /*isCQ*/, bool /*forMe*/)
 {
-    m_selCall = call; m_selGrid = grid.toUpper().left(4); m_selSNR = snr;
+    m_selCall = call; m_selGrid = normalizeGrid(grid); m_selSNR = snr;
     gridToLatLon(m_selGrid, m_selLat, m_selLon);
     for (auto const& s : m_stations) if (s.call==call) { m_selFreqHz=s.freqHz; break; }
     update();
+}
+
+void DXStationMap::refreshStatusMessage()
+{
+    QStringList unknownCalls;
+    for (auto const& station : m_stations) {
+        if (!station.call.isEmpty() && station.grid.isEmpty() && !station.isLogged) {
+            unknownCalls << station.call;
+        }
+    }
+    m_statusMessage = unknownCalls.isEmpty() ? QString() : QString("Waiting for grid: %1").arg(unknownCalls.join(", "));
 }
 
 void DXStationMap::clearStations()
@@ -173,31 +203,56 @@ void DXStationMap::clearStations()
     m_recentSNR.clear();
     m_selCall.clear(); m_selGrid.clear();
     m_selSNR=0; m_selFreqHz=0; m_selLat=0.0; m_selLon=0.0;
+    refreshStatusMessage();
     update();
 }
 
 void DXStationMap::addStation(PlottedStation const& s)
 {
-    if (!isValidGrid(s.grid)) return;  // reject report codes/RRR/73/etc. masquerading as grids
-    m_callGrid[s.call] = s.grid;       // cache for all-calls plotting
-    m_recentSNR[s.call] = s.snr;       // cache SNR for logged station transitions
-    for (auto &e : m_stations) if (e.call==s.call) { e=s; update(); return; }
-    m_stations.append(s);
+    PlottedStation updated = s;
+    const QString normalizedGrid = normalizeGrid(s.grid);
+    if (!normalizedGrid.isEmpty()) {
+        updated.grid = normalizedGrid;
+        m_callGrid[s.call] = updated.grid;
+    } else if (m_callGrid.contains(s.call)) {
+        updated.grid = m_callGrid.value(s.call);
+    }
+    if (updated.grid.isEmpty()) {
+        updated.forMe = false;
+    }
+    m_recentSNR[s.call] = updated.snr;
+
+    for (auto &e : m_stations) {
+        if (e.call == updated.call) {
+            e = updated;
+            if (!e.grid.isEmpty()) m_callGrid[e.call] = e.grid;
+            refreshStatusMessage();
+            update();
+            return;
+        }
+    }
+
+    m_stations.append(updated);
+    refreshStatusMessage();
     update();
 }
 
 void DXStationMap::addLoggedStation(QString const& call, QString const& grid, int freqHz, int snr)
 {
-    if (call.isEmpty() || grid.isEmpty()) return;
-    
-    QString g = grid.toUpper().left(4);
-    if (!isValidGrid(g)) return;
-    // Check if station already exists to preserve data like SNR during transitions
+    if (call.isEmpty()) return;
+
+    const QString normalizedGrid = normalizeGrid(grid);
+    QString effectiveGrid = normalizedGrid;
+
     for (auto &e : m_stations) {
         if (e.call == call) {
+            if (effectiveGrid.isEmpty() && !e.grid.isEmpty()) effectiveGrid = e.grid;
             e.isLogged = true;
             e.freqHz = freqHz;
-            e.snr = (snr != 0) ? snr : e.snr;  // Preserve or update SNR
+            e.snr = (snr != 0) ? snr : e.snr;
+            e.grid = effectiveGrid;
+            if (!effectiveGrid.isEmpty()) m_callGrid[call] = effectiveGrid;
+            refreshStatusMessage();
             update();
             return;
         }
@@ -205,12 +260,12 @@ void DXStationMap::addLoggedStation(QString const& call, QString const& grid, in
 
     PlottedStation s;
     s.call = call;
-    s.grid = g;
+    s.grid = effectiveGrid;
     s.freqHz = freqHz;
     s.isLogged = true;
     s.isCQ = false;
     s.forMe = false;
-    s.snr = (snr != 0) ? snr : m_recentSNR.value(call, 0);  // Use passed SNR or cached value
+    s.snr = (snr != 0) ? snr : m_recentSNR.value(call, 0);
     s.period = 0;
     addStation(s);
 }
@@ -219,15 +274,14 @@ void DXStationMap::addLoggedStation(QString const& call, QString const& grid, in
 void DXStationMap::tryAddCallsign(QString const& call, int freqHz, int snr, bool forMe)
 {
     if (call.isEmpty()) return;
-    // Already on map?
     for (auto const& s : m_stations) if (s.call==call) return;
-    // Have cached grid?
-    if (!m_callGrid.contains(call)) return;
-    if (!isValidGrid(m_callGrid[call])) return;
+
+    const QString cachedGrid = normalizeGrid(m_callGrid.value(call));
     PlottedStation ps;
-    ps.call=call; ps.grid=m_callGrid[call]; ps.freqHz=freqHz;
+    ps.call=call; ps.grid=cachedGrid; ps.freqHz=freqHz;
     ps.snr=snr; ps.period=m_currentPeriod; ps.isCQ=false; ps.forMe=forMe;
     m_stations.append(ps);
+    refreshStatusMessage();
     update();
 }
 
@@ -402,7 +456,7 @@ void DXStationMap::showStationTooltip()
     const double brg = bearingDeg(m_homeLat, m_homeLon, m_selLat, m_selLon);
     
     QString text = QString("<b>%1</b><br>").arg(m_selCall);
-    text += QString("Grid: %1<br>").arg(m_selGrid);
+    text += QString("Grid: %1<br>").arg(m_selGrid.isEmpty() ? QString("unknown") : m_selGrid);
     text += QString("SNR: %1 dB<br>").arg(m_selSNR);
     
     if (m_distanceInMiles) {
@@ -507,8 +561,11 @@ void DXStationMap::paintEvent(QPaintEvent *)
 
     for (auto const& s : m_stations) {
         if (s.call == m_selCall) continue;
-        double lat, lon;
-        if (!gridToLatLon(s.grid, lat, lon)) continue;
+        double lat = 0.0, lon = 0.0;
+        const bool hasGrid = !s.grid.isEmpty() && gridToLatLon(s.grid, lat, lon);
+        if (!hasGrid) {
+            continue;
+        }
         const QPointF pt = project(lon, lat);
 
         // --- Unified SNR Color Calculation ---
@@ -527,7 +584,7 @@ void DXStationMap::paintEvent(QPaintEvent *)
             p.setFont(QFont("Courier New", 7));
             p.drawText(QPointF(pt.x()+dotR+2, pt.y()-3), s.call.left(10));
 
-        } else if (s.forMe) {
+        } else if (s.forMe && !s.grid.isEmpty()) {
             // ── Calling ME: Signal-color center + pulsing halo ---
             if (animOn) {
                 p.setBrush(Qt::NoBrush);
@@ -560,6 +617,21 @@ void DXStationMap::paintEvent(QPaintEvent *)
         }
     }
     p.setRenderHint(QPainter::Antialiasing, false);
+
+    if (!m_statusMessage.isEmpty()) {
+        QRect statusRect(0, h - 20, w, 20);
+        p.setPen(Qt::NoPen);
+        p.setBrush(QColor(0, 0, 0, 140));
+        p.drawRect(statusRect);
+        p.setFont(QFont("sans-serif", 8));
+        const QFontMetrics fm(p.font());
+        const int textWidth = fm.horizontalAdvance(m_statusMessage);
+        const int travel = qMax(1, textWidth + w + 20);
+        const int offset = (m_animFrame * 6) % travel;
+        const int x = offset - (textWidth + 20);
+        p.setPen(QColor(220, 240, 255));
+        p.drawText(QRect(x, h - 20, textWidth, 20), Qt::AlignLeft | Qt::AlignVCenter, m_statusMessage);
+    }
 
     // Arc + markers
     if (!m_selGrid.isEmpty()&&!m_homeGrid.isEmpty()&&!m_selCall.isEmpty())
