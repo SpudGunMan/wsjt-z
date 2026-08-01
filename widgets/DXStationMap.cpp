@@ -169,6 +169,8 @@ void DXStationMap::showStation(QString const& call, QString const& grid, int snr
 void DXStationMap::clearStations()
 {
     m_stations.clear();
+    m_callGrid.clear();
+    m_recentSNR.clear();
     m_selCall.clear(); m_selGrid.clear();
     m_selSNR=0; m_selFreqHz=0; m_selLat=0.0; m_selLon=0.0;
     update();
@@ -178,12 +180,13 @@ void DXStationMap::addStation(PlottedStation const& s)
 {
     if (!isValidGrid(s.grid)) return;  // reject report codes/RRR/73/etc. masquerading as grids
     m_callGrid[s.call] = s.grid;       // cache for all-calls plotting
+    m_recentSNR[s.call] = s.snr;       // cache SNR for logged station transitions
     for (auto &e : m_stations) if (e.call==s.call) { e=s; update(); return; }
     m_stations.append(s);
     update();
 }
 
-void DXStationMap::addLoggedStation(QString const& call, QString const& grid, int freqHz)
+void DXStationMap::addLoggedStation(QString const& call, QString const& grid, int freqHz, int snr)
 {
     if (call.isEmpty() || grid.isEmpty()) return;
     
@@ -194,6 +197,7 @@ void DXStationMap::addLoggedStation(QString const& call, QString const& grid, in
         if (e.call == call) {
             e.isLogged = true;
             e.freqHz = freqHz;
+            e.snr = (snr != 0) ? snr : e.snr;  // Preserve or update SNR
             update();
             return;
         }
@@ -206,7 +210,7 @@ void DXStationMap::addLoggedStation(QString const& call, QString const& grid, in
     s.isLogged = true;
     s.isCQ = false;
     s.forMe = false;
-    s.snr = 0;
+    s.snr = (snr != 0) ? snr : m_recentSNR.value(call, 0);  // Use passed SNR or cached value
     s.period = 0;
     addStation(s);
 }

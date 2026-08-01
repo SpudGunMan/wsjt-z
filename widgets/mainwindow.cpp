@@ -9265,7 +9265,14 @@ void MainWindow::acceptQSO (QDateTime const& QSO_date_off, QString const& call, 
 
   // ── Plot logged QSO on DXStationMap ───────────────────────────────────────
   if (m_dxStationMap) {
-    m_dxStationMap->addLoggedStation(call, grid, dial_freq);
+    // Extract SNR from report_sent (e.g., "-09", "+05") — this is our report of their signal
+    int snr_for_logged = 0;
+    bool ok = false;
+    if (!rpt_sent.isEmpty()) {
+      snr_for_logged = rpt_sent.toInt(&ok);
+      if (!ok) snr_for_logged = 0;  // Default to 0 if parsing fails
+    }
+    m_dxStationMap->addLoggedStation(call, grid, dial_freq, snr_for_logged);
   }
 
   m_messageClient->qso_logged (QSO_date_off, call, grid, dial_freq, mode, rpt_sent, rpt_received

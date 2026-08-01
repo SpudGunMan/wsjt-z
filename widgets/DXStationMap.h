@@ -32,7 +32,7 @@ public:
                      bool isCQ = false, bool forMe = false);
     void clearStations();
     void addStation(PlottedStation const& s);
-    void addLoggedStation(QString const& call, QString const& grid, int freqHz);
+    void addLoggedStation(QString const& call, QString const& grid, int freqHz, int snr = 0);
     void tryAddCallsign(QString const& call, int freqHz, int snr, bool forMe);
     void setMyCall(QString const& call);
     void expireStations(int currentPeriod, int maxAge = 20);
@@ -106,6 +106,9 @@ private:
 
     // ── Callsign→grid cache (so ALL calls can be plotted) ────────────────────
     QMap<QString,QString> m_callGrid;  // call → 4-char grid, built from CQ decodes
+
+    // ── Callsign→SNR cache (preserve SNR through active→logged transition) ───
+    QMap<QString,int> m_recentSNR;     // call → most recent SNR value
 
     // ── Grid visibility ──────────────────────────────────────────────────────
     bool m_showGrid = true;
