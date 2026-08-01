@@ -576,6 +576,11 @@ MainWindow::MainWindow(QDir const& temp_directory, bool multiple,
   m_dxStationMap->setMyCall(m_config.my_callsign());
   m_dxStationMap->setHomeGrid(m_config.my_grid());
   m_dxStationMap->setDistanceInMiles(m_config.miles());
+  m_dxMapStartedUtc = QDateTime::currentDateTimeUtc();
+  m_dxMapLastLogUtc = QDateTime();
+  m_dxMapLoggedToday = 0;
+  m_dxMapLoggedTotal = 0;
+  m_dxStationMap->setTickerStats(m_dxMapLoggedTotal, m_dxMapLoggedToday, m_dxMapStartedUtc, m_dxMapLastLogUtc);
   m_dxStationMap->hide();
 
   m_optimizingProgress.setWindowModality (Qt::WindowModal);
@@ -9407,7 +9412,7 @@ void MainWindow::acceptQSO (QDateTime const& QSO_date_off, QString const& call, 
       snr_for_logged = rpt_sent.toInt(&ok);
       if (!ok) snr_for_logged = 0;  // Default to 0 if parsing fails
     }
-    m_dxStationMap->addLoggedStation(call, grid, dial_freq, snr_for_logged);
+    m_dxStationMap->addLoggedStation(call, grid, dial_freq, snr_for_logged, mode);
   }
 
   m_messageClient->qso_logged (QSO_date_off, call, grid, dial_freq, mode, rpt_sent, rpt_received
@@ -9416,7 +9421,17 @@ void MainWindow::acceptQSO (QDateTime const& QSO_date_off, QString const& call, 
   m_messageClient->logged_ADIF (ADIF);
 
   // Z
+  const auto nowUtc = QDateTime::currentDateTimeUtc();
   updateQsoCounter(true);
+  if (!m_dxMapLastLogUtc.isValid() || m_dxMapLastLogUtc.date() != nowUtc.date()) {
+    m_dxMapLoggedToday = 0;
+  }
+  ++m_dxMapLoggedToday;
+  m_dxMapLastLogUtc = nowUtc;
+  m_dxMapLoggedTotal = qso_total;
+  if (m_dxStationMap) {
+    m_dxStationMap->setTickerStats(m_dxMapLoggedTotal, m_dxMapLoggedToday, m_dxMapStartedUtc, m_dxMapLastLogUtc);
+  }
   clearDX();
 
   // Log to N1MM Logger

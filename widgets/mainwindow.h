@@ -795,6 +795,10 @@ private:
   bool m_AutoTxFreq = false;
   int qso_total = 0;
   int qso_new = 0;
+  QDateTime m_dxMapStartedUtc;
+  QDateTime m_dxMapLastLogUtc;
+  int m_dxMapLoggedToday = 0;
+  int m_dxMapLoggedTotal = 0;
   QByteArray m_unfilteredViewGeometry;
   QByteArray m_pskReporterViewGeometry;
   
