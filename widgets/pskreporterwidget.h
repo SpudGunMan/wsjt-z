@@ -40,11 +40,15 @@ private:
     QNetworkAccessManager * networkManager;
     Configuration * m_config;
     LogBook * m_logBook;
-
+    QTimer * m_refreshTimer;
 
 private slots:
     void responseHandler(QNetworkReply * reply);
     void on_pskTable_cellDoubleClicked(int row, int column);
+
+protected:
+    void showEvent(QShowEvent * event) override;
+    void closeEvent(QCloseEvent * event) override;
 
 
 };
