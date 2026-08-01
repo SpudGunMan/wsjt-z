@@ -180,7 +180,7 @@ void DXStationMap::showEvent(QShowEvent *event)
 
 double DXStationMap::averageLoggedDb() const
 {
-    return m_tickerAvgDb;
+    return m_tickerDbCount > 0 ? m_tickerDbSum / double(m_tickerDbCount) : m_tickerAvgDb;
 }
 
 QString DXStationMap::modeSummary() const
@@ -204,7 +204,11 @@ void DXStationMap::setTickerStats(int loggedQsoTotal, int loggedQsoToday,
 {
     m_tickerLoggedTotal = loggedQsoTotal;
     m_tickerLoggedToday = loggedQsoToday;
-    m_tickerAvgDb = avgDb;
+    if (m_tickerDbCount == 0 && avgDb != 0.0) {
+        m_tickerDbSum = avgDb;
+        m_tickerDbCount = 1;
+    }
+    m_tickerAvgDb = averageLoggedDb();
     m_tickerStartedUtc = startedUtc;
     m_tickerLastLogUtc = lastLogUtc;
 
@@ -300,6 +304,9 @@ void DXStationMap::clearStations()
     m_stations.clear();
     m_callGrid.clear();
     m_recentSNR.clear();
+    m_tickerDbSum = 0.0;
+    m_tickerDbCount = 0;
+    m_tickerAvgDb = 0.0;
     m_selCall.clear(); m_selGrid.clear();
     m_selSNR=0; m_selFreqHz=0; m_selLat=0.0; m_selLon=0.0;
     refreshStatusMessage();
@@ -373,6 +380,10 @@ void DXStationMap::addLoggedStation(QString const& call, QString const& grid, in
             e.snr = (snr != 0) ? snr : e.snr;
             e.grid = effectiveGrid;
             e.mode = mode;
+            if (snr != 0) {
+                m_tickerDbSum += snr;
+                ++m_tickerDbCount;
+            }
             if (!effectiveGrid.isEmpty()) m_callGrid[call] = effectiveGrid;
             refreshStatusMessage();
             update();
@@ -388,6 +399,10 @@ void DXStationMap::addLoggedStation(QString const& call, QString const& grid, in
     s.isCQ = false;
     s.forMe = false;
     s.snr = (snr != 0) ? snr : m_recentSNR.value(call, 0);
+    if (s.snr != 0) {
+        m_tickerDbSum += s.snr;
+        ++m_tickerDbCount;
+    }
     s.mode = mode;
     s.period = 0;
     addStation(s);
