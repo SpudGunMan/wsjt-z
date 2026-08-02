@@ -10717,6 +10717,61 @@ void MainWindow::on_actionErase_wsjtx_log_adi_triggered()
   }
 }
 
+void MainWindow::on_actionRotate_wsjtx_log_adi_triggered()
+{
+  int ret = MessageBox::query_message (this, tr ("Confirm Rotate"),
+                                       tr ("Rotate the current wsjtx_log.adi file to a timestamped backup and start a new log?"));
+  if (ret != MessageBox::Yes)
+    {
+      return;
+    }
+
+  QDir log_dir = m_config.writeable_data_dir ();
+  QFileInfo current_log {log_dir.absoluteFilePath ("wsjtx_log.adi")};
+  if (!current_log.exists ())
+    {
+      MessageBox::warning_message (this, tr ("Rotate ADIF Log"), tr ("No wsjtx_log.adi file exists to rotate."));
+      return;
+    }
+
+  QString timestamp = QDateTime::currentDateTimeUtc ().toString ("yyyyMMddTHHmmssZ");
+  QString rotated_name = QString {"wsjtx_log_%1.adi"}.arg (timestamp);
+  QString rotated_path = log_dir.absoluteFilePath (rotated_name);
+
+  if (QFile::exists (rotated_path))
+    {
+      QFile::remove (rotated_path);
+    }
+
+  if (!QFile::rename (current_log.absoluteFilePath (), rotated_path))
+    {
+      MessageBox::warning_message (this, tr ("Rotate ADIF Log"), tr ("Failed to rotate the current ADIF log file."));
+      return;
+    }
+
+  QFile new_log {log_dir.absoluteFilePath ("wsjtx_log.adi")};
+  if (!new_log.open (QIODevice::WriteOnly | QIODevice::Text))
+    {
+      MessageBox::warning_message (this, tr ("Rotate ADIF Log"), tr ("Failed to create a new ADIF log file."));
+      return;
+    }
+
+  QTextStream out {&new_log};
+  auto const created_timestamp = QDateTime::currentDateTimeUtc ().toString ("yyyyMMdd HHmmss");
+  out << "ADIF Export\n"
+      << "<adif_ver:5>3.1.1\n"
+      << "<created_timestamp:15>" << created_timestamp << "\n"
+      << "<programid:6>WSJT-X\n"
+      << "<programversion:5>" << QApplication::applicationVersion ().left (5) << "\n"
+      << "<eoh>" << Qt::endl;
+  new_log.close ();
+
+  qso_new = 0;
+  qso_total = 0;
+  updateQsoCounter (false);
+  m_config.rescan_logbook ();
+}
+
 void MainWindow::on_actionErase_WSPR_hashtable_triggered()
 {
   int ret = MessageBox::query_message(this, tr ("Confirm Erase"),
