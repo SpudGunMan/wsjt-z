@@ -6391,6 +6391,11 @@ void MainWindow::auto_sequence (DecodedText const& message, unsigned start_toler
       return;
     }
 
+    if (m_ignoredStationsCache.contains(hiscall)
+        || m_ignoredStationsCache.contains(Radio::base_callsign(hiscall))) {
+      return;
+    }
+
     // Z TODO: This is inccorect - fix !m_config.superFox() && (SpecOp::HOUND != m_specOp)
     bool const auto_qrm_guard_state = m_QSOProgress == CALLING
                       || m_QSOProgress == REPLYING
@@ -14309,7 +14314,14 @@ void MainWindow::rebuildFilterCache() const
         s.remove(QChar('\r'));
         return s.split(QChar('\n'), SkipEmptyParts);
     };
-    m_ignoredStationsCache    = split_lines(ui->pte_IgnoredStations->toPlainText());
+
+    QString combined_ignored = ui->pte_IgnoredStations->toPlainText();
+    if (!m_config.permIgnoreList().isEmpty()) {
+        if (!combined_ignored.isEmpty()) combined_ignored += '\n';
+        combined_ignored += m_config.permIgnoreList();
+    }
+
+    m_ignoredStationsCache    = split_lines(combined_ignored);
     m_prefixFilterLinesCache  = split_lines(ui->pte_prefixFilter->toPlainText());
     m_stateFilterLinesCache   = split_lines(ui->pte_stateFilter->toPlainText());
     m_filterCacheValid = true;
@@ -14417,17 +14429,18 @@ bool MainWindow::callsignFiltered(DecodedText dt)
         return false;
     }
 
+    // Ignored stations filter: honor this even when global filtering is off.
+    if (m_ignoredStationsCache.contains(dxCall)
+        || m_ignoredStationsCache.contains(Radio::base_callsign(dxCall))) {
+        if (m_zdebug) log(QString("callsignFiltered: Ignored station: %1").arg(dxCall));
+        return true;
+    }
+
     if (!ui->cb_filtering->isChecked()) return false;
 
     // LOTW only filter
     if ( ui->cb_f_LOTW->isChecked() && !m_config.lotw_users ().user (dxCall)) {
         if (m_zdebug) log("callsignFiltered: User not in LOTW");
-        return true;
-    }
-
-    // Ignored stations filter
-    if (m_ignoredStationsCache.contains(dxCall)) {
-        if (m_zdebug) log("callsignFiltered: Station is in the ignore list");
         return true;
     }
 
