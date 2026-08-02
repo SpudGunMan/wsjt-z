@@ -15,6 +15,7 @@ from datetime import datetime
 class MessageType(IntEnum):
     """WSJT-Z UDP Message Types"""
     Configure = 15
+    RotateLog = 16
 
 
 class QtDataStreamWriter:
@@ -137,6 +138,16 @@ def build_configure(message_id, mode='', frequency_tolerance=0xffffffff,
     return writer.get_bytes()
 
 
+def build_rotate_log(message_id, schema=3):
+    """Build RotateLog message"""
+    writer = QtDataStreamWriter()
+    writer.write_uint32(0xadbccbda)  # magic
+    writer.write_uint32(schema)
+    writer.write_uint32(MessageType.RotateLog)
+    writer.write_utf8(message_id)
+    return writer.get_bytes()
+
+
 
 
 
@@ -208,7 +219,28 @@ def cmd_configure(args):
         return 1
 
 
+def cmd_rotate_log(args):
+    """Handle 'rotate-log' subcommand"""
+    message = build_rotate_log(args.id, schema=args.schema)
 
+    if args.verbose:
+        print("=" * 60)
+        print("Rotate Log Message")
+        print("=" * 60)
+        print(f"Target: {args.host}:{args.port}")
+        print(f"Client ID: {args.id}")
+        print(f"Schema: {args.schema}")
+        print()
+
+    if send_udp_message(args.host, args.port, message):
+        if args.verbose:
+            print("✓ Message sent successfully")
+        else:
+            print("OK")
+        return 0
+    else:
+        print("✗ Failed to send message", file=sys.stderr)
+        return 1
 
 
 # ============================================================================
@@ -272,6 +304,11 @@ Examples:
     config_parser.add_argument('--schema', type=int, choices=[2, 3],
                               help='Schema version (default: auto-detect)')
     config_parser.set_defaults(func=cmd_configure, auto_cq=None, auto_call=None)
+
+    rotate_parser = subparsers.add_parser('rotate-log', help='Rotate the ADIF log file')
+    rotate_parser.add_argument('--schema', type=int, choices=[3], default=3,
+                              help='Schema version (default: 3)')
+    rotate_parser.set_defaults(func=cmd_rotate_log)
     
     args = parser.parse_args()
     
