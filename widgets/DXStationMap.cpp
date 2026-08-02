@@ -197,8 +197,8 @@ void DXStationMap::setTickerStats(int loggedQsoTotal, int loggedQsoToday,
                                   QDateTime const& startedUtc, QDateTime const& lastLogUtc,
                                   double avgDb)
 {
-    const QDate todayUtc = QDate::currentDateUtc();
-    if (!m_tickerUtcDay.isValid() || m_tickerUtcDay != todayUtc) {
+    const QDateTime todayUtc = QDateTime::currentDateTimeUtc().toUTC();
+    if (!m_tickerUtcDay.isValid() || m_tickerUtcDay.date() != todayUtc.date()) {
         m_tickerUtcDay = todayUtc;
         m_tickerLogsSinceMidnightUtc = 0;
     }
@@ -386,8 +386,8 @@ void DXStationMap::addLoggedStation(QString const& call, QString const& grid, in
             if (!mode.isEmpty()) {
                 ++m_tickerModeCounts[mode];
             }
-            const QDate todayUtc = QDate::currentDateUtc();
-            if (!m_tickerUtcDay.isValid() || m_tickerUtcDay != todayUtc) {
+            const QDateTime todayUtc = QDateTime::currentDateTimeUtc().toUTC();
+            if (!m_tickerUtcDay.isValid() || m_tickerUtcDay.date() != todayUtc.date()) {
                 m_tickerUtcDay = todayUtc;
                 m_tickerLogsSinceMidnightUtc = 0;
             }
@@ -418,8 +418,8 @@ void DXStationMap::addLoggedStation(QString const& call, QString const& grid, in
     if (!mode.isEmpty()) {
         ++m_tickerModeCounts[mode];
     }
-    const QDate todayUtc = QDate::currentDateUtc();
-    if (!m_tickerUtcDay.isValid() || m_tickerUtcDay != todayUtc) {
+    const QDateTime todayUtc = QDateTime::currentDateTimeUtc().toUTC();
+    if (!m_tickerUtcDay.isValid() || m_tickerUtcDay.date() != todayUtc.date()) {
         m_tickerUtcDay = todayUtc;
         m_tickerLogsSinceMidnightUtc = 0;
     }
