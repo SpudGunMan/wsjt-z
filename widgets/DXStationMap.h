@@ -93,6 +93,8 @@ private:
     QString   m_tickerMessage;
     int       m_tickerLoggedTotal = 0;
     int       m_tickerLoggedToday = 0;
+    int       m_tickerLogsSinceMidnightUtc = 0;
+    QDate     m_tickerUtcDay;
     double    m_tickerAvgDb = 0.0;
     double    m_tickerDbSum = 0.0;
     int       m_tickerDbCount = 0;
