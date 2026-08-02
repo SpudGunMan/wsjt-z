@@ -57,6 +57,9 @@ DXStationMap::DXStationMap(QWidget *parent)
     // ── Restore map selection ──────────────────────────────────────────────────
     m_useIaruMap = settings.value("DXStationMap/useIaruMap", false).toBool();
 
+    // ── Restore font size setting ────────────────────────────────────────────────
+    m_largeTickerFont = settings.value("DXStationMap/largeTickerFont", false).toBool();
+
     // ── Hamburger menu — toggle grid visibility ───────────────────────────────
     m_menuBtn = new QPushButton("⋮", this);
     m_menuBtn->setFixedSize(22, 22);
@@ -79,6 +82,11 @@ DXStationMap::DXStationMap(QWidget *parent)
         m.addSeparator();
         m.addAction(m_useIaruMap ? "Show World Map" : "Show IARU Map", [this]() {
             m_useIaruMap = !m_useIaruMap;
+            update();
+        });
+        m.addSeparator();
+        m.addAction(m_largeTickerFont ? "Larger Font Ticker" : "Default Font Ticker", [this]() {
+            m_largeTickerFont = !m_largeTickerFont;
             update();
         });
         m.exec(QCursor::pos());
@@ -777,18 +785,26 @@ void DXStationMap::paintEvent(QPaintEvent *)
     p.setRenderHint(QPainter::Antialiasing, false);
 
     if (!m_statusMessage.isEmpty()) {
-        QRect statusRect(0, h - 20, w, 20);
+        const int tickerFontSize = m_largeTickerFont ? 24 : 12;
+        const int tickerBarHeight = tickerFontSize + 8;
+        const int tickerBarY = h - tickerBarHeight;
+        QRect statusRect(0, tickerBarY, w, tickerBarHeight);
         p.setPen(Qt::NoPen);
         p.setBrush(QColor(0, 0, 0, 140));
         p.drawRect(statusRect);
-        p.setFont(QFont("sans-serif", 8));
+        p.setFont(QFont(QStringLiteral("sans-serif"), tickerFontSize));
         const QFontMetrics fm(p.font());
         const int textWidth = fm.horizontalAdvance(m_statusMessage);
         const int travel = qMax(1, textWidth + w + 20);
-        const int offset = (m_animFrame * 6) % travel;
+        const double step = 6.0;
+        m_tickerOffset += step;
+        if (m_tickerOffset > travel) {
+            m_tickerOffset = 0.0;
+        }
+        const int offset = int(m_tickerOffset);
         const int x = w + 20 - offset;
         p.setPen(QColor(220, 240, 255));
-        p.drawText(QRect(x, h - 20, textWidth, 20), Qt::AlignLeft | Qt::AlignVCenter, m_statusMessage);
+        p.drawText(QRect(x, tickerBarY, textWidth, tickerBarHeight), Qt::AlignLeft | Qt::AlignVCenter, m_statusMessage);
     }
 
     // Arc + markers
@@ -846,6 +862,7 @@ void DXStationMap::closeEvent(QCloseEvent *e)
     settings.setValue("DXStationMap/showGrid", m_showGrid);
     settings.setValue("DXStationMap/showGreyline", m_showGreyline);
     settings.setValue("DXStationMap/useIaruMap", m_useIaruMap);
+    settings.setValue("DXStationMap/largeTickerFont", m_largeTickerFont);
     QWidget::closeEvent(e);
 }
 

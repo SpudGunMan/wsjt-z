@@ -128,6 +128,7 @@ private:
     QTimer *m_animTimer = nullptr;
     QTimer *m_tickerTimer = nullptr;
     int     m_animFrame = 0;           // increments every 500ms
+    double  m_tickerOffset = 0.0;      // smooth animation position for the bottom ticker
     QString m_myCall;                  // used to detect "calling me"
 
     // ── Callsign→grid cache (so ALL calls can be plotted) ────────────────────
@@ -138,6 +139,7 @@ private:
 
     // ── Grid visibility ──────────────────────────────────────────────────────
     bool m_showGrid = true;
+    bool m_largeTickerFont = false;
 
     // ── Distance unit ─────────────────────────────────────────────────────────
     bool m_distanceInMiles = false;
