@@ -123,6 +123,9 @@ public:
                            , bool fast_mode, quint32 tr_period, quint32 rx_df, QString const& dx_call
                            , QString const& dx_grid, bool generate_messages, bool auto_cq_enabled, bool auto_call_enabled);
 
+  // this signal is emitted if the server has requested an ADIF log rotation
+  Q_SIGNAL void rotate_log ();
+
   // this signal is emitted if the server has sent information about a callsign
   Q_SIGNAL void annotation_info (QString const& dx_call, bool sort_order_provided, quint32 sort_order);
 

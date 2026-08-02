@@ -715,12 +715,16 @@ MainWindow::MainWindow(QDir const& temp_directory, bool multiple,
   connect (m_messageClient, &MessageClient::highlight_callsign, ui->decodedTextBrowser, &DisplayText::highlight_callsign);
   connect (m_messageClient, &MessageClient::switch_configuration, m_multi_settings, &MultiSettings::select_configuration);
   connect (m_messageClient, &MessageClient::configure, this, &MainWindow::remote_configure);
+  connect (m_messageClient, &MessageClient::rotate_log, this, &MainWindow::on_actionRotate_wsjtx_log_adi_triggered);
 
   // Set up MessageServer to listen for incoming UDP messages on port 2237
   // This allows remote clients to send Configure and other commands to WSJT-X
   m_udp_server = new MessageServer {this, QApplication::applicationName (), version ()};
   connect (m_udp_server, &MessageServer::remote_configure, this, [this] (MessageServer::ClientKey const&, QString const& mode, quint32 frequency_tolerance, QString const& submode, bool fast_mode, quint32 tr_period, quint32 rx_df, QString const& dx_call, QString const& dx_grid, bool generate_messages, bool auto_cq_enabled, bool auto_call_enabled) {
     this->remote_configure (mode, frequency_tolerance, submode, fast_mode, tr_period, rx_df, dx_call, dx_grid, generate_messages, auto_cq_enabled, auto_call_enabled);
+  });
+  connect (m_udp_server, &MessageServer::rotate_log, this, [this] (MessageServer::ClientKey const&) {
+    this->rotate_wsjtx_log_adi (false);
   });
   
   // Only start listening if accept_udp_requests is enabled
@@ -10464,13 +10468,16 @@ void MainWindow::on_actionErase_wsjtx_log_adi_triggered()
   }
 }
 
-void MainWindow::on_actionRotate_wsjtx_log_adi_triggered()
+void MainWindow::rotate_wsjtx_log_adi(bool confirm)
 {
-  int ret = MessageBox::query_message (this, tr ("Confirm Rotate"),
-                                       tr ("Rotate the current wsjtx_log.adi file to a timestamped backup and start a new log?"));
-  if (ret != MessageBox::Yes)
+  if (confirm)
     {
-      return;
+      int ret = MessageBox::query_message (this, tr ("Confirm Rotate"),
+                                           tr ("Rotate the current wsjtx_log.adi file to a timestamped backup and start a new log?"));
+      if (ret != MessageBox::Yes)
+        {
+          return;
+        }
     }
 
   QDir log_dir = m_config.writeable_data_dir ();
@@ -10517,6 +10524,11 @@ void MainWindow::on_actionRotate_wsjtx_log_adi_triggered()
   qso_total = 0;
   updateQsoCounter (false);
   m_config.rescan_logbook ();
+}
+
+void MainWindow::on_actionRotate_wsjtx_log_adi_triggered()
+{
+  rotate_wsjtx_log_adi (true);
 }
 
 void MainWindow::on_actionErase_WSPR_hashtable_triggered()
