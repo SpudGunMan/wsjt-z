@@ -139,7 +139,7 @@ private:
 
     // ── Grid visibility ──────────────────────────────────────────────────────
     bool m_showGrid = true;
-    bool m_largeTickerFont = true;
+    bool m_largeTickerFont = false;
 
     // ── Distance unit ─────────────────────────────────────────────────────────
     bool m_distanceInMiles = false;

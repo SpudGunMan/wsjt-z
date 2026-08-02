@@ -57,6 +57,9 @@ DXStationMap::DXStationMap(QWidget *parent)
     // ── Restore map selection ──────────────────────────────────────────────────
     m_useIaruMap = settings.value("DXStationMap/useIaruMap", false).toBool();
 
+    // ── Restore font size setting ────────────────────────────────────────────────
+    m_largeTickerFont = settings.value("DXStationMap/largeTickerFont", false).toBool();
+
     // ── Hamburger menu — toggle grid visibility ───────────────────────────────
     m_menuBtn = new QPushButton("⋮", this);
     m_menuBtn->setFixedSize(22, 22);
@@ -860,6 +863,7 @@ void DXStationMap::closeEvent(QCloseEvent *e)
     settings.setValue("DXStationMap/showGrid", m_showGrid);
     settings.setValue("DXStationMap/showGreyline", m_showGreyline);
     settings.setValue("DXStationMap/useIaruMap", m_useIaruMap);
+    settings.setValue("DXStationMap/largeTickerFont", m_largeTickerFont);
     QWidget::closeEvent(e);
 }
 
