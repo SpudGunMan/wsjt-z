@@ -15,7 +15,7 @@ on:
         description: "Hamlib branch to build"
         required: false
         type: string
-        default: "4.7.0"
+        default: "4.7.2"
   workflow_dispatch:
     inputs:
       version:
@@ -26,7 +26,7 @@ on:
       hamlib_branch:
         description: "Hamlib branch to build"
         required: false
-        default: "4.7.0"
+        default: "4.7.2"
         type: string
 
 jobs:
@@ -256,6 +256,15 @@ jobs:
         run: |
           ls -lh wsjtz-${{ inputs.version }}-linux-x86_64.AppImage
           file wsjtz-${{ inputs.version }}-linux-x86_64.AppImage
+
+      - name: Prepare aggregate artifacts
+        run: |
+          mkdir -p artifacts
+          cp -v wsjtx-build/wsjtz-${{ inputs.version }}-linux-amd64.deb artifacts/
+          cp -v wsjtz-${{ inputs.version }}-linux-x86_64.AppImage artifacts/
+          cp -v wsjtx-build/jt9 artifacts/
+          cp -v wsjtx-build/wsjtx artifacts/
+          ls -lh artifacts
 
       - name: Upload .deb
         uses: actions/upload-artifact@v4
