@@ -44,18 +44,21 @@ jobs:
     uses: ./.github/workflows/build-windows.yml
     with:
       version: ${{ needs.prepare.outputs.version }}
+      hamlib_branch: "4.7.2"
 
   build-macos:
     needs: prepare
     uses: ./.github/workflows/build-macos.yml
     with:
       version: ${{ needs.prepare.outputs.version }}
+      hamlib_branch: "4.7.2"
 
   build-linux:
     needs: prepare
     uses: ./.github/workflows/build-linux.yml
     with:
       version: ${{ needs.prepare.outputs.version }}
+      hamlib_branch: "4.7.2"
 
   publish:
     name: Publish Artifacts
