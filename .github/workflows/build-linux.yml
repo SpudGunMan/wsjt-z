@@ -15,7 +15,7 @@ on:
         description: "Hamlib branch to build"
         required: false
         type: string
-        default: "4.7.0"
+        default: "4.7.2"
   workflow_dispatch:
     inputs:
       version:
@@ -26,7 +26,7 @@ on:
       hamlib_branch:
         description: "Hamlib branch to build"
         required: false
-        default: "4.7.0"
+        default: "4.7.2"
         type: string
 
 jobs:
