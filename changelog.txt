@@ -1,4 +1,31 @@
 == Changelog
+V2.0.18
+[fixes]
+- Auto-sequence now replies to composite RR73 messages addressed to you as the secondary caller: the "selected DX is working someone else" suppression guard gained the composite-RR73 exemption that its two sibling guards already had, so a station sending you a report while signing off with your selected DX no longer has your reply suppressed (PR #112, SpudGunMan).
+- No power out / dead tuning with emulated split restored: the TX-state tracking added in 2.0.17 could latch and suppress rig state updates during transmit, leaving some setups with no RF output including in Tune mode. The change is reverted to the 2.0.11 behavior (PR #108, SpudGunMan, reported in issue #111). Note: this also reverts the 2.0.17 TCI/ExpertSDR split-mode refinement, which will be re-implemented.
+
+[security]
+- IMPORTANT - the UDP control server no longer binds to loopback by default. The 2.0.17 note that the listener "defaults to 127.0.0.1 so it is loopback-only unless deliberately exposed" no longer applies: it binds to all interfaces again, because the 2.0.17 implementation reused the outgoing "UDP Server" destination address as the inbound bind address, which broke companion apps such as GridTracker running on another host (PR #114, SpudGunMan). The listener remains gated behind the "Accept UDP requests" setting, which is OFF by default. If you enable it, any host that can reach this machine on the UDP port can set mode/frequency/DX call and toggle Auto-CQ / Auto-Call - i.e. start your radio transmitting. Leave it off unless you need it, and firewall the port or keep the machine on a trusted network. A dedicated bind-address setting defaulting to loopback is planned.
+
+V2.0.17
+[fixes]
+- Auto-CQ no longer self-halts on QRM: the auto-QRM stop now only fires in Auto-Call (answering) mode, so an Auto-CQ session is not stopped when the selected DX is heard working someone else (PR #94, SpudGunMan).
+- Mode/band switch now clears state properly: the one-shot auto-mode-switch flag is reset in the Auto-Call / Auto-CQ toggles, preventing a stale value from suppressing the DX clear (PR #93, SpudGunMan).
+- Contest sign-off dup guard: a late duplicate decode from a station already logged is ignored during sign-off, preventing double-logging and a contest-mode error (PR #95, SpudGunMan).
+- Stacked-call DXpedition support: WSJT-Z now parses composite "CALL1 RR73; CALL2 <CALL3> RPT" messages and, when you are the primary or secondary caller, responds to the tertiary caller instead of auto-stopping for QRM (PR #105, SpudGunMan).
+- PSK Reporter window now opens even when spotting is disabled in settings; the view populates from its own pskreporter.info query and no longer needs local upload enabled (PR #99, SpudGunMan).
+- About box now shows the real git-based build revision instead of a hard-coded stub, with a safe "dev" fallback when no SCS/git info is available; box updated with current GitHub links and build info (PR #107, SpudGunMan).
+- TCI split mode fixed: reported frequency is no longer frozen after a TX/RX transition — the split-emulation now suppresses only the intra-TX update and correctly restores the rig's real RX frequency, so manual VFO changes propagate again (PR #104, SpudGunMan).
+
+[features]
+- Rapid RR73 short QSO: double-click TX2 to skip straight to TX4 in RR73 mode for a no-signal-report exchange (respects the compound-callsign RR73 restriction) (PR #100, SpudGunMan).
+- PSK-priority Auto-Call: new "Prefer PSK spotted stations" option that, when PSK Reporter band-activity feedback is on, promotes candidates already heard by PSK Reporter receivers above the distance/signal/last-decoded priority modes. Off by default (PR #98, SpudGunMan).
+- UDP control server: WSJT-Z can accept inbound UDP Configure requests (enable via "Accept UDP requests"), allowing a companion app to set mode/frequency/DX call and toggle Auto-CQ / Auto-Call. The listener binds to the configured UDP Server address, defaulting to 127.0.0.1 so it is loopback-only unless deliberately exposed. Includes a Python control example (PR #103, SpudGunMan).
+- Signal meter reading redesigned: the dB value and its unit are now separate, centered labels for a cleaner single-line readout (PR #92, SpudGunMan).
+
+[tooling]
+- macOS deployment target raised to 11.0 (Big Sur) for both the CMake default and the x86_64 branch of build-osx.sh; tested on Apple Silicon and Intel under macOS Tahoe (PR #91, SpudGunMan).
+
 V2.0.16
 [fixes]
 - Watchdog timer reworked: idle time is now anchored to wall-clock (UTC) instead of per-minute increments, supports fractional minutes (0.25 step), no longer chops an in-progress transmission (disable is deferred to a TX-off boundary), and starts a fresh window on a new DX selection or a reset click. The WD label now shows seconds resolution (e.g. WD:45s, WD:1m30s) (PR #79, SpudGunMan).

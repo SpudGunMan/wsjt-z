@@ -43,7 +43,9 @@ Pre-built Windows installers and release notes are published on the GitHub **Rel
 - **Auto Call** — automatically respond to filtered stations until a daily/QSO limit is reached
 - **Pounce mode** — lock onto a specific call until the QSO completes
 - **Priority call queue** — promote callsigns of interest to the front of the call list
+- **PSK-priority Auto Call** — optionally prefer stations already heard by PSK Reporter receivers on your band
 - **Auto Call Next** — chain QSOs without operator intervention
+- **Rapid RR73 short QSO** — double-click TX2 to skip to an RR73 reply for a no-report exchange
 - **Band-hopper** — schedule automatic band changes by time-of-day or activity
 
 ### Filtering & highlighting
@@ -58,12 +60,14 @@ Pre-built Windows installers and release notes are published on the GitHub **Rel
 - **Multi-threaded FT8 decoder** (selectable: Auto, 1–12 threads) — substantial speed-ups on multi-core systems
 - **JTDX-derived FT8 enhancements** — additional decoding passes, OSD on `ndepth=2`, lowered sync thresholds for weak signals
 - **Early-decode dedup** — eliminates duplicate decodes within a single FT8 cycle in multi-threaded mode
+- **Stacked-call DXpedition support** — parses composite `RR73;` messages and replies to the tertiary caller
 - **Performance work in the C++ hot path** — cached filter lists, reduced regex compilation, gated debug logging, tuned Fortran release flags
 
 ### Integration & UX
 - **QRZ.com lookup panel** — name, address, grid, biography
 - **Audio alerts** — configurable per-event sounds
-- **PSK Reporter integration**
+- **PSK Reporter integration** — spotting plus band-activity feedback highlighting
+- **UDP control server** — optional inbound UDP `Configure` requests (mode/frequency/DX call, Auto-CQ/Auto-Call) for companion apps. Disabled by default; enabling it (**Accept UDP requests**) opens an unauthenticated control surface on all interfaces that can key your transmitter, so only enable it on a trusted network
 - **Larger Band Activity window** with improved column layout
 - **Custom alert rules**
 - **NA_VHF / EU_VHF contest flows** with associated UI tweaks
