@@ -174,7 +174,7 @@ jobs:
           
           echo "App bundle prepared successfully"
 
-      - name: Make binaries executable and ad-hoc sign
+      - name: Make binaries executable and prepare for signing
         run: |
           APP="stage/wsjtx.app"
           
@@ -184,28 +184,32 @@ jobs:
             [ -f "$exe" ] && chmod +x "$exe"
           done
           
-          # Ad-hoc sign the entire app bundle to fix code signature invalidated by install_name_tool
-          echo "Ad-hoc signing app bundle..."
-          codesign --force --deep --sign - "$APP" || true
-          
-          # Verify signing
-          echo "Verifying code signature..."
-          codesign -v "$APP" || echo "WARNING: Code signature verification failed"
-          
-          # Rename main executable from wsjtx to wsjtz
+          # Rename main executable from wsjtx to wsjtz BEFORE signing
           echo "Renaming executable to wsjtz..."
           if [ -f "$APP/Contents/MacOS/wsjtx" ]; then
             mv "$APP/Contents/MacOS/wsjtx" "$APP/Contents/MacOS/wsjtz"
             echo "Renamed wsjtx → wsjtz"
           fi
           
-          # Update Info.plist to reference wsjtz
+          # Update Info.plist to reference wsjtz BEFORE signing
           PLIST="$APP/Contents/Info.plist"
           if [ -f "$PLIST" ]; then
             sed -i '' 's/<string>wsjtx<\/string>/<string>wsjtz<\/string>/g' "$PLIST"
             echo "Updated Info.plist references"
           fi
+
+      - name: Ad-hoc sign app bundle with entitlements
+        run: |
+          APP="stage/wsjtx.app"
           
+          # Ad-hoc sign AFTER all modifications to preserve signature validity
+          # Include entitlements to grant microphone and device access permissions
+          echo "Ad-hoc signing app bundle with entitlements..."
+          codesign --force --deep --sign - --entitlements Darwin/entitlements.plist "$APP" || true
+          
+          # Verify signing
+          echo "Verifying code signature..."
+          codesign -v "$APP" || echo "WARNING: Code signature verification failed"
           echo "Signing completed"
 
       - name: Rename app bundle to wsjtz.app
