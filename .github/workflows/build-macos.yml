@@ -185,8 +185,9 @@ jobs:
           done
           
           # Ad-hoc sign the entire app bundle to fix code signature invalidated by install_name_tool
-          echo "Ad-hoc signing app bundle..."
-          codesign --force --deep --sign - "$APP" || true
+          # Include entitlements to preserve microphone and device access permissions
+          echo "Ad-hoc signing app bundle with entitlements..."
+          codesign --force --deep --sign - --entitlements Darwin/entitlements.plist "$APP" || true
           
           # Verify signing
           echo "Verifying code signature..."
