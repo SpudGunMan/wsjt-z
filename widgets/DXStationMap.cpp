@@ -351,7 +351,7 @@ void DXStationMap::addStation(PlottedStation const& s)
 
     if (proceduralSignoff) {
         updated.forMe = false;
-        updated.isLogged = false;
+        updated.isLogged = true;
     } else if (updated.grid.isEmpty()) {
         updated.forMe = false;
     }
