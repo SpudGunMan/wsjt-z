@@ -61,43 +61,14 @@ void SoundOutput::restart (QIODevice * source)
       format.setChannelCount (m_channels);
       format.setCodec ("audio/pcm");
       format.setSampleRate (48000);
-      format.setByteOrder (QAudioFormat::Endian (QSysInfo::ByteOrder));
-      
-      // Try 16-bit signed first, then fall back to 32-bit float for macOS compatibility
-      bool format_ok = false;
       format.setSampleType (QAudioFormat::SignedInt);
       format.setSampleSize (16);
-      
-      if (format.isValid () && m_device.isFormatSupported (format))
-        {
-          format_ok = true;
-        }
-      else if (!format.isValid())
-        {
-          // Try 32-bit float as fallback
-          format.setSampleType (QAudioFormat::Float);
-          format.setSampleSize (32);
-          if (format.isValid () && m_device.isFormatSupported (format))
-            {
-              format_ok = true;
-            }
-        }
-      else
-        {
-          // 16-bit not supported, try 32-bit float
-          format.setSampleType (QAudioFormat::Float);
-          format.setSampleSize (32);
-          if (format.isValid () && m_device.isFormatSupported (format))
-            {
-              format_ok = true;
-            }
-        }
-      
-      if (!format.isValid () && !format_ok)
+      format.setByteOrder (QAudioFormat::Endian (QSysInfo::ByteOrder));
+      if (!format.isValid ())
         {
           Q_EMIT error (tr ("Requested output audio format is not valid."));
         }
-      else if (!format_ok)
+      else if (!m_device.isFormatSupported (format))
         {
           Q_EMIT error (tr ("Requested output audio format is not supported on device."));
         }

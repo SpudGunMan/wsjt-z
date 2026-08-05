@@ -60,40 +60,17 @@ void SoundInput::start(QAudioDeviceInfo const& device, int framesPerBuffer, Audi
   format.setChannelCount (AudioDevice::Mono == channel ? 1 : 2);
   format.setCodec ("audio/pcm");
   format.setSampleRate (12000 * downSampleFactor);
-  format.setByteOrder (QAudioFormat::Endian (QSysInfo::ByteOrder));
-  
-  // Try 16-bit signed first, then fall back to 32-bit float for macOS compatibility
-  bool format_ok = false;
   format.setSampleType (QAudioFormat::SignedInt);
   format.setSampleSize (16);
-  
-  if (format.isValid () && device.isFormatSupported (format))
+  format.setByteOrder (QAudioFormat::Endian (QSysInfo::ByteOrder));
+  if (!format.isValid ())
     {
-      format_ok = true;
+      Q_EMIT error (tr ("Requested input audio format is not valid."));
+      return;
     }
-  else if (!format.isValid())
+  else if (!device.isFormatSupported (format))
     {
-      // Try 32-bit float as fallback
-      format.setSampleType (QAudioFormat::Float);
-      format.setSampleSize (32);
-      if (format.isValid () && device.isFormatSupported (format))
-        {
-          format_ok = true;
-        }
-    }
-  else
-    {
-      // 16-bit not supported, try 32-bit float
-      format.setSampleType (QAudioFormat::Float);
-      format.setSampleSize (32);
-      if (format.isValid () && device.isFormatSupported (format))
-        {
-          format_ok = true;
-        }
-    }
-  
-  if (!format_ok)
-    {
+//      qDebug () << "Nearest supported audio format:" << device.nearestFormat (format);
       Q_EMIT error (tr ("Requested input audio format is not supported on device."));
       return;
     }
