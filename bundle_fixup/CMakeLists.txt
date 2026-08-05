@@ -211,7 +211,7 @@ if (APPLE OR WIN32)
           find_program (CODESIGN_EXECUTABLE codesign)
           if (CODESIGN_EXECUTABLE)
             execute_process (
-              COMMAND \"\${CODESIGN_EXECUTABLE}\" --force --deep --sign - --timestamp=none \"\${bundle_app}\"
+              COMMAND \"\${CODESIGN_EXECUTABLE}\" --force --deep --sign - --timestamp=none --entitlements \"${CMAKE_SOURCE_DIR}/Darwin/entitlements.plist\" \"\${bundle_app}\"
               RESULT_VARIABLE _codesign_result
               OUTPUT_QUIET
               ERROR_VARIABLE _codesign_error
