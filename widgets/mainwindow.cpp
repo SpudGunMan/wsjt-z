@@ -3918,16 +3918,19 @@ void MainWindow::on_actionLocal_User_Guide_triggered()
 void MainWindow::on_actionWide_Waterfall_triggered()      //Display Waterfalls
 {
   m_wideGraph->showNormal();
+  m_wideGraph->raise();
 }
 
 void MainWindow::on_actionEcho_Graph_triggered()
 {
   m_echoGraph->showNormal();
+  m_echoGraph->raise();
 }
 
 void MainWindow::on_actionFast_Graph_triggered()
 {
   m_fastGraph->showNormal();
+  m_fastGraph->raise();
 }
 
 void MainWindow::on_actionSolve_FreqCal_triggered()
