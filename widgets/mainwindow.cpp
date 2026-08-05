@@ -867,6 +867,15 @@ MainWindow::MainWindow(QDir const& temp_directory, bool multiple,
   connect (ui->foxTxListTextBrowser, &DisplayText::selectCallsign, this, &MainWindow::doubleClickOnFoxInProgress);
   connect (ui->decodedTextBrowser, &DisplayText::erased, this, &MainWindow::band_activity_cleared);
   connect (ui->decodedTextBrowser2, &DisplayText::erased, this, &MainWindow::rx_frequency_activity_cleared);
+  // Decoded-callsign overlay: connect DisplayText signals to WideGraph
+  connect (ui->decodedTextBrowser, &DisplayText::decodedCallsign, m_wideGraph.data(), 
+           [this](double freq, const QString& call, bool is_cq, int time_sec) {
+             m_wideGraph->addDecodeLabel(freq, call, is_cq, time_sec);
+           });
+  connect (ui->decodedTextBrowser2, &DisplayText::decodedCallsign, m_wideGraph.data(),
+           [this](double freq, const QString& call, bool is_cq, int time_sec) {
+             m_wideGraph->addDecodeLabel(freq, call, is_cq, time_sec);
+           });
   // Z
   connect (ui->decodedTextBrowser2, &DisplayText::leftClick, this, &MainWindow::leftClickHandler);
   connect (ui->decodedTextBrowser, &DisplayText::leftClick, this, &MainWindow::leftClickHandler);
