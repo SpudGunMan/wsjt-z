@@ -7,6 +7,10 @@ FIRST RUN - Code Signing
 Since WSJT-Z is not code-signed with an Apple Developer certificate, macOS will
 prevent the app from running on first launch. To authorize it:
 
+  0. We need to remove security on the file from terminal % 
+      xattr -d com.apple.quarantine wsjtz.app
+
+      and/or
   1. Right-click while holding control button, on the WSJT-Z app and select "Open"
   2. Open System Settings and click Privacy & Security in the sidebar.
   3. Scroll all the way to the bottom to the Security section.
