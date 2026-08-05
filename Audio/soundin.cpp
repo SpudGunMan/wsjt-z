@@ -36,12 +36,8 @@ bool SoundInput::checkStream ()
           Q_EMIT error (tr ("Non-recoverable error, audio input device not usable at this time."));
           break;
 
-        case QAudio::UnderrunError:
-          // Report underrun errors (these indicate dropped audio frames)
-          Q_EMIT error (tr ("Audio input underrun: frames dropped, audio may be degraded."));
-          result = true;  // Continue anyway, but user is informed
-          break;
-
+        case QAudio::UnderrunError: // TODO G4WJS: stop ignoring this
+                                    // when we find the cause on macOS
         case QAudio::NoError:
           result = true;
           break;
@@ -60,7 +56,7 @@ void SoundInput::start(QAudioDeviceInfo const& device, int framesPerBuffer, Audi
   m_sink = sink;
 
   QAudioFormat format (device.preferredFormat());
-  qDebug () << "Preferred audio input format:" << format;
+//  qDebug () << "Preferred audio input format:" << format;
   format.setChannelCount (AudioDevice::Mono == channel ? 1 : 2);
   format.setCodec ("audio/pcm");
   format.setSampleRate (12000 * downSampleFactor);
@@ -70,32 +66,38 @@ void SoundInput::start(QAudioDeviceInfo const& device, int framesPerBuffer, Audi
   bool format_ok = false;
   format.setSampleType (QAudioFormat::SignedInt);
   format.setSampleSize (16);
-  qDebug () << "Trying 16-bit signed format:" << format << "Valid:" << format.isValid() << "Supported:" << device.isFormatSupported(format);
   
   if (format.isValid () && device.isFormatSupported (format))
     {
       format_ok = true;
     }
-  else
+  else if (!format.isValid())
     {
-      // Try 32-bit float as fallback (common on macOS)
+      // Try 32-bit float as fallback
       format.setSampleType (QAudioFormat::Float);
       format.setSampleSize (32);
-      qDebug () << "Trying 32-bit float format:" << format << "Valid:" << format.isValid() << "Supported:" << device.isFormatSupported(format);
       if (format.isValid () && device.isFormatSupported (format))
         {
           format_ok = true;
-          qDebug () << "Using 32-bit float format";
+        }
+    }
+  else
+    {
+      // 16-bit not supported, try 32-bit float
+      format.setSampleType (QAudioFormat::Float);
+      format.setSampleSize (32);
+      if (format.isValid () && device.isFormatSupported (format))
+        {
+          format_ok = true;
         }
     }
   
   if (!format_ok)
     {
-      qDebug () << "Nearest supported audio format:" << device.nearestFormat (format);
       Q_EMIT error (tr ("Requested input audio format is not supported on device."));
       return;
     }
-  qDebug () << "Selected audio input format:" << format;
+  // qDebug () << "Selected audio input format:" << format;
 
   m_stream.reset (new QAudioInput {device, format});
   if (!checkStream ())
