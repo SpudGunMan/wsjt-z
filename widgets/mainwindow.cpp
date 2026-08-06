@@ -301,6 +301,18 @@ namespace
     return words.size () > 1 && words.at (1) == "RR73;";
   }
 
+  bool composite_rr73_targets_me (QStringList const& words,
+                                  QString const& my_callsign,
+                                  QString const& base_call)
+  {
+    return composite_rr73 (words)
+      && ((token_matches_call (words.value (0), my_callsign)
+           || token_matches_call (words.value (0), base_call))
+          || (words.size () > 2
+              && (token_matches_call (words.value (2), my_callsign)
+                  || token_matches_call (words.value (2), base_call))));
+  }
+
   int ms_minute_error ()
   {
     auto const& now = QDateTime::currentDateTimeUtc ();
@@ -6152,11 +6164,9 @@ void MainWindow::auto_sequence (DecodedText const& message, unsigned start_toler
                     .arg(raw_words.size())
                     .arg(raw_words.size() > 1 ? raw_words.at(1) : "N/A"));
   // Check if we're either primary or secondary caller in composite RR73
-  bool composite_rr73_for_me = composite_rr73_detected
-    && ((token_matches_call (raw_words.value (0), m_config.my_callsign ())
-         || token_matches_call (raw_words.value (0), m_baseCall))
-        || (raw_words.size() > 2 && (token_matches_call (raw_words.value (2), m_config.my_callsign ())
-                                      || token_matches_call (raw_words.value (2), m_baseCall))));
+  bool const composite_rr73_for_me = composite_rr73_targets_me (raw_words,
+                                                                  m_config.my_callsign (),
+                                                                  m_baseCall);
   if (m_zdebug && composite_rr73_detected) 
     log(QString("composite_rr73_for_me=%1 (primary[0]=%2, secondary[2]=%3)")
         .arg(composite_rr73_for_me)
@@ -7761,9 +7771,9 @@ void MainWindow::processMessage (DecodedText const& message, Qt::KeyboardModifie
   QStringList w=message.clean_string ().mid(22).remove("<").remove(">").split(" ",SkipEmptyParts);
   auto const& raw_words = message.clean_string().mid(22).remove("<").remove(">").split(" ", SkipEmptyParts);
   bool const composite_rr73_detected = composite_rr73(raw_words);
-  bool const composite_rr73_for_me = composite_rr73_detected
-    && (token_matches_call(raw_words.value(0), m_config.my_callsign())
-        || token_matches_call(raw_words.value(0), m_baseCall));
+  bool const composite_rr73_for_me = composite_rr73_targets_me (raw_words,
+                                                                m_config.my_callsign (),
+                                                                m_baseCall);
 
   // Z - DEBUG composite RR73 detection in processMessage
   if (m_zdebug && composite_rr73_detected) {
