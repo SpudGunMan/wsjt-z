@@ -4857,6 +4857,7 @@ list. The list can be maintained in Settings (F2).</string>
     <addaction name="separator"/>
     <addaction name="actionUnfiltered_View"/>
     <addaction name="actionPSKReporter"/>
+    <addaction name="actionDXStationMap"/>
    </widget>
    <widget class="QMenu" name="menuDecode">
     <property name="title">
@@ -5681,6 +5682,11 @@ list. The list can be maintained in Settings (F2).</string>
   <action name="actionPSKReporter">
    <property name="text">
     <string>PSK Reporter</string>
+   </property>
+  </action>
+  <action name="actionDXStationMap">
+   <property name="text">
+    <string>DX Station Map</string>
    </property>
   </action>
  </widget>

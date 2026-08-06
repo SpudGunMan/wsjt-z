@@ -100,6 +100,7 @@ class WSPRBandHopping;
 // Z
 class UnfilteredView;
 class PSKReporterWidget;
+class DXStationMap;
 
 class HelpTextWindow;
 class WSPRNet;
@@ -461,6 +462,7 @@ private slots:
     double watchdog();
      void on_actionUnfiltered_View_triggered();
      void on_actionPSKReporter_triggered();
+     void on_actionDXStationMap_triggered();
      void updateQsoCounter(bool increment);
      void on_txFirstCheckBox_toggled();
     void update_tx5(const QString &qsy_text);
@@ -502,6 +504,7 @@ private:
   void chkFT4();
   bool elide_tx1_not_allowed () const;
   bool elide_tx2_not_allowed () const;
+  bool isCallingForMe (DecodedText const&, QString& call, QString& grid) const;
   void readWidebandDecodes();
   void configActiveStations();
   void showQSYMessage(QString message);
@@ -770,6 +773,7 @@ private:
   bool    m_autoCQAlternateEvenOddNext = false;
   QScopedPointer<UnfilteredView> m_unfilteredView;
   QScopedPointer<PSKReporterWidget> m_pskReporterView;
+  QScopedPointer<DXStationMap> m_dxStationMap;
   QSet<QString> m_pskReporterReceivers;
   QThread * m_pskReporterThread;
   QDateTime m_ignoreListReset;
@@ -790,6 +794,8 @@ private:
   bool m_AutoTxFreq = false;
   int qso_total = 0;
   int qso_new = 0;
+  QDateTime m_dxMapStartedUtc;
+  QDateTime m_dxMapLastLogUtc;
   QByteArray m_unfilteredViewGeometry;
   QByteArray m_pskReporterViewGeometry;
   
