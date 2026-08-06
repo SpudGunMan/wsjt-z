@@ -7,6 +7,9 @@ V2.0.18
 [security]
 - IMPORTANT - the UDP control server no longer binds to loopback by default. The 2.0.17 note that the listener "defaults to 127.0.0.1 so it is loopback-only unless deliberately exposed" no longer applies: it binds to all interfaces again, because the 2.0.17 implementation reused the outgoing "UDP Server" destination address as the inbound bind address, which broke companion apps such as GridTracker running on another host (PR #114, SpudGunMan). The listener remains gated behind the "Accept UDP requests" setting, which is OFF by default. If you enable it, any host that can reach this machine on the UDP port can set mode/frequency/DX call and toggle Auto-CQ / Auto-Call - i.e. start your radio transmitting. Leave it off unless you need it, and firewall the port or keep the machine on a trusted network. A dedicated bind-address setting defaulting to loopback is planned.
 
+[tooling]
+- New UDP example: `UDPExamples/UDPAzimuthAverager.py`, a Python listener that computes a rolling average bearing from UDP decodes for antenna pointing and rotator control. Security-reviewed for UDP listener best practices; addresses grids and excludes QSO-ending tokens (RR73/RRR/73), validates subsquare offsets, checks resultant vector length for heading stability, and supports Windows Ctrl+C handling (PR #141, SpudGunMan).
+
 V2.0.17
 [fixes]
 - Auto-CQ no longer self-halts on QRM: the auto-QRM stop now only fires in Auto-Call (answering) mode, so an Auto-CQ session is not stopped when the selected DX is heard working someone else (PR #94, SpudGunMan).

@@ -16,9 +16,11 @@ from collections import deque
 # ---- configuration ----
 WSJT_X_UDP_HOST = "127.0.0.1"  # default UDP host for WSJT-X
 WSJT_X_UDP_PORT = 2237  # default UDP port for WSJT-X
-MY_GRID = "CN88ab"      # <-- set this to your own Maidenhead grid
+MY_GRID = "CN88ab"      # Will be updated from Status message de_grid
 WINDOW_SECONDS = 180    # 3 minutes of history for the smoothed value
 BURST_SECONDS = 20      # FT8/4/2 cycle length, WSPR burst length, etc. for the live heading
+DEBUG = False           # Set to True to log malformed packets
+RESULTANT_THRESHOLD = 0.3  # Minimum resultant vector length for stable heading
 
 # Rolling buffers for the live heading and the smoothed heading
 cycle_samples = deque() # current burst samples used by the live heading
@@ -26,6 +28,7 @@ heading_history = deque()  # heading values used for the smoothed window average
 latest_station_grid = None
 packets_seen = 0
 packets_decoded = 0
+home_grid = MY_GRID  # Will be updated from Status message de_grid
 
 # ---- helpers ----
 
@@ -67,17 +70,23 @@ def render_status(packets_seen, packets_decoded, sample_count, heading=None, smo
 
 
 def extract_grid_from_text(text):
-    """Try to pull a Maidenhead locator from decoded text."""
+    """Try to pull a Maidenhead locator from decoded text.
+    Excludes QSO-ending tokens RR73, RRR, and 73.
+    """
     if not text:
         return None
     text = text.upper()
-    m = re.search(r"\b([A-R]{2}[0-9]{2}(?:[A-X]{2})?)\b", text)
+    # Exclude RR73, RRR, 73 tokens which are QSO terminators, not grids
+    text_without_terminators = re.sub(r"\b(RR73|RRR|73)\b", "", text)
+    m = re.search(r"\b([A-R]{2}[0-9]{2}(?:[A-X]{2})?)", text_without_terminators)
     return m.group(1) if m else None
 
 def grid_to_latlon(grid):
     """
     Convert a Maidenhead locator to approximate lat/lon.
     Good enough for antenna heading, not geodesy grade.
+    4-char grid: center of 2°×1° square
+    6-char grid: center of subsquare within that square
     """
     g = (grid or "").strip().upper()
     if len(g) < 4:
@@ -89,13 +98,16 @@ def grid_to_latlon(grid):
     lat += int(g[3]) * 1.0
 
     if len(g) >= 6:
+        # 6-char subsquare: smaller offset
         lon += (ord(g[4]) - ord("A")) * (5.0 / 60.0)
         lat += (ord(g[5]) - ord("A")) * (2.5 / 60.0)
+    else:
+        # 4-char square: center offset
+        lon += 1.0
+        lat += 0.5
 
     lon -= 180.0
     lat -= 90.0
-    lon += 1.0
-    lat += 0.5
 
     return lat, lon
 
@@ -118,20 +130,25 @@ def azimuth_from_grid(home_grid, station_grid):
     return bearing_deg(home_lat, home_lon, st_lat, st_lon)
 
 def heading_from_window(items):
-    """Average heading over the current rolling window of samples."""
+    """Average heading over the current rolling window of samples.
+    Returns None if samples are scattered (resultant vector too short).
+    """
     if not items:
         return None
 
     x = 0.0
     y = 0.0
+    n = len(items)
 
-    for _, angle_deg, _ in items:
+    for _, angle_deg in items:
         angle_rad = math.radians(angle_deg)
         x += math.cos(angle_rad)
         y += math.sin(angle_rad)
 
-    if x == 0.0 and y == 0.0:
-        return None
+    # Check resultant vector length to detect scattered samples
+    r = math.hypot(x, y) / n
+    if r < 0.3:  # Threshold for stable heading
+        return None  # Samples too scattered
 
     heading = math.degrees(math.atan2(y, x))
     return (heading + 360.0) % 360.0
@@ -171,16 +188,17 @@ def smooth_heading(heading_history, timestamp, last_update, min_samples=6):
 
     return average_headings(heading_history), timestamp
 
-def add_sample(grid, snr, timestamp):
+def add_sample(grid, timestamp):
+    """Add a gridded decode to the rolling sample buffer."""
     if not grid:
         return
 
     try:
-        angle = azimuth_from_grid(MY_GRID, grid)
+        angle = azimuth_from_grid(home_grid, grid)
     except Exception:
         return
 
-    cycle_samples.append((timestamp, angle, snr))
+    cycle_samples.append((timestamp, angle))
 
     # Keep only the latest burst for the current heading
     cutoff_burst = timestamp - datetime.timedelta(seconds=BURST_SECONDS)
@@ -262,11 +280,13 @@ def decode_message(data):
     return schema, message_type, message_id, reader
 
 # ---- main listener ----
-print(f"WSJT Azimuth Averager.")
-print(f"Using home grid: {MY_GRID}")
+print("WSJT-X Azimuth Averager")
+print(f"Listening on {WSJT_X_UDP_HOST}:{WSJT_X_UDP_PORT}")
+print(f"Initial home grid: {MY_GRID}")
 
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
-sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)  # Allows reuse of port if script crashes
+sock.settimeout(1.0)  # 1 second timeout for Windows Ctrl+C handling
 sock.bind((WSJT_X_UDP_HOST, WSJT_X_UDP_PORT))
 smoothed_heading = None
 display_heading = None
@@ -275,7 +295,11 @@ last_smoothed_update = None
 
 try:
     while True:
-        data, _ = sock.recvfrom(4096)
+        try:
+            data, _ = sock.recvfrom(10240)  # Match buffer size with decode_WSJT-UDP.py
+        except socket.timeout:
+            continue  # No packet received, try again
+        
         now = datetime.datetime.now()
         packets_seen += 1
 
@@ -306,6 +330,10 @@ try:
                 config_name = reader.read_utf8()
                 tx_message = reader.read_utf8()
 
+                # Seed home_grid from de_grid (most reliable source)
+                if de_grid:
+                    home_grid = de_grid
+                
                 if dx_grid:
                     latest_station_grid = dx_grid
 
@@ -313,7 +341,7 @@ try:
                 # decode message
                 is_new = reader.read_bool()
                 _time = reader.read_qtime()
-                snr = reader.read_int32()
+                _snr = reader.read_int32()
                 _delta_time = reader.read_double()
                 _delta_frequency = reader.read_uint32()
                 _mode = reader.read_utf8()
@@ -322,15 +350,14 @@ try:
                 _off_air = reader.read_bool()
 
                 grid = extract_grid_from_text(message)
-                if not grid:
-                    grid = latest_station_grid
-                add_sample(grid, snr, now)
+                if grid:  # Only add gridded decodes
+                    add_sample(grid, now)
 
             elif message_type == 10:
                 # wspr decode
                 _is_new = reader.read_bool()
                 _time = reader.read_qtime()
-                snr = reader.read_int32()
+                _snr = reader.read_int32()
                 _delta_time = reader.read_double()
                 _frequency = reader.read_uint64()
                 _drift = reader.read_int32()
@@ -339,13 +366,13 @@ try:
                 _power = reader.read_int32()
                 _off_air = reader.read_bool()
 
-                if not grid:
-                    grid = latest_station_grid
-                add_sample(grid, snr, now)
+                if grid:  # Only add gridded decodes
+                    add_sample(grid, now)
 
-        except Exception:
+        except Exception as e:
+            if DEBUG:
+                print(f"Malformed packet: {e}")
             # Ignore malformed packets.
-            pass
 
         current_heading = heading_from_window(cycle_samples)
 
