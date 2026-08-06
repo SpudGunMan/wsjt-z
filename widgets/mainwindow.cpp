@@ -3671,13 +3671,13 @@ void MainWindow::update_mode_switch_status_label ()
                 {
                   bh_remaining = auto_cq_left;
                   if (ui->cb_autoModeSwitch->isChecked ()) {
-                    bh_remaining += auto_call_total;
+                    bh_remaining += auto_call_total + auto_rx_total;
                   }
                 }
               else if (!ui->cbAutoCall->isChecked () && !ui->cbAutoCQ->isChecked () && auto_rx_total > 0)
                 {
-                  // AutoRx is active, band hop will occur after RX + CQ + Call all complete
-                  bh_remaining = auto_rx_left + auto_cq_total + auto_call_total;
+                  // AutoRx is active, band hop will occur at the Rx->CQ boundary
+                  bh_remaining = auto_rx_left;
                 }
 
               if (bh_remaining > 0)
@@ -15490,6 +15490,7 @@ void MainWindow::ZProcess ()
                               ui->cbAutoCall->setChecked(false);
                               ui->cbAutoCQ->setChecked(false);
                               ui->le_autoRxLeft->setText(QString::number(ui->sb_autoRxCount->value()));
+                              clearDX();
                               if (m_zdebug) log("ZProcess: Switched to AutoRx");
                             } else if (ui->sb_autoCQCount->value() > 0) {
                               ui->cbAutoCall->setChecked(false);
