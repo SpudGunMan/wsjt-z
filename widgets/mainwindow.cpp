@@ -6237,20 +6237,20 @@ void MainWindow::auto_sequence (DecodedText const& message, unsigned start_toler
                       || (!ui->tx1->isEnabled () && m_QSOProgress == REPORT);
     bool const qrm_stop_window_match = m_QSOProgress == CALLING
       || qAbs (ui->TxFreqSpinBox->value () - df) <= int (stop_tolerance);
-    bool const directed_exchange_to_other_station = !directed_to_me
-      && !composite_rr73_for_me
-      && message_words.at (2) != "DE"
-      && !message_words.at (2).contains (QRegularExpression {"(^(CQ|QRZ))|" + m_baseCall});
-    bool const selected_dx_stop_match = have_selected_dx
-      && directed_with_selected_dx
-      && directed_exchange_to_other_station;
-    bool const no_selected_dx_stop_match = !have_selected_dx
-      && directed_exchange_to_other_station
-      && !message_words.at (3).isEmpty ();
-    bool const anti_qrm_stop_match = selected_dx_stop_match || no_selected_dx_stop_match;
     if (m_auto
-        && ui->cbAutoCall->isChecked()
-        && auto_qrm_guard_state
+        && ui->cbAutoCall->isChecked()) {
+      bool const directed_exchange_to_other_station = !directed_to_me
+        && !composite_rr73_for_me
+        && message_words.at (2) != "DE"
+        && !message_words.at (2).contains (QRegularExpression {"(^(CQ|QRZ))|" + m_baseCall});
+      bool const selected_dx_stop_match = have_selected_dx
+        && directed_with_selected_dx
+        && directed_exchange_to_other_station;
+      bool const no_selected_dx_stop_match = !have_selected_dx
+        && directed_exchange_to_other_station
+        && !message_words.at (3).isEmpty ();
+      bool const anti_qrm_stop_match = selected_dx_stop_match || no_selected_dx_stop_match;
+      if (auto_qrm_guard_state
         && (SpecOp::HOUND != m_specOp) && qrm_stop_window_match //
         && anti_qrm_stop_match) {
       // auto stop to avoid accidental QRM
@@ -6263,8 +6263,7 @@ void MainWindow::auto_sequence (DecodedText const& message, unsigned start_toler
       ui->stopTxButton->click (); // halt any transmission
       LOG_INFO("STOPPED!");
       if (ui->cbAutoCQ->isChecked() || ui->cbAutoCall->isChecked()) clearDX();
-    } else if (m_auto             // transmit allowed
-               && ui->cbAutoSeq->isChecked () // auto-sequencing allowed
+      } else if (ui->cbAutoSeq->isChecked()
           && !(have_selected_dx && directed_with_selected_dx && !directed_to_me && !composite_rr73_for_me)
                && ((!m_bCallingCQ      // not calling CQ/QRZ
                     && !m_sentFirst73       // not finished QSO
@@ -6313,6 +6312,7 @@ void MainWindow::auto_sequence (DecodedText const& message, unsigned start_toler
 
       }
       // Z
+    }
     } else if (ui->cbAutoSeq->isChecked()
                && message_words.at (2).contains (m_baseCall)
                && (ui->cbAutoCQ->isChecked() || ui->cbAutoCall->isChecked())
@@ -7759,7 +7759,7 @@ void MainWindow::processMessage (DecodedText const& message, Qt::KeyboardModifie
   }
 
   QStringList w=message.clean_string ().mid(22).remove("<").remove(">").split(" ",SkipEmptyParts);
-  auto const& raw_words = message.clean_string().split(" ", SkipEmptyParts);
+  auto const& raw_words = message.clean_string().mid(22).remove("<").remove(">").split(" ", SkipEmptyParts);
   bool const composite_rr73_detected = composite_rr73(raw_words);
   bool const composite_rr73_for_me = composite_rr73_detected
     && (token_matches_call(raw_words.value(0), m_config.my_callsign())
@@ -8130,11 +8130,11 @@ void MainWindow::processMessage (DecodedText const& message, Qt::KeyboardModifie
     else if (composite_rr73_for_me
              || (5 == message_words.size ()
                  && m_baseCall == message_words.at (1))) {
-      // dual Fox style message, possibly from MSHV - QSO is complete, always log
-      logQSOTimer.start(0);
-      if (!m_config.prompt_to_log() && !m_config.autoLog()) {
-        cease_auto_Tx_after_QSO ();
+      // dual Fox style message, possibly from MSHV - QSO is complete
+      if (m_config.prompt_to_log() || m_config.autoLog()) {
+        logQSOTimer.start(0);
       }
+      cease_auto_Tx_after_QSO ();
       m_QSOProgress = SIGNOFF;
     }
     else if (m_QSOProgress >= ROGERS
