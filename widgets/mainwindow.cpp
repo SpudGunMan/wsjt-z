@@ -6235,9 +6235,15 @@ void MainWindow::auto_sequence (DecodedText const& message, unsigned start_toler
       return;
     }
 
+    // Exempt current or last QSO partner from ignore list: even if they're ignored,
+    // we must process their closing messages (73/RR73) to properly advance m_QSOProgress
+    // and log the QSO. Without this exemption, ignoring a station mid-QSO leaves it
+    // unlogged. This mirrors the exemption in callsignFiltered() at line ~14086-14089.
+    bool is_current_qso_partner = (m_lastCall == hiscall || m_hisCall == hiscall);
+
     if (!m_filterCacheValid) rebuildFilterCache();
-    if (m_ignoredStationsCache.contains(hiscall)
-        || m_ignoredStationsCache.contains(Radio::base_callsign(hiscall))) {
+    if (!is_current_qso_partner && (m_ignoredStationsCache.contains(hiscall)
+        || m_ignoredStationsCache.contains(Radio::base_callsign(hiscall)))) {
       return;
     }
 
@@ -12306,6 +12312,7 @@ void MainWindow::tx_watchdog (bool triggered)
                                    && !his_base.isEmpty ()
                                    && candidate_base == his_base;
           bool const target_uncertain = his_base.isEmpty () || candidate_base.isEmpty ();
+          if (!m_filterCacheValid) rebuildFilterCache();
           bool const already_ignored = m_ignoredStationsCache.contains (ignore_candidate)
                                        || m_ignoredStationsCache.contains (candidate_base);
 
@@ -13993,8 +14000,8 @@ void MainWindow::on_btn_addToIgnore_clicked( ) {
 
 void MainWindow::on_btn_clearIgnore_clicked( ) {
     ui->pte_IgnoredStations->clear();
-    ui->pte_IgnoredStations->appendPlainText(m_config.permIgnoreList());
     m_ignoreListReset = QDateTime::currentDateTime();
+    m_filterCacheValid = false;
 }
 
 
@@ -14003,7 +14010,12 @@ void MainWindow::rebuildFilterCache() const
     // Split on '\n' after stripping '\r'; faster than QRegExp("[\r\n]")
     auto split_lines = [](QString s) {
         s.remove(QChar('\r'));
-        return s.split(QChar('\n'), SkipEmptyParts);
+        auto lines = s.split(QChar('\n'), SkipEmptyParts);
+        // Normalize case and whitespace for consistent matching with Radio::base_callsign()
+        for (auto& line : lines) {
+            line = line.trimmed().toUpper();
+        }
+        return lines;
     };
 
     QString combined_ignored = ui->pte_IgnoredStations->toPlainText();
