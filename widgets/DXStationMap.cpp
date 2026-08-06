@@ -369,6 +369,10 @@ void DXStationMap::addStation(PlottedStation const& s)
 
     if (!updated.grid.isEmpty()) {
         m_stations.append(updated);
+        // Enforce hard limit of 200 most recent stations
+        while (m_stations.size() > 200) {
+            m_stations.removeFirst();
+        }
     }
     refreshStatusMessage();
     update();
@@ -454,8 +458,19 @@ void DXStationMap::tryAddCallsign(QString const& call, int freqHz, int snr, bool
 void DXStationMap::expireStations(int currentPeriod, int maxAge)
 {
     m_currentPeriod = currentPeriod;
-    for (int i=m_stations.size()-1; i>=0; --i)
-        if ((currentPeriod-m_stations[i].period) > maxAge) m_stations.removeAt(i);
+    // Remove stations older than maxAge periods
+    auto it = m_stations.begin();
+    while (it != m_stations.end()) {
+        if (currentPeriod - it->period > maxAge) {
+            it = m_stations.erase(it);
+        } else {
+            ++it;
+        }
+    }
+    // Hard limit: keep only 200 most recent stations
+    while (m_stations.size() > 200) {
+        m_stations.removeFirst();
+    }
     update();
 }
 
@@ -621,8 +636,8 @@ void DXStationMap::showStationTooltip()
     const double km  = haversineKm(m_homeLat, m_homeLon, m_selLat, m_selLon);
     const double brg = bearingDeg(m_homeLat, m_homeLon, m_selLat, m_selLon);
     
-    QString text = QString("<b>%1</b><br>").arg(m_selCall);
-    text += QString("Grid: %1<br>").arg(m_selGrid.isEmpty() ? QString("unknown") : m_selGrid);
+    QString text = QString("<b>%1</b><br>").arg(m_selCall.toHtmlEscaped());
+    text += QString("Grid: %1<br>").arg(m_selGrid.isEmpty() ? QString("unknown") : m_selGrid.toHtmlEscaped());
     text += QString("SNR: %1 dB<br>").arg(m_selSNR);
     
     if (m_distanceInMiles) {
@@ -633,8 +648,8 @@ void DXStationMap::showStationTooltip()
                 .arg(int(km+0.5)).arg(int(brg+0.5));
     }
     
-    if (!m_extraDxcc.isEmpty())      text += QString("DXCC: %1<br>").arg(m_extraDxcc);
-    if (!m_extraContinent.isEmpty()) text += QString("Cont: %1<br>").arg(m_extraContinent);
+    if (!m_extraDxcc.isEmpty())      text += QString("DXCC: %1<br>").arg(m_extraDxcc.toHtmlEscaped());
+    if (!m_extraContinent.isEmpty()) text += QString("Cont: %1<br>").arg(m_extraContinent.toHtmlEscaped());
     if (m_extraCqZone > 0)           text += QString("CQ/ITU: %1 / %2").arg(m_extraCqZone).arg(m_extraItuZone);
 
     QToolTip::showText(QCursor::pos(), text, this);

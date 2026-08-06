@@ -2621,28 +2621,19 @@ void MainWindow::fastSink(qint64 frames)
     }
     
     // Plot on DXStationMap if calling ME
-    if (m_dxStationMap) {
-      QString myCall = m_config.my_callsign();
-      if (!myCall.isEmpty()) {
-        auto for_me = decodedtext.string().contains(" " + myCall + " ") or
-                      decodedtext.string().contains(" " + myCall) or
-                      decodedtext.string().contains(myCall + " ") or
-                      decodedtext.string().contains(" <" + myCall + "> ");
-        if (for_me) {
-          QString dxCall, dxGrid;
-          decodedtext.deCallAndGrid(dxCall, dxGrid);
-          if (!dxCall.isEmpty() && !dxGrid.isEmpty()) {
-            PlottedStation s;
-            s.call = dxCall;
-            s.grid = dxGrid.toUpper().left(4);
-            s.snr = decodedtext.snr();
-            s.freqHz = decodedtext.frequencyOffset();
-            s.forMe = true;
-            s.isCQ = false;
-            s.period = 0;
-            m_dxStationMap->addStation(s);
-          }
-        }
+    if (m_dxStationMap && isCallingForMe(decodedtext)) {
+      QString dxCall, dxGrid;
+      decodedtext.deCallAndGrid(dxCall, dxGrid);
+      if (!dxCall.isEmpty() && !dxGrid.isEmpty()) {
+        PlottedStation s;
+        s.call = dxCall;
+        s.grid = dxGrid.toUpper().left(4);
+        s.snr = decodedtext.snr();
+        s.freqHz = decodedtext.frequencyOffset();
+        s.forMe = true;
+        s.isCQ = false;
+        s.period = 0;
+        m_dxStationMap->addStation(s);
       }
     }
     
@@ -6029,25 +6020,19 @@ void MainWindow::readFromStdout()                             //readFromStdout
                 m_logBook, m_currentBand, m_config.ppfx (), false, false, 0.0, bDisplayPoints, m_points, false, false, "", "", isFiltered);
           
           // Plot on DXStationMap if calling ME
-          if (m_dxStationMap) {
-            auto for_me = decodedtext0.string().contains(" " + my_call + " ") or
-                          decodedtext0.string().contains(" " + my_call) or
-                          decodedtext0.string().contains(my_call + " ") or
-                          decodedtext0.string().contains(" <" + my_call + "> ");
-            if (for_me) {
-              QString dxCall, dxGrid;
-              decodedtext0.deCallAndGrid(dxCall, dxGrid);
-              if (!dxCall.isEmpty() && !dxGrid.isEmpty()) {
-                PlottedStation s;
-                s.call = dxCall;
-                s.grid = dxGrid.toUpper().left(4);
-                s.snr = decodedtext0.snr();
-                s.freqHz = decodedtext0.frequencyOffset();
-                s.forMe = true;
-                s.isCQ = false;
-                s.period = 0;
-                m_dxStationMap->addStation(s);
-              }
+          if (m_dxStationMap && isCallingForMe(decodedtext0)) {
+            QString dxCall, dxGrid;
+            decodedtext0.deCallAndGrid(dxCall, dxGrid);
+            if (!dxCall.isEmpty() && !dxGrid.isEmpty()) {
+              PlottedStation s;
+              s.call = dxCall;
+              s.grid = dxGrid.toUpper().left(4);
+              s.snr = decodedtext0.snr();
+              s.freqHz = decodedtext0.frequencyOffset();
+              s.forMe = true;
+              s.isCQ = false;
+              s.period = 0;
+              m_dxStationMap->addStation(s);
             }
           }
         }
@@ -7488,6 +7473,13 @@ bool MainWindow::elide_tx2_not_allowed () const
     || (my_callsign != m_baseCall && !shortList (my_callsign));
 }
 
+bool MainWindow::isCallingForMe (DecodedText const& dt) const
+{
+  QString deCall, deGrid;
+  dt.deCallAndGrid (deCall, deGrid);
+  return !deCall.isEmpty () && Radio::base_callsign (deCall) == m_baseCall;
+}
+
 void MainWindow::on_txrb1_doubleClicked ()
 {
   ui->tx1->setEnabled (!elide_tx1_not_allowed () && !ui->tx1->isEnabled ());
@@ -8248,28 +8240,19 @@ void MainWindow::processMessage (DecodedText const& message, Qt::KeyboardModifie
       m_logBook, m_currentBand, m_config.ppfx ());
       
       // Plot on DXStationMap if calling ME
-      if (m_dxStationMap) {
-        QString myCall = m_config.my_callsign();
-        if (!myCall.isEmpty()) {
-          auto for_me = message.string().contains(" " + myCall + " ") or
-                        message.string().contains(" " + myCall) or
-                        message.string().contains(myCall + " ") or
-                        message.string().contains(" <" + myCall + "> ");
-          if (for_me) {
-            QString dxCall, dxGrid;
-            message.deCallAndGrid(dxCall, dxGrid);
-            if (!dxCall.isEmpty() && !dxGrid.isEmpty()) {
-              PlottedStation s;
-              s.call = dxCall;
-              s.grid = dxGrid.toUpper().left(4);
-              s.snr = message.snr();
-              s.freqHz = message.frequencyOffset();
-              s.forMe = true;
-              s.isCQ = false;
-              s.period = 0;
-              m_dxStationMap->addStation(s);
-            }
-          }
+      if (m_dxStationMap && isCallingForMe(message)) {
+        QString dxCall, dxGrid;
+        message.deCallAndGrid(dxCall, dxGrid);
+        if (!dxCall.isEmpty() && !dxGrid.isEmpty()) {
+          PlottedStation s;
+          s.call = dxCall;
+          s.grid = dxGrid.toUpper().left(4);
+          s.snr = message.snr();
+          s.freqHz = message.frequencyOffset();
+          s.forMe = true;
+          s.isCQ = false;
+          s.period = 0;
+          m_dxStationMap->addStation(s);
         }
       }
     }
