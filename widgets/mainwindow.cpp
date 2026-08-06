@@ -715,7 +715,9 @@ MainWindow::MainWindow(QDir const& temp_directory, bool multiple,
   connect (m_messageClient, &MessageClient::highlight_callsign, ui->decodedTextBrowser, &DisplayText::highlight_callsign);
   connect (m_messageClient, &MessageClient::switch_configuration, m_multi_settings, &MultiSettings::select_configuration);
   connect (m_messageClient, &MessageClient::configure, this, &MainWindow::remote_configure);
-  connect (m_messageClient, &MessageClient::rotate_log, this, &MainWindow::on_actionRotate_wsjtx_log_adi_triggered);
+  connect (m_messageClient, &MessageClient::rotate_log, this, [this] () {
+    this->rotate_wsjtx_log_adi (false);
+  });
 
   // Set up MessageServer to listen for incoming UDP messages on port 2237
   // This allows remote clients to send Configure and other commands to WSJT-X
@@ -10512,11 +10514,12 @@ void MainWindow::rotate_wsjtx_log_adi(bool confirm)
 
   QTextStream out {&new_log};
   auto const created_timestamp = QDateTime::currentDateTimeUtc ().toString ("yyyyMMdd HHmmss");
+  auto const ver = QApplication::applicationVersion ();
   out << "ADIF Export\n"
       << "<adif_ver:5>3.1.1\n"
       << "<created_timestamp:15>" << created_timestamp << "\n"
       << "<programid:6>WSJT-X\n"
-      << "<programversion:5>" << QApplication::applicationVersion ().left (5) << "\n"
+      << QString {"<programversion:%1>%2\n"}.arg (ver.size ()).arg (ver)
       << "<eoh>" << Qt::endl;
   new_log.close ();
 

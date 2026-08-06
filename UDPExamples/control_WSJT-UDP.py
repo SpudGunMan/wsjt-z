@@ -15,7 +15,8 @@ from datetime import datetime
 class MessageType(IntEnum):
     """WSJT-Z UDP Message Types"""
     Configure = 15
-    RotateLog = 16
+    AnnotationInfo = 16
+    RotateLog = 17
 
 
 class QtDataStreamWriter:

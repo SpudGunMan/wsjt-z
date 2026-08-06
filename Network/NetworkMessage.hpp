@@ -567,8 +567,8 @@ namespace NetworkMessage
       HighlightCallsign,
       SwitchConfiguration,
       Configure,
-      RotateLog,
       AnnotationInfo,
+      RotateLog,
       maximum_message_type_     // ONLY add new message types
                                 // immediately before here
     };
