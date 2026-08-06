@@ -2698,6 +2698,7 @@ void MainWindow::on_actionSettings_triggered()               //Setup Dialog
   auto my_grid = m_config.my_grid ();
   SpecOp nContest0=m_specOp;
   auto psk_on = m_config.spot_to_psk_reporter ();
+  auto perm_ignore_list = m_config.permIgnoreList ();
   inSettings = true;
   if (QDialog::Accepted == m_config.exec ()) {
     checkMSK144ContestType();
@@ -2709,6 +2710,9 @@ void MainWindow::on_actionSettings_triggered()               //Setup Dialog
     }
     if (m_config.my_callsign () != callsign || m_config.my_grid () != my_grid) {
       statusUpdate ();
+    }
+    if (m_config.permIgnoreList () != perm_ignore_list) {
+      invalidateFilterCache ();
     }
     on_dxGridEntry_textChanged (m_hisGrid); // recalculate distances in case of units change
     enable_DXCC_entity (m_config.DXCC ());  // sets text window proportions and (re)inits the logbook
@@ -6231,6 +6235,18 @@ void MainWindow::auto_sequence (DecodedText const& message, unsigned start_toler
 
     if (m_QSOProgress == SIGNOFF && !m_lastCall.isEmpty() && hiscall == m_lastCall) {
       if (m_zdebug) log(QString("auto_sequence: ignoring late duplicate response after logged signoff for %1").arg(hiscall));
+      return;
+    }
+
+    // Exempt current or last QSO partner from ignore list: even if they're ignored,
+    // we must process their closing messages (73/RR73) to properly advance m_QSOProgress
+    // and log the QSO. Without this exemption, ignoring a station mid-QSO leaves it
+    // unlogged. This mirrors the exemption in callsignFiltered() at line ~14086-14089.
+    bool is_current_qso_partner = (m_lastCall == hiscall || m_hisCall == hiscall);
+
+    if (!m_filterCacheValid) rebuildFilterCache();
+    if (!is_current_qso_partner && (m_ignoredStationsCache.contains(hiscall)
+        || m_ignoredStationsCache.contains(Radio::base_callsign(hiscall)))) {
       return;
     }
 
@@ -12393,6 +12409,7 @@ void MainWindow::tx_watchdog (bool triggered)
                                    && !his_base.isEmpty ()
                                    && candidate_base == his_base;
           bool const target_uncertain = his_base.isEmpty () || candidate_base.isEmpty ();
+          if (!m_filterCacheValid) rebuildFilterCache();
           bool const already_ignored = m_ignoredStationsCache.contains (ignore_candidate)
                                        || m_ignoredStationsCache.contains (candidate_base);
 
@@ -14086,8 +14103,8 @@ void MainWindow::on_btn_addToPermIgnore_clicked()
 
 void MainWindow::on_btn_clearIgnore_clicked( ) {
     ui->pte_IgnoredStations->clear();
-    ui->pte_IgnoredStations->appendPlainText(m_config.permIgnoreList());
     m_ignoreListReset = QDateTime::currentDateTime();
+    m_filterCacheValid = false;
 }
 
 
@@ -14096,9 +14113,21 @@ void MainWindow::rebuildFilterCache() const
     // Split on '\n' after stripping '\r'; faster than QRegExp("[\r\n]")
     auto split_lines = [](QString s) {
         s.remove(QChar('\r'));
-        return s.split(QChar('\n'), SkipEmptyParts);
+        auto lines = s.split(QChar('\n'), SkipEmptyParts);
+        // Normalize case and whitespace for consistent matching with Radio::base_callsign()
+        for (auto& line : lines) {
+            line = line.trimmed().toUpper();
+        }
+        return lines;
     };
-    m_ignoredStationsCache    = split_lines(ui->pte_IgnoredStations->toPlainText());
+
+    QString combined_ignored = ui->pte_IgnoredStations->toPlainText();
+    if (!m_config.permIgnoreList().isEmpty()) {
+        if (!combined_ignored.isEmpty()) combined_ignored += '\n';
+        combined_ignored += m_config.permIgnoreList();
+    }
+
+    m_ignoredStationsCache    = split_lines(combined_ignored);
     m_prefixFilterLinesCache  = split_lines(ui->pte_prefixFilter->toPlainText());
     m_stateFilterLinesCache   = split_lines(ui->pte_stateFilter->toPlainText());
     m_filterCacheValid = true;
@@ -14193,17 +14222,18 @@ bool MainWindow::callsignFiltered(DecodedText dt)
         return false;
     }
 
+    // Ignored stations filter: honor this even when global filtering is off.
+    if (m_ignoredStationsCache.contains(dxCall)
+        || m_ignoredStationsCache.contains(Radio::base_callsign(dxCall))) {
+        if (m_zdebug) log(QString("callsignFiltered: Ignored station: %1").arg(dxCall));
+        return true;
+    }
+
     if (!ui->cb_filtering->isChecked()) return false;
 
     // LOTW only filter
     if ( ui->cb_f_LOTW->isChecked() && !m_config.lotw_users ().user (dxCall)) {
         if (m_zdebug) log("callsignFiltered: User not in LOTW");
-        return true;
-    }
-
-    // Ignored stations filter
-    if (m_ignoredStationsCache.contains(dxCall)) {
-        if (m_zdebug) log("callsignFiltered: Station is in the ignore list");
         return true;
     }
 
