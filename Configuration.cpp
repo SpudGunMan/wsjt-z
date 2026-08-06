@@ -862,6 +862,15 @@ Configuration::Configuration (QNetworkAccessManager * network_manager, QDir cons
 {
 }
 
+void Configuration::rescan_logbook ()
+{
+  auto * impl_ptr = m_.operator-> ();
+  if (impl_ptr && impl_ptr->logbook_)
+    {
+      impl_ptr->logbook_->rescan ();
+    }
+}
+
 Configuration::~Configuration ()
 {
 }
@@ -3017,9 +3026,7 @@ void Configuration::impl::on_reset_highlighting_to_defaults_push_button_clicked 
 
 void Configuration::impl::on_rescan_log_push_button_clicked (bool /*clicked*/)
 {
-  if (logbook_) {
-    logbook_->rescan ();
-  }
+  self_->rescan_logbook ();
 }
 
 void Configuration::impl::on_CTY_download_button_clicked (bool /*clicked*/)
@@ -3052,7 +3059,7 @@ void Configuration::impl::after_CTY_downloaded ()
 {
   ui_->CTY_download_button->setEnabled (true);
   if (logbook_) {
-    logbook_->rescan ();
+    self_->rescan_logbook ();
     ui_->CTY_file_label->setText(QString{"CTY File Version: %1"}.arg(logbook_->cty_version()));
   }
 }

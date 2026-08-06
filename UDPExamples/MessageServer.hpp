@@ -123,6 +123,9 @@ public:
                                   , QString const& dx_call, QString const& dx_grid, bool generate_messages
                                   , bool auto_cq_enabled, bool auto_call_enabled);
 
+  // Signal emitted when a RotateLog message is received from a remote client
+  Q_SIGNAL void rotate_log (ClientKey const&);
+
   // this signal is emitted when a network error occurs
   Q_SIGNAL void error (QString const&) const;
 

@@ -715,12 +715,18 @@ MainWindow::MainWindow(QDir const& temp_directory, bool multiple,
   connect (m_messageClient, &MessageClient::highlight_callsign, ui->decodedTextBrowser, &DisplayText::highlight_callsign);
   connect (m_messageClient, &MessageClient::switch_configuration, m_multi_settings, &MultiSettings::select_configuration);
   connect (m_messageClient, &MessageClient::configure, this, &MainWindow::remote_configure);
+  connect (m_messageClient, &MessageClient::rotate_log, this, [this] () {
+    this->rotate_wsjtx_log_adi (false);
+  });
 
   // Set up MessageServer to listen for incoming UDP messages on port 2237
   // This allows remote clients to send Configure and other commands to WSJT-X
   m_udp_server = new MessageServer {this, QApplication::applicationName (), version ()};
   connect (m_udp_server, &MessageServer::remote_configure, this, [this] (MessageServer::ClientKey const&, QString const& mode, quint32 frequency_tolerance, QString const& submode, bool fast_mode, quint32 tr_period, quint32 rx_df, QString const& dx_call, QString const& dx_grid, bool generate_messages, bool auto_cq_enabled, bool auto_call_enabled) {
     this->remote_configure (mode, frequency_tolerance, submode, fast_mode, tr_period, rx_df, dx_call, dx_grid, generate_messages, auto_cq_enabled, auto_call_enabled);
+  });
+  connect (m_udp_server, &MessageServer::rotate_log, this, [this] (MessageServer::ClientKey const&) {
+    this->rotate_wsjtx_log_adi (false);
   });
   
   // Only start listening if accept_udp_requests is enabled
@@ -10464,6 +10470,107 @@ void MainWindow::on_actionErase_wsjtx_log_adi_triggered()
     QFile f {m_config.writeable_data_dir ().absoluteFilePath ("wsjtx_log.adi")};
     f.remove();
   }
+}
+
+void MainWindow::rotate_wsjtx_log_adi(bool confirm)
+{
+  if (confirm)
+    {
+      int ret = MessageBox::query_message (this, tr ("Confirm Rotate"),
+                                           tr ("Rotate the current wsjtx_log.adi file to a timestamped backup and start a new log?"));
+      if (ret != MessageBox::Yes)
+        {
+          return;
+        }
+    }
+  else
+    {
+      // Rate limit remote rotations to prevent DoS via repeated UDP datagrams
+      auto now = QDateTime::currentDateTimeUtc ();
+      if (m_lastRotateLogUtc.isValid () && m_lastRotateLogUtc.secsTo (now) < 5)
+        {
+          if (m_zdebug)
+            {
+              log (tr ("Rotate: Rate limited, ignoring rotation request within 5 seconds"));
+            }
+          return;
+        }
+      m_lastRotateLogUtc = now;
+    }
+
+  QDir log_dir = m_config.writeable_data_dir ();
+  QFileInfo current_log {log_dir.absoluteFilePath ("wsjtx_log.adi")};
+  if (!current_log.exists ())
+    {
+      if (confirm)
+        {
+          MessageBox::warning_message (this, tr ("Rotate ADIF Log"), tr ("No wsjtx_log.adi file exists to rotate."));
+        }
+      else if (m_zdebug)
+        {
+          log (tr ("Rotate: No wsjtx_log.adi file exists to rotate."));
+        }
+      return;
+    }
+
+  QString timestamp = QDateTime::currentDateTimeUtc ().toString ("yyyyMMddTHHmmssZ");
+  QString rotated_name = QString {"wsjtx_log_%1.adi"}.arg (timestamp);
+  QString rotated_path = log_dir.absoluteFilePath (rotated_name);
+
+  // Handle duplicate filenames from rapid successive rotations (1s granularity)
+  for (int suffix = 1; QFile::exists (rotated_path); ++suffix)
+    {
+      rotated_name = QString {"wsjtx_log_%1_%2.adi"}.arg (timestamp).arg (suffix);
+      rotated_path = log_dir.absoluteFilePath (rotated_name);
+    }
+
+  if (!QFile::rename (current_log.absoluteFilePath (), rotated_path))
+    {
+      if (confirm)
+        {
+          MessageBox::warning_message (this, tr ("Rotate ADIF Log"), tr ("Failed to rotate the current ADIF log file."));
+        }
+      else if (m_zdebug)
+        {
+          log (tr ("Rotate: Failed to rotate the current ADIF log file."));
+        }
+      return;
+    }
+
+  QFile new_log {log_dir.absoluteFilePath ("wsjtx_log.adi")};
+  if (!new_log.open (QIODevice::WriteOnly | QIODevice::Text))
+    {
+      if (confirm)
+        {
+          MessageBox::warning_message (this, tr ("Rotate ADIF Log"), tr ("Failed to create a new ADIF log file."));
+        }
+      else if (m_zdebug)
+        {
+          log (tr ("Rotate: Failed to create a new ADIF log file."));
+        }
+      return;
+    }
+
+  QTextStream out {&new_log};
+  auto const created_timestamp = QDateTime::currentDateTimeUtc ().toString ("yyyyMMdd HHmmss");
+  auto const ver = version (true);
+  out << "ADIF Export\n"
+      << "<adif_ver:5>3.1.1\n"
+      << "<created_timestamp:15>" << created_timestamp << "\n"
+      << "<programid:6>WSJT-X\n"
+      << QString {"<programversion:%1>%2\n"}.arg (ver.size ()).arg (ver)
+      << "<eoh>" << Qt::endl;
+  new_log.close ();
+
+  qso_new = 0;
+  qso_total = 0;
+  updateQsoCounter (false);
+  m_config.rescan_logbook ();
+}
+
+void MainWindow::on_actionRotate_wsjtx_log_adi_triggered()
+{
+  rotate_wsjtx_log_adi (true);
 }
 
 void MainWindow::on_actionErase_WSPR_hashtable_triggered()
