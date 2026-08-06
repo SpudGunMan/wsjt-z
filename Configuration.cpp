@@ -2129,7 +2129,7 @@ void Configuration::impl::read_settings ()
   rxTotxFreq_ = settings_->value("rxTotxFreq").toBool();
   udpFiltering_ = settings_->value("udpFiltering").toBool();
   highlightDX_ = settings_->value("highlightDX").toBool();
-  hideOwnCall_ = settings_->value("hideOwnCall", true).toBool();
+  hideOwnCall_ = settings_->value("hideOwnCall", false).toBool();
   dbgScreen_ = settings_->value("dbgScreen").toBool();
   dbgBoth_ = settings_->value("dbgBoth").toBool();
   autoFreqNarrow_ = settings_->value("autoFreqNarrow").toBool();

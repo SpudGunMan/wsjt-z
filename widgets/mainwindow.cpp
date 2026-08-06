@@ -2291,17 +2291,7 @@ void MainWindow::dataSink(qint64 frames)
     QString t=QString::fromLatin1(line);
     DecodedText decodedtext {t};
     // Check if we should hide our own call decodes
-    bool hideThisDecode = false;
-    if (m_config.hideOwnCall()) {
-      QString txCall = decodedtext.transmittingCall();
-      if (!txCall.isEmpty()) {
-        QString myBaseCall = m_config.my_callsign().split('/')[0].toUpper();
-        QString txBaseCall = txCall.split('/')[0].toUpper();
-        if (txBaseCall == myBaseCall) {
-          hideThisDecode = true;
-        }
-      }
-    }
+    bool hideThisDecode = shouldHideOwnCall(decodedtext);
     if (!hideThisDecode) {
       if (m_bandActivityRawView) {
         ui->decodedTextBrowser->insertText(decodedtext.clean_string().trimmed());
@@ -2616,17 +2606,7 @@ void MainWindow::fastSink(qint64 frames)
     QString message {QString::fromLatin1 (line)};
     DecodedText decodedtext {message.replace (QChar::LineFeed, "")};
     // Check if we should hide our own call decodes
-    bool hideThisDecode = false;
-    if (m_config.hideOwnCall()) {
-      QString txCall = decodedtext.transmittingCall();
-      if (!txCall.isEmpty()) {
-        QString myBaseCall = m_config.my_callsign().split('/')[0].toUpper();
-        QString txBaseCall = txCall.split('/')[0].toUpper();
-        if (txBaseCall == myBaseCall) {
-          hideThisDecode = true;
-        }
-      }
-    }
+    bool hideThisDecode = shouldHideOwnCall(decodedtext);
     if (!hideThisDecode) {
       if (m_bandActivityRawView) {
         ui->decodedTextBrowser->insertText(decodedtext.clean_string().trimmed());
@@ -3263,15 +3243,8 @@ void MainWindow::handleVerifyMsg(int status, QDateTime ts, QString callsign, QSt
           DecodedText decodedMsg{msg};
           // Check if we should hide our own call decodes
           bool hideThisDecode = false;
-          if (m_config.hideOwnCall()) {
-            QString txCall = decodedMsg.transmittingCall();
-            if (!txCall.isEmpty()) {
-              QString myBaseCall = m_config.my_callsign().split('/')[0].toUpper();
-              QString txBaseCall = txCall.split('/')[0].toUpper();
-              if (txBaseCall == myBaseCall) {
-                hideThisDecode = true;
-              }
-            }
+          if (shouldHideOwnCall(decodedMsg)) {
+            hideThisDecode = true;
           }
           if (!hideThisDecode) {
             ui->decodedTextBrowser->displayDecodedText(decodedMsg, m_config.my_callsign(), m_mode, m_config.DXCC(),
@@ -4936,17 +4909,7 @@ void::MainWindow::fast_decode_done()
 //Left (Band activity) window
     DecodedText decodedtext {message.replace (QChar::LineFeed, "")};
     // Check if we should hide our own call decodes
-    bool hideThisDecode = false;
-    if (m_config.hideOwnCall()) {
-      QString txCall = decodedtext.transmittingCall();
-      if (!txCall.isEmpty()) {
-        QString myBaseCall = m_config.my_callsign().split('/')[0].toUpper();
-        QString txBaseCall = txCall.split('/')[0].toUpper();
-        if (txBaseCall == myBaseCall) {
-          hideThisDecode = true;
-        }
-      }
-    }
+    bool hideThisDecode = shouldHideOwnCall(decodedtext);
     if(!m_bFastDone && !hideThisDecode) {
       if (m_bandActivityRawView) {
         ui->decodedTextBrowser->insertText(decodedtext.clean_string().trimmed());
@@ -5855,17 +5818,7 @@ void MainWindow::readFromStdout()                             //readFromStdout
                   stripped.replace(kReAP, "");
                   DecodedText decodedtextNoAP {stripped};
                   // Check if we should hide our own call decodes
-                  bool hideThisDecode = false;
-                  if (m_config.hideOwnCall()) {
-                    QString txCall = decodedtextNoAP.transmittingCall();
-                    if (!txCall.isEmpty()) {
-                      QString myBaseCall = m_config.my_callsign().split('/')[0].toUpper();
-                      QString txBaseCall = txCall.split('/')[0].toUpper();
-                      if (txBaseCall == myBaseCall) {
-                        hideThisDecode = true;
-                      }
-                    }
-                  }
+                  bool hideThisDecode = shouldHideOwnCall(decodedtextNoAP);
                   if (!hideThisDecode) {
                     ui->decodedTextBrowser->displayDecodedText(decodedtextNoAP,m_baseCall,m_mode,dxcc,
                                                                m_logBook,m_currentBand,m_config.ppfx(),
@@ -5877,17 +5830,7 @@ void MainWindow::readFromStdout()                             //readFromStdout
                   }
               } else {
                   // Check if we should hide our own call decodes
-                  bool hideThisDecode = false;
-                  if (m_config.hideOwnCall()) {
-                    QString txCall = decodedtext1.transmittingCall();
-                    if (!txCall.isEmpty()) {
-                      QString myBaseCall = m_config.my_callsign().split('/')[0].toUpper();
-                      QString txBaseCall = txCall.split('/')[0].toUpper();
-                      if (txBaseCall == myBaseCall) {
-                        hideThisDecode = true;
-                      }
-                    }
-                  }
+                  bool hideThisDecode = shouldHideOwnCall(decodedtext1);
                   if (!hideThisDecode) {
                     ui->decodedTextBrowser->displayDecodedText(decodedtext1,m_baseCall,m_mode,dxcc,
                                                                m_logBook,m_currentBand,m_config.ppfx(),
@@ -7507,6 +7450,14 @@ bool MainWindow::elide_tx2_not_allowed () const
     || ((m_mode.startsWith ("FT") || "MSK144" == m_mode || "Q65" == m_mode || "FST4" == m_mode)
         && Radio::is_77bit_nonstandard_callsign (my_callsign))
     || (my_callsign != m_baseCall && !shortList (my_callsign));
+}
+
+bool MainWindow::shouldHideOwnCall (DecodedText const& dt) const
+{
+  if (!m_config.hideOwnCall ()) return false;
+  QString txCall = dt.transmittingCall ();
+  if (txCall.isEmpty ()) return false;
+  return Radio::base_callsign (txCall) == m_baseCall;
 }
 
 void MainWindow::on_txrb1_doubleClicked ()
@@ -14147,16 +14098,9 @@ bool MainWindow::callsignFiltered(DecodedText dt)
     }
 
     // Filter out our own transmissions if enabled
-    if (m_config.hideOwnCall()) {
-        QString txCall = dt.transmittingCall();
-        if (!txCall.isEmpty()) {
-            QString myBaseCall = m_config.my_callsign().split('/')[0].toUpper();
-            QString txBaseCall = txCall.split('/')[0].toUpper();
-            if (txBaseCall == myBaseCall) {
-                if (m_zdebug) log("callsignFiltered: Own call filtered (transmitter=" + txCall + ")");
-                return true;
-            }
-        }
+    if (shouldHideOwnCall(dt)) {
+        if (m_zdebug) log("callsignFiltered: Own call filtered (transmitter=" + dt.transmittingCall() + ")");
+        return true;
     }
 
     bool is_73 = (message_words.size() >= 5 && (message_words.contains("73") || message_words.contains("RR73")));
