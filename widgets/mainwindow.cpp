@@ -14596,7 +14596,7 @@ bool MainWindow::callsignFiltered(DecodedText dt)
         if (m_zdebug) log("callsignFiltered: Prefix filtering...");
         QStringList const& filterLines = m_prefixFilterLinesCache;
         // Linear scan for prefix match (cheaper than QRegExp with anchored ^band:)
-        QString const bandPrefix = m_currentBand + ":";
+        QString const bandPrefix = m_currentBand.toUpper() + ":";
         int filterIndex = -1;
         for (int i = 0; i < filterLines.size(); ++i) {
             if (filterLines[i].startsWith(bandPrefix)) { filterIndex = i; break; }
@@ -14655,7 +14655,7 @@ bool MainWindow::callsignFiltered(DecodedText dt)
             if (m_zdebug) log("callsignFiltered: US State filtering: " + state);
 
             QStringList const& filterLines = m_stateFilterLinesCache;
-            QString const bandPrefix = m_currentBand + ":";
+            QString const bandPrefix = m_currentBand.toUpper() + ":";
             int filterIndex = -1;
             for (int i = 0; i < filterLines.size(); ++i) {
                 if (filterLines[i].startsWith(bandPrefix)) { filterIndex = i; break; }
