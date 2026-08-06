@@ -221,6 +221,8 @@ private:
   QList<DecodeLabel> m_decodeLabels;
   DecodeLabelFontSize m_decodeFontSize {DecodeLabelFontSize::Normal};
   int m_decodeLabelAlpha {255};
+  mutable QFont m_cachedDecodeFont;       // cached for paintDecodeLabels
+  mutable QFontMetrics m_cachedFontMetrics {m_cachedDecodeFont}; // avoid rebuild per paint
 
   char    m_sutc[6];
 

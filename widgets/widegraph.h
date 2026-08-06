@@ -74,16 +74,9 @@ public:
   // stale callsigns at FT8 audio offsets are meaningless in FT4 framing,
   // and would just clutter the new mode.
   void   clearDecodeLabels();
-  // Track WSJT-X's "DX Call" entry → mark the matching label as
-  // active (light-green background, contrasting text). Empty string
-  // clears the active marker.
   void   setActiveCallsign(const QString& call);
   DecodeLabelFontSize decodeLabelFontSize() const { return m_decodeFontSize; }
-  void   setDecodeLabelFontSize(DecodeLabelFontSize sz);
-  // Overlay transparency. View menu offers None=255 / Medium=200 /
-  // High=175; persisted in WideGraph QSettings group as DecodeLabelAlpha.
   int    decodeLabelAlpha() const { return m_decodeLabelAlpha; }
-  void   setDecodeLabelAlpha(int alpha);
 
 signals:
   void freezeDecode2(int n);
@@ -119,6 +112,8 @@ private slots:
   void on_cbControls_toggled(bool b);
   void on_cbBars_toggled(bool b);
   void on_cbFreq_toggled(bool b);
+  void on_cbClear_toggled(bool b);
+  void on_pbClear_clicked();
   void on_cbShowCallsigns_toggled(bool b);
   void on_sbDecodeLabelPeriods_valueChanged(int n);
   void on_pbClearDecodeLabels_clicked();

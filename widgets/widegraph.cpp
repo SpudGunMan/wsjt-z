@@ -503,6 +503,17 @@ void WideGraph::on_cbFreq_toggled(bool b)
   ui->widePlot->showFreq(m_freq);
 }
 
+void WideGraph::on_cbClear_toggled(bool b)
+{
+  m_clear = b;
+  ui->widePlot->setClear(m_clear);
+}
+
+void WideGraph::on_pbClear_clicked()
+{
+  ui->widePlot->update();
+}
+
 void WideGraph::on_timestampComboBox_currentIndexChanged(int n)
 {
   m_timestamp = n;
@@ -691,33 +702,6 @@ void WideGraph::setActiveCallsign(const QString& call)
                     && call.compare(lab.callsign, Qt::CaseInsensitive) == 0;
   }
   if (ui && ui->widePlot) ui->widePlot->setDecodeLabels(m_decodeLabels);
-}
-
-void WideGraph::setDecodeLabelFontSize(DecodeLabelFontSize sz)
-{
-  if (m_decodeFontSize == sz) return;
-  m_decodeFontSize = sz;
-  if (ui && ui->widePlot) ui->widePlot->setDecodeLabelFontSize(sz);
-  if (m_settings) {
-    SettingsGroup g {m_settings, "WideGraph"};
-    m_settings->setValue("DecodeLabelFontSize", static_cast<int>(sz));
-  }
-}
-
-void WideGraph::setDecodeLabelAlpha(int alpha)
-{
-  // Snap incoming value to one of the four presets so a stale or
-  // hand-edited INI can't break the View menu's exclusive group.
-  if      (alpha <= 187) alpha = 175;  // High
-  else if (alpha <= 225) alpha = 200;  // Medium
-  else                   alpha = 255;  // None
-  if (m_decodeLabelAlpha == alpha) return;
-  m_decodeLabelAlpha = alpha;
-  if (ui && ui->widePlot) ui->widePlot->setDecodeLabelAlpha(alpha);
-  if (m_settings) {
-    SettingsGroup g {m_settings, "WideGraph"};
-    m_settings->setValue("DecodeLabelAlpha", alpha);
-  }
 }
 
 void WideGraph::ageDecodeLabels()

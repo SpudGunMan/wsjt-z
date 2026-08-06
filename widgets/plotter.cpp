@@ -1108,11 +1108,16 @@ void CPlotter::paintDecodeLabels(QPainter& painter)
 {
   if (m_decodeLabels.isEmpty()) return;
   
-  // Set up font based on selected size
+  // Cache font and metrics to avoid rebuild on every paintEvent
+  // (paintDecodeLabels can iterate up to 300 labels on busy bands)
   QFont font("Arial");
   font.setPointSize(static_cast<int>(m_decodeFontSize));
   font.setWeight(QFont::Bold);
-  painter.setFont(font);
+  if (m_cachedDecodeFont != font) {
+    m_cachedDecodeFont = font;
+    m_cachedFontMetrics = QFontMetrics(font);
+  }
+  painter.setFont(m_cachedDecodeFont);
   
   // Set up pen for text with transparency
   QPen textPen(QColor(255, 165, 0));  // Orange
@@ -1129,14 +1134,19 @@ void CPlotter::paintDecodeLabels(QPainter& painter)
                                       : QColor(0, 0, 0, 0);
     QColor textColor = label.is_active ? Qt::red : QColor(255, 165, 0);  // Red for active, Orange for inactive
     
+    int textWidth = m_cachedFontMetrics.horizontalAdvance(label.callsign);
+    int textHeight = m_cachedFontMetrics.height();
+    int ascent = m_cachedFontMetrics.ascent();
+    
+    // Center the label text and background at x position (both use same centering)
+    int labelX = x - textWidth / 2;
+    int labelY = 5;
+    
     if (bgColor.alpha() > 0) {
-      QFontMetrics fm(font);
-      int textWidth = fm.horizontalAdvance(label.callsign);
-      int textHeight = fm.height();
-      painter.fillRect(x - textWidth/2, 5, textWidth, textHeight, bgColor);
+      painter.fillRect(labelX, labelY, textWidth, textHeight, bgColor);
     }
     
     painter.setPen(textColor);
-    painter.drawText(x, 5 + painter.fontMetrics().ascent(), label.callsign);
+    painter.drawText(labelX, labelY + ascent, label.callsign);
   }
 }
