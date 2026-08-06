@@ -536,6 +536,12 @@
  *      ffffffff will remove the sort-order value from the internal table.
  *      Callsigns without a sort order will be valued at zero for sorting purposes
  *      in the hound display.
+ *
+ * RotateLog         In     17
+ *
+ *      Instructs WSJT-X to rotate the ADIF log: rename wsjtx_log.adi to a
+ *      timestamped backup and start a new wsjtx_log.adi file. This message
+ *      carries no payload.
  */
 
 #include <QDataStream>
@@ -567,8 +573,8 @@ namespace NetworkMessage
       HighlightCallsign,
       SwitchConfiguration,
       Configure,
-      RotateLog,
       AnnotationInfo,
+      RotateLog,
       maximum_message_type_     // ONLY add new message types
                                 // immediately before here
     };

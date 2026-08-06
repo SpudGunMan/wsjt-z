@@ -3328,7 +3328,7 @@ list. The list can be maintained in Settings (F2).</string>
                          <item>
                           <widget class="QPushButton" name="btn_addToPermIgnore">
                            <property name="toolTip">
-                            <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Save the current ignore list into the persistent configuration.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                            <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Add the current ignore list to the persistent configuration (merge-only, never removes).&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
                            </property>
                            <property name="text">
                             <string>Add to permaIgnore</string>
@@ -5266,7 +5266,7 @@ list. The list can be maintained in Settings (F2).</string>
   </action>
   <action name="actionRotate_wsjtx_log_adi">
    <property name="text">
-    <string>Rotate _log.adi</string>
+    <string>Rotate wsjtx_log.adi</string>
    </property>
   </action>
   <action name="actionJT65">

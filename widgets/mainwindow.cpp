@@ -562,7 +562,7 @@ MainWindow::MainWindow(QDir const& temp_directory, bool multiple,
   ui->decodedTextBrowser->setBandActivity(true);
 
   if (m_config.psk_reporter_band_activity()) {
-    m_pskReporterView.reset(new PSKReporterWidget {nullptr, &m_config, &m_logBook});
+    m_pskReporterView.reset(new PSKReporterWidget {nullptr, &m_config, &m_logBook, m_multi_settings});
     connect(this, &MainWindow::finished, m_pskReporterView.data(), &QWidget::close);
     connect(m_pskReporterView.data(), &PSKReporterWidget::clicked, this, &MainWindow::pskTableClicked);
     connect(m_pskReporterView.data(), &PSKReporterWidget::reportsUpdated, this, &MainWindow::pskReporterReportsUpdated);
@@ -727,7 +727,9 @@ MainWindow::MainWindow(QDir const& temp_directory, bool multiple,
   connect (m_messageClient, &MessageClient::highlight_callsign, ui->decodedTextBrowser, &DisplayText::highlight_callsign);
   connect (m_messageClient, &MessageClient::switch_configuration, m_multi_settings, &MultiSettings::select_configuration);
   connect (m_messageClient, &MessageClient::configure, this, &MainWindow::remote_configure);
-  connect (m_messageClient, &MessageClient::rotate_log, this, &MainWindow::on_actionRotate_wsjtx_log_adi_triggered);
+  connect (m_messageClient, &MessageClient::rotate_log, this, [this] () {
+    this->rotate_wsjtx_log_adi (false);
+  });
 
   // Set up MessageServer to listen for incoming UDP messages on port 2237
   // This allows remote clients to send Configure and other commands to WSJT-X
@@ -884,6 +886,15 @@ MainWindow::MainWindow(QDir const& temp_directory, bool multiple,
   connect (ui->foxTxListTextBrowser, &DisplayText::selectCallsign, this, &MainWindow::doubleClickOnFoxInProgress);
   connect (ui->decodedTextBrowser, &DisplayText::erased, this, &MainWindow::band_activity_cleared);
   connect (ui->decodedTextBrowser2, &DisplayText::erased, this, &MainWindow::rx_frequency_activity_cleared);
+  // Decoded-callsign overlay: connect DisplayText signals to WideGraph
+  connect (ui->decodedTextBrowser, &DisplayText::decodedCallsign, m_wideGraph.data(), 
+           [this](double freq, const QString& call, bool is_cq, int time_sec) {
+             m_wideGraph->addDecodeLabel(freq, call, is_cq, time_sec);
+           });
+  connect (ui->decodedTextBrowser2, &DisplayText::decodedCallsign, m_wideGraph.data(),
+           [this](double freq, const QString& call, bool is_cq, int time_sec) {
+             m_wideGraph->addDecodeLabel(freq, call, is_cq, time_sec);
+           });
   // Z
   connect (ui->decodedTextBrowser2, &DisplayText::leftClick, this, &MainWindow::leftClickHandler);
   connect (ui->decodedTextBrowser, &DisplayText::leftClick, this, &MainWindow::leftClickHandler);
@@ -2313,17 +2324,7 @@ void MainWindow::dataSink(qint64 frames)
     QString t=QString::fromLatin1(line);
     DecodedText decodedtext {t};
     // Check if we should hide our own call decodes
-    bool hideThisDecode = false;
-    if (m_config.hideOwnCall()) {
-      QString txCall = decodedtext.transmittingCall();
-      if (!txCall.isEmpty()) {
-        QString myBaseCall = m_config.my_callsign().split('/')[0].toUpper();
-        QString txBaseCall = txCall.split('/')[0].toUpper();
-        if (txBaseCall == myBaseCall) {
-          hideThisDecode = true;
-        }
-      }
-    }
+    bool hideThisDecode = shouldHideOwnCall(decodedtext);
     if (!hideThisDecode) {
       if (m_bandActivityRawView) {
         ui->decodedTextBrowser->insertText(decodedtext.clean_string().trimmed());
@@ -2512,7 +2513,7 @@ void MainWindow::dataSink(qint64 frames)
       if((m_ndepth&7)==1) depth_args << "-qB"; //2 pass w subtract, no Block detection, no shift jittering
       if((m_ndepth&7)==2) depth_args << "-C" << "500" << "-o" << "4"; //3 pass, subtract, Block detection, OSD
       if((m_ndepth&7)==3) depth_args << "-C" << "500"  << "-o" << "4" << "-d"; //3 pass, subtract, Block detect, OSD, more candidates
-      if((m_ndepth&4)==4) depth_args << "-C" << "500"  << "-o" << "6" << "-d"; //3 pass, subtract, Block detect, OSD depth 6, even mere candidates
+      if((m_ndepth&7)==4) depth_args << "-C" << "500"  << "-o" << "6" << "-d"; //3 pass, subtract, Block detect, OSD depth 6, even mere candidates
       QStringList degrade;
       degrade << "-d" << QString {"%1"}.arg (m_config.degrade(), 4, 'f', 1);
       m_cmndP1.clear ();
@@ -2639,17 +2640,7 @@ void MainWindow::fastSink(qint64 frames)
     QString message {QString::fromLatin1 (line)};
     DecodedText decodedtext {message.replace (QChar::LineFeed, "")};
     // Check if we should hide our own call decodes
-    bool hideThisDecode = false;
-    if (m_config.hideOwnCall()) {
-      QString txCall = decodedtext.transmittingCall();
-      if (!txCall.isEmpty()) {
-        QString myBaseCall = m_config.my_callsign().split('/')[0].toUpper();
-        QString txBaseCall = txCall.split('/')[0].toUpper();
-        if (txBaseCall == myBaseCall) {
-          hideThisDecode = true;
-        }
-      }
-    }
+    bool hideThisDecode = shouldHideOwnCall(decodedtext);
     if (!hideThisDecode) {
       if (m_bandActivityRawView) {
         ui->decodedTextBrowser->insertText(decodedtext.clean_string().trimmed());
@@ -2661,27 +2652,17 @@ void MainWindow::fastSink(qint64 frames)
     
     // Plot on DXStationMap if calling ME
     if (m_dxStationMap) {
-      QString myCall = m_config.my_callsign();
-      if (!myCall.isEmpty()) {
-        auto for_me = decodedtext.string().contains(" " + myCall + " ") or
-                      decodedtext.string().contains(" " + myCall) or
-                      decodedtext.string().contains(myCall + " ") or
-                      decodedtext.string().contains(" <" + myCall + "> ");
-        if (for_me) {
-          QString dxCall, dxGrid;
-          decodedtext.deCallAndGrid(dxCall, dxGrid);
-          if (!dxCall.isEmpty() && !dxGrid.isEmpty()) {
-            PlottedStation s;
-            s.call = dxCall;
-            s.grid = dxGrid.toUpper().left(4);
-            s.snr = decodedtext.snr();
-            s.freqHz = decodedtext.frequencyOffset();
-            s.forMe = true;
-            s.isCQ = false;
-            s.period = 0;
-            m_dxStationMap->addStation(s);
-          }
-        }
+      QString dxCall, dxGrid;
+      if (isCallingForMe(decodedtext, dxCall, dxGrid)) {
+        PlottedStation s;
+        s.call = dxCall;
+        s.grid = dxGrid.toUpper().left(4);
+        s.snr = decodedtext.snr();
+        s.freqHz = decodedtext.frequencyOffset();
+        s.forMe = true;
+        s.isCQ = false;
+        s.period = 0;
+        m_dxStationMap->addStation(s);
       }
     }
     
@@ -2770,6 +2751,7 @@ void MainWindow::on_actionSettings_triggered()               //Setup Dialog
   auto my_grid = m_config.my_grid ();
   SpecOp nContest0=m_specOp;
   auto psk_on = m_config.spot_to_psk_reporter ();
+  auto perm_ignore_list = m_config.permIgnoreList ();
   inSettings = true;
   if (QDialog::Accepted == m_config.exec ()) {
     checkMSK144ContestType();
@@ -2781,6 +2763,9 @@ void MainWindow::on_actionSettings_triggered()               //Setup Dialog
     }
     if (m_config.my_callsign () != callsign || m_config.my_grid () != my_grid) {
       statusUpdate ();
+    }
+    if (m_config.permIgnoreList () != perm_ignore_list) {
+      invalidateFilterCache ();
     }
     on_dxGridEntry_textChanged (m_hisGrid); // recalculate distances in case of units change
     enable_DXCC_entity (m_config.DXCC ());  // sets text window proportions and (re)inits the logbook
@@ -3308,22 +3293,14 @@ void MainWindow::handleVerifyMsg(int status, QDateTime ts, QString callsign, QSt
           ui->labDXped->setStyleSheet("QLabel {background-color: #00ff00; color: black;}");
         }
         if (m_bandActivityRawView) {
-          ui->decodedTextBrowser->insertText(DecodedText{msg}.clean_string().trimmed());
+          DecodedText decodedMsg{msg};
+          if (!shouldHideOwnCall(decodedMsg)) {
+            ui->decodedTextBrowser->insertText(decodedMsg.clean_string().trimmed());
+          }
         } else {
           DecodedText decodedMsg{msg};
           // Check if we should hide our own call decodes
-          bool hideThisDecode = false;
-          if (m_config.hideOwnCall()) {
-            QString txCall = decodedMsg.transmittingCall();
-            if (!txCall.isEmpty()) {
-              QString myBaseCall = m_config.my_callsign().split('/')[0].toUpper();
-              QString txBaseCall = txCall.split('/')[0].toUpper();
-              if (txBaseCall == myBaseCall) {
-                hideThisDecode = true;
-              }
-            }
-          }
-          if (!hideThisDecode) {
+          if (!shouldHideOwnCall(decodedMsg)) {
             ui->decodedTextBrowser->displayDecodedText(decodedMsg, m_config.my_callsign(), m_mode, m_config.DXCC(),
                                                        m_logBook, m_currentBand, m_config.ppfx());
           }
@@ -3755,13 +3732,13 @@ void MainWindow::update_mode_switch_status_label ()
                 {
                   bh_remaining = auto_cq_left;
                   if (ui->cb_autoModeSwitch->isChecked ()) {
-                    bh_remaining += auto_call_total;
+                    bh_remaining += auto_call_total + auto_rx_total;
                   }
                 }
               else if (!ui->cbAutoCall->isChecked () && !ui->cbAutoCQ->isChecked () && auto_rx_total > 0)
                 {
-                  // AutoRx is active, band hop will occur after RX + CQ + Call all complete
-                  bh_remaining = auto_rx_left + auto_cq_total + auto_call_total;
+                  // AutoRx is active, band hop will occur at the Rx->CQ boundary
+                  bh_remaining = auto_rx_left;
                 }
 
               if (bh_remaining > 0)
@@ -4997,18 +4974,7 @@ void::MainWindow::fast_decode_done()
 //Left (Band activity) window
     DecodedText decodedtext {message.replace (QChar::LineFeed, "")};
     // Check if we should hide our own call decodes
-    bool hideThisDecode = false;
-    if (m_config.hideOwnCall()) {
-      QString txCall = decodedtext.transmittingCall();
-      if (!txCall.isEmpty()) {
-        QString myBaseCall = m_config.my_callsign().split('/')[0].toUpper();
-        QString txBaseCall = txCall.split('/')[0].toUpper();
-        if (txBaseCall == myBaseCall) {
-          hideThisDecode = true;
-        }
-      }
-    }
-    if(!m_bFastDone && !hideThisDecode) {
+    if(!m_bFastDone && !shouldHideOwnCall(decodedtext)) {
       if (m_bandActivityRawView) {
         ui->decodedTextBrowser->insertText(decodedtext.clean_string().trimmed());
       } else {
@@ -5806,7 +5772,7 @@ void MainWindow::readFromStdout()                             //readFromStdout
       m_unfilteredView->display(rawViewLine);
         }
 
-        if (m_bandActivityRawView) {
+        if (m_bandActivityRawView && !shouldHideOwnCall(decodedtext)) {
       ui->decodedTextBrowser->insertText(rawViewLine);
         }
 
@@ -5916,17 +5882,7 @@ void MainWindow::readFromStdout()                             //readFromStdout
                   stripped.replace(kReAP, "");
                   DecodedText decodedtextNoAP {stripped};
                   // Check if we should hide our own call decodes
-                  bool hideThisDecode = false;
-                  if (m_config.hideOwnCall()) {
-                    QString txCall = decodedtextNoAP.transmittingCall();
-                    if (!txCall.isEmpty()) {
-                      QString myBaseCall = m_config.my_callsign().split('/')[0].toUpper();
-                      QString txBaseCall = txCall.split('/')[0].toUpper();
-                      if (txBaseCall == myBaseCall) {
-                        hideThisDecode = true;
-                      }
-                    }
-                  }
+                  bool hideThisDecode = shouldHideOwnCall(decodedtextNoAP);
                   if (!hideThisDecode) {
                     ui->decodedTextBrowser->displayDecodedText(decodedtextNoAP,m_baseCall,m_mode,dxcc,
                                                                m_logBook,m_currentBand,m_config.ppfx(),
@@ -5938,17 +5894,7 @@ void MainWindow::readFromStdout()                             //readFromStdout
                   }
               } else {
                   // Check if we should hide our own call decodes
-                  bool hideThisDecode = false;
-                  if (m_config.hideOwnCall()) {
-                    QString txCall = decodedtext1.transmittingCall();
-                    if (!txCall.isEmpty()) {
-                      QString myBaseCall = m_config.my_callsign().split('/')[0].toUpper();
-                      QString txBaseCall = txCall.split('/')[0].toUpper();
-                      if (txBaseCall == myBaseCall) {
-                        hideThisDecode = true;
-                      }
-                    }
-                  }
+                  bool hideThisDecode = shouldHideOwnCall(decodedtext1);
                   if (!hideThisDecode) {
                     ui->decodedTextBrowser->displayDecodedText(decodedtext1,m_baseCall,m_mode,dxcc,
                                                                m_logBook,m_currentBand,m_config.ppfx(),
@@ -6126,7 +6072,7 @@ void MainWindow::readFromStdout()                             //readFromStdout
       if((m_mode=="JT4" or m_mode=="Q65" or m_mode=="JT65") and decodedtext.string().contains(m_baseCall) && ui->actionInclude_averaging->isVisible() && !ui->actionInclude_averaging->isChecked()) bDisplayRight=true;
       if((m_mode=="FT8" or m_mode=="FT4" or m_mode=="FT2") and SpecOp::FOX!=m_specOp && decodedtext0.string().replace("<","").replace(">","").contains(m_baseCall + " " + m_hisCall)) bDisplayRight=true;  // really all messages for us
 
-      if (bDisplayRight) {
+      if (bDisplayRight && !shouldHideOwnCall(decodedtext0)) {
         // This msg is within 10 hertz of our tuned frequency, or a JT4 or JT65 avg,
         // or contains MyCall
         if(!m_bBestSPArmed or (m_mode!="FT4" and m_mode!="FT2")) {
@@ -6135,24 +6081,17 @@ void MainWindow::readFromStdout()                             //readFromStdout
           
           // Plot on DXStationMap if calling ME
           if (m_dxStationMap) {
-            auto for_me = decodedtext0.string().contains(" " + my_call + " ") or
-                          decodedtext0.string().contains(" " + my_call) or
-                          decodedtext0.string().contains(my_call + " ") or
-                          decodedtext0.string().contains(" <" + my_call + "> ");
-            if (for_me) {
-              QString dxCall, dxGrid;
-              decodedtext0.deCallAndGrid(dxCall, dxGrid);
-              if (!dxCall.isEmpty() && !dxGrid.isEmpty()) {
-                PlottedStation s;
-                s.call = dxCall;
-                s.grid = dxGrid.toUpper().left(4);
-                s.snr = decodedtext0.snr();
-                s.freqHz = decodedtext0.frequencyOffset();
-                s.forMe = true;
-                s.isCQ = false;
-                s.period = 0;
-                m_dxStationMap->addStation(s);
-              }
+            QString dxCall, dxGrid;
+            if (isCallingForMe(decodedtext0, dxCall, dxGrid)) {
+              PlottedStation s;
+              s.call = dxCall;
+              s.grid = dxGrid.toUpper().left(4);
+              s.snr = decodedtext0.snr();
+              s.freqHz = decodedtext0.frequencyOffset();
+              s.forMe = true;
+              s.isCQ = false;
+              s.period = 0;
+              m_dxStationMap->addStation(s);
             }
           }
         }
@@ -6312,7 +6251,7 @@ void MainWindow::auto_sequence (DecodedText const& message, unsigned start_toler
   if (m_zdebug) log("isStandardMessage: " +  QString::number(message.isStandardMessage()));
   if (m_zdebug) log("message.is_composite_message(): " + QString::number(message.is_composite_message()));
 
-  auto const& raw_words = msg_no_hash.split(" ",SkipEmptyParts);
+  auto const& raw_words = msg_no_hash.split (" ", SkipEmptyParts);
   bool composite_rr73_detected = composite_rr73 (raw_words);
   if (m_zdebug) log(QString("composite_rr73_detected: %1, raw_words.size: %2, raw_words[1]: %3")
                     .arg(composite_rr73_detected)
@@ -6398,8 +6337,15 @@ void MainWindow::auto_sequence (DecodedText const& message, unsigned start_toler
       return;
     }
 
-    if (m_ignoredStationsCache.contains(hiscall)
-        || m_ignoredStationsCache.contains(Radio::base_callsign(hiscall))) {
+    // Exempt current or last QSO partner from ignore list: even if they're ignored,
+    // we must process their closing messages (73/RR73) to properly advance m_QSOProgress
+    // and log the QSO. Without this exemption, ignoring a station mid-QSO leaves it
+    // unlogged. This mirrors the exemption in callsignFiltered() at line ~14086-14089.
+    bool is_current_qso_partner = (m_lastCall == hiscall || m_hisCall == hiscall);
+
+    if (!m_filterCacheValid) rebuildFilterCache();
+    if (!is_current_qso_partner && (m_ignoredStationsCache.contains(hiscall)
+        || m_ignoredStationsCache.contains(Radio::base_callsign(hiscall)))) {
       return;
     }
 
@@ -6464,8 +6410,19 @@ void MainWindow::auto_sequence (DecodedText const& message, unsigned start_toler
           if (composite_rr73_for_me && message.is_composite_message ())
             {
               auto const& fields = message.composite_message_fields ();
-              // Always target the tertiary regardless of whether we're primary or secondary
-              m_hisCall = fields.tertiary_caller;
+              QString composite_target;
+              if (!fields.tertiary_caller.isEmpty ())
+                {
+                  composite_target = fields.tertiary_caller;
+                }
+              else if (!raw_words.isEmpty ())
+                {
+                  composite_target = raw_words.value (0);
+                }
+              if (!composite_target.isEmpty ())
+                {
+                  m_hisCall = composite_target;
+                }
               if (m_zdebug) log (QString ("Composite RR73 for me: setting target to %1").arg (m_hisCall));
             }
           
@@ -6585,15 +6542,9 @@ void MainWindow::on_EraseButton_clicked ()
   }
 
   if (m_nEraseClicks >= 3) {
+    clearDX();
+    ui->tx5->clearEditText();  // match triple-click behavior
     ui->stopTxButton->click (); // halt any transmission
-    ui->tx1->clear();
-    ui->tx2->clear();
-    ui->tx3->clear();
-    ui->tx4->clear();
-    ui->tx5->clearEditText();
-    ui->dxCallEntry->clear();
-    ui->dxGridEntry->clear();
-    ui->txrb6->setChecked(true);
     if (m_zdebug) log("Auto-sequencing stopped by triple Erase click");
     m_nEraseClicks = 0;
   }
@@ -7419,6 +7370,11 @@ void MainWindow::guiUpdate()
     if(!m_monitoring and !m_diskData) ui->signal_meter_widget->setValue(0,0);
     m_sec0=nsec;
     displayDialFrequency ();
+    
+    // Enforce MAX_STATIONS hard limit on DXStationMap
+    if (m_dxStationMap) {
+      m_dxStationMap->expireStations();
+    }
   }
   m_iptt0=g_iptt;
   m_btxok0=m_btxok;
@@ -7602,6 +7558,34 @@ bool MainWindow::elide_tx2_not_allowed () const
     || ((m_mode.startsWith ("FT") || "MSK144" == m_mode || "Q65" == m_mode || "FST4" == m_mode)
         && Radio::is_77bit_nonstandard_callsign (my_callsign))
     || (my_callsign != m_baseCall && !shortList (my_callsign));
+}
+
+bool MainWindow::isCallingForMe (DecodedText const& dt, QString& call, QString& grid) const
+{
+  // Check addressee (word 1), not DX station (word 2)
+  QString myCall = dt.call ();
+  if (myCall.isEmpty ()) return false;
+  
+  // Handle hashed calls like <K1ABC> — strip angle brackets
+  if (myCall.startsWith ("<") && myCall.endsWith (">")) {
+    myCall = myCall.mid (1, myCall.length () - 2);
+  }
+  
+  if (Radio::base_callsign (myCall) != m_baseCall) return false;
+  
+  // Parse the DX station (word 2) and grid (word 3) for plotting
+  dt.deCallAndGrid (call, grid);
+  return !call.isEmpty () && !grid.isEmpty ();
+}
+bool MainWindow::shouldHideOwnCall (DecodedText const& dt) const
+{
+  if (!m_config.hideOwnCall ()) return false;
+  // Cheap guard: avoid expensive transmittingCall() parsing if m_baseCall not in message
+  if (!dt.string ().contains (m_baseCall)) return false;
+  QString txCall = dt.transmittingCall ();
+  if (txCall.isEmpty ()) return false;
+  // Strip angle brackets from hashed calls (e.g., "<K1ABC>" -> "K1ABC")
+  return Radio::base_callsign (txCall.remove ('<').remove ('>')) == m_baseCall;
 }
 
 void MainWindow::on_txrb1_doubleClicked ()
@@ -8397,27 +8381,17 @@ void MainWindow::processMessage (DecodedText const& message, Qt::KeyboardModifie
       
       // Plot on DXStationMap if calling ME
       if (m_dxStationMap) {
-        QString myCall = m_config.my_callsign();
-        if (!myCall.isEmpty()) {
-          auto for_me = message.string().contains(" " + myCall + " ") or
-                        message.string().contains(" " + myCall) or
-                        message.string().contains(myCall + " ") or
-                        message.string().contains(" <" + myCall + "> ");
-          if (for_me) {
-            QString dxCall, dxGrid;
-            message.deCallAndGrid(dxCall, dxGrid);
-            if (!dxCall.isEmpty() && !dxGrid.isEmpty()) {
-              PlottedStation s;
-              s.call = dxCall;
-              s.grid = dxGrid.toUpper().left(4);
-              s.snr = message.snr();
-              s.freqHz = message.frequencyOffset();
-              s.forMe = true;
-              s.isCQ = false;
-              s.period = 0;
-              m_dxStationMap->addStation(s);
-            }
-          }
+        QString dxCall, dxGrid;
+        if (isCallingForMe(message, dxCall, dxGrid)) {
+          PlottedStation s;
+          s.call = dxCall;
+          s.grid = dxGrid.toUpper().left(4);
+          s.snr = message.snr();
+          s.freqHz = message.frequencyOffset();
+          s.forMe = true;
+          s.isCQ = false;
+          s.period = 0;
+          m_dxStationMap->addStation(s);
         }
       }
     }
@@ -10740,12 +10714,33 @@ void MainWindow::rotate_wsjtx_log_adi(bool confirm)
           return;
         }
     }
+  else
+    {
+      // Rate limit remote rotations to prevent DoS via repeated UDP datagrams
+      auto now = QDateTime::currentDateTimeUtc ();
+      if (m_lastRotateLogUtc.isValid () && m_lastRotateLogUtc.secsTo (now) < 5)
+        {
+          if (m_zdebug)
+            {
+              log (tr ("Rotate: Rate limited, ignoring rotation request within 5 seconds"));
+            }
+          return;
+        }
+      m_lastRotateLogUtc = now;
+    }
 
   QDir log_dir = m_config.writeable_data_dir ();
   QFileInfo current_log {log_dir.absoluteFilePath ("wsjtx_log.adi")};
   if (!current_log.exists ())
     {
-      MessageBox::warning_message (this, tr ("Rotate ADIF Log"), tr ("No wsjtx_log.adi file exists to rotate."));
+      if (confirm)
+        {
+          MessageBox::warning_message (this, tr ("Rotate ADIF Log"), tr ("No wsjtx_log.adi file exists to rotate."));
+        }
+      else if (m_zdebug)
+        {
+          log (tr ("Rotate: No wsjtx_log.adi file exists to rotate."));
+        }
       return;
     }
 
@@ -10753,31 +10748,48 @@ void MainWindow::rotate_wsjtx_log_adi(bool confirm)
   QString rotated_name = QString {"wsjtx_log_%1.adi"}.arg (timestamp);
   QString rotated_path = log_dir.absoluteFilePath (rotated_name);
 
-  if (QFile::exists (rotated_path))
+  // Handle duplicate filenames from rapid successive rotations (1s granularity)
+  for (int suffix = 1; QFile::exists (rotated_path); ++suffix)
     {
-      QFile::remove (rotated_path);
+      rotated_name = QString {"wsjtx_log_%1_%2.adi"}.arg (timestamp).arg (suffix);
+      rotated_path = log_dir.absoluteFilePath (rotated_name);
     }
 
   if (!QFile::rename (current_log.absoluteFilePath (), rotated_path))
     {
-      MessageBox::warning_message (this, tr ("Rotate ADIF Log"), tr ("Failed to rotate the current ADIF log file."));
+      if (confirm)
+        {
+          MessageBox::warning_message (this, tr ("Rotate ADIF Log"), tr ("Failed to rotate the current ADIF log file."));
+        }
+      else if (m_zdebug)
+        {
+          log (tr ("Rotate: Failed to rotate the current ADIF log file."));
+        }
       return;
     }
 
   QFile new_log {log_dir.absoluteFilePath ("wsjtx_log.adi")};
   if (!new_log.open (QIODevice::WriteOnly | QIODevice::Text))
     {
-      MessageBox::warning_message (this, tr ("Rotate ADIF Log"), tr ("Failed to create a new ADIF log file."));
+      if (confirm)
+        {
+          MessageBox::warning_message (this, tr ("Rotate ADIF Log"), tr ("Failed to create a new ADIF log file."));
+        }
+      else if (m_zdebug)
+        {
+          log (tr ("Rotate: Failed to create a new ADIF log file."));
+        }
       return;
     }
 
   QTextStream out {&new_log};
   auto const created_timestamp = QDateTime::currentDateTimeUtc ().toString ("yyyyMMdd HHmmss");
+  auto const ver = version (true);
   out << "ADIF Export\n"
       << "<adif_ver:5>3.1.1\n"
       << "<created_timestamp:15>" << created_timestamp << "\n"
       << "<programid:6>WSJT-X\n"
-      << "<programversion:5>" << QApplication::applicationVersion ().left (5) << "\n"
+      << QString {"<programversion:%1>%2\n"}.arg (ver.size ()).arg (ver)
       << "<eoh>" << Qt::endl;
   new_log.close ();
 
@@ -12624,6 +12636,7 @@ void MainWindow::tx_watchdog (bool triggered)
                                    && !his_base.isEmpty ()
                                    && candidate_base == his_base;
           bool const target_uncertain = his_base.isEmpty () || candidate_base.isEmpty ();
+          if (!m_filterCacheValid) rebuildFilterCache();
           bool const already_ignored = m_ignoredStationsCache.contains (ignore_candidate)
                                        || m_ignoredStationsCache.contains (candidate_base);
 
@@ -14312,13 +14325,13 @@ void MainWindow::on_btn_addToIgnore_clicked( ) {
 void MainWindow::on_btn_addToPermIgnore_clicked()
 {
     m_config.set_permIgnoreList(ui->pte_IgnoredStations->toPlainText());
-    showStatusMessage(tr("Saved current ignore list to permanent ignore list"));
+    showStatusMessage(tr("Added current ignore list to permanent ignore list"));
 }
 
 void MainWindow::on_btn_clearIgnore_clicked( ) {
     ui->pte_IgnoredStations->clear();
-    ui->pte_IgnoredStations->appendPlainText(m_config.permIgnoreList());
     m_ignoreListReset = QDateTime::currentDateTime();
+    m_filterCacheValid = false;
 }
 
 
@@ -14327,7 +14340,12 @@ void MainWindow::rebuildFilterCache() const
     // Split on '\n' after stripping '\r'; faster than QRegExp("[\r\n]")
     auto split_lines = [](QString s) {
         s.remove(QChar('\r'));
-        return s.split(QChar('\n'), SkipEmptyParts);
+        auto lines = s.split(QChar('\n'), SkipEmptyParts);
+        // Normalize case and whitespace for consistent matching with Radio::base_callsign()
+        for (auto& line : lines) {
+            line = line.trimmed().toUpper();
+        }
+        return lines;
     };
 
     QString combined_ignored = ui->pte_IgnoredStations->toPlainText();
@@ -14405,16 +14423,9 @@ bool MainWindow::callsignFiltered(DecodedText dt)
     }
 
     // Filter out our own transmissions if enabled
-    if (m_config.hideOwnCall()) {
-        QString txCall = dt.transmittingCall();
-        if (!txCall.isEmpty()) {
-            QString myBaseCall = m_config.my_callsign().split('/')[0].toUpper();
-            QString txBaseCall = txCall.split('/')[0].toUpper();
-            if (txBaseCall == myBaseCall) {
-                if (m_zdebug) log("callsignFiltered: Own call filtered (transmitter=" + txCall + ")");
-                return true;
-            }
-        }
+    if (shouldHideOwnCall(dt)) {
+        if (m_zdebug) log("callsignFiltered: Own call filtered (transmitter=" + dt.transmittingCall() + ")");
+        return true;
     }
 
     bool is_73 = (message_words.size() >= 5 && (message_words.contains("73") || message_words.contains("RR73")));
@@ -15830,6 +15841,7 @@ void MainWindow::ZProcess ()
                               ui->cbAutoCall->setChecked(false);
                               ui->cbAutoCQ->setChecked(false);
                               ui->le_autoRxLeft->setText(QString::number(ui->sb_autoRxCount->value()));
+                              clearDX();
                               if (m_zdebug) log("ZProcess: Switched to AutoRx");
                             } else if (ui->sb_autoCQCount->value() > 0) {
                               ui->cbAutoCall->setChecked(false);
@@ -16133,7 +16145,7 @@ void MainWindow::on_actionPSKReporter_triggered() {
             m_pskReporterView->raise ();
         }
     } else {
-        m_pskReporterView.reset (new PSKReporterWidget {nullptr, &m_config, &m_logBook});
+        m_pskReporterView.reset (new PSKReporterWidget {nullptr, &m_config, &m_logBook, m_multi_settings});
         connect (this, &MainWindow::finished, m_pskReporterView.data (), &QWidget::close);
         connect(m_pskReporterView.data(), &PSKReporterWidget::clicked, this, &MainWindow::pskTableClicked);
         connect(m_pskReporterView.data(), &PSKReporterWidget::reportsUpdated, this, &MainWindow::pskReporterReportsUpdated);

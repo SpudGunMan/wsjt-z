@@ -53,7 +53,9 @@ CPlotter::CPlotter(QWidget *parent) :                  //CPlotter Constructor
   m_startFreq {0},
   m_tol {100},
   m_lastMouseX {-1},
-  m_lastPaintedX {-1}
+  m_lastPaintedX {-1},
+  m_showFreq {true},
+  m_timestamp {1}
 {
   setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
   setFocusPolicy(Qt::StrongFocus);
@@ -139,6 +141,8 @@ void CPlotter::paintEvent(QPaintEvent *)                                // paint
       painter.drawPixmap(m_lastMouseX, 0, m_HoverOverlayPixmap);
     }
   }
+  // Render decoded-callsign overlay on waterfall
+  paintDecodeLabels(painter);
   m_lastPaintedX = m_lastMouseX;
   m_paintEventBusy=false;
 }
@@ -1048,6 +1052,16 @@ void CPlotter::setClear(bool b)
   m_clear=b;
 }
 
+void CPlotter::showFreq(bool b)
+{
+  m_showFreq=b;
+}
+
+void CPlotter::setTimestamp(int n)
+{
+  m_timestamp=n;
+}
+
 void CPlotter::clear()
 {
     m_DialOverlayPixmap = QPixmap(m_Size.width(), m_h);
@@ -1070,4 +1084,69 @@ void CPlotter::clear()
 
     DrawOverlay();
     update();
+}
+
+void CPlotter::setDecodeLabels(const QList<DecodeLabel>& labels)
+{
+  m_decodeLabels = labels;
+  update();
+}
+
+void CPlotter::setDecodeLabelFontSize(DecodeLabelFontSize sz)
+{
+  m_decodeFontSize = sz;
+  update();
+}
+
+void CPlotter::setDecodeLabelAlpha(int alpha)
+{
+  m_decodeLabelAlpha = alpha;
+  update();
+}
+
+void CPlotter::paintDecodeLabels(QPainter& painter)
+{
+  if (m_decodeLabels.isEmpty()) return;
+  
+  // Cache font and metrics to avoid rebuild on every paintEvent
+  // (paintDecodeLabels can iterate up to 300 labels on busy bands)
+  QFont font("Arial");
+  font.setPointSize(static_cast<int>(m_decodeFontSize));
+  font.setWeight(QFont::Bold);
+  if (m_cachedDecodeFont != font) {
+    m_cachedDecodeFont = font;
+    m_cachedFontMetrics = QFontMetrics(font);
+  }
+  painter.setFont(m_cachedDecodeFont);
+  
+  // Set up pen for text with transparency
+  QPen textPen(QColor(255, 165, 0));  // Orange
+  textPen.setCapStyle(Qt::RoundCap);
+  painter.setPen(textPen);
+  
+  // Iterate through labels and render each one
+  for (const auto& label : m_decodeLabels) {
+    int x = XfromFreq(label.freq_hz);
+    if (x < 0 || x > m_w) continue;  // Skip off-screen labels
+    
+    // Active callsigns get light green background with red text; others are transparent with orange text
+    QColor bgColor = label.is_active ? QColor(0, 200, 100, m_decodeLabelAlpha)
+                                      : QColor(0, 0, 0, 0);
+    QColor textColor = label.is_active ? Qt::red : QColor(255, 165, 0);  // Red for active, Orange for inactive
+    
+    int textWidth = m_cachedFontMetrics.horizontalAdvance(label.callsign);
+    int textHeight = m_cachedFontMetrics.height();
+    int ascent = m_cachedFontMetrics.ascent();
+    
+    // Center the label text and background at x position (both use same centering)
+    int labelX = x - textWidth / 2;
+    int labelY = 5;
+    
+    if (bgColor.alpha() > 0) {
+      painter.fillRect(labelX, labelY, textWidth, textHeight, bgColor);
+    }
+    
+    painter.setPen(textColor);
+    painter.drawText(labelX, labelY + ascent, label.callsign);
+  }
 }

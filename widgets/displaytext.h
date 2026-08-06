@@ -50,6 +50,9 @@ public:
   Q_SIGNAL void leftClick (Qt::KeyboardModifiers);
 void log(QString s);
   Q_SIGNAL void erased ();
+  // Decoded-callsign overlay (N6NU port from QMAP 2026-05-11):
+  // Emitted on each decode with audio offset frequency (Hz), callsign, CQ flag, time in seconds
+  Q_SIGNAL void decodedCallsign(double freq_hz, QString callsign, bool is_cq, int time_sec);
 
   Q_SLOT void insertText (QString const& text, QColor bg = QColor {}, QColor fg = QColor {}
                           , QString const& call1 = QString {}, QString const& call2 = QString {}, QTextCursor::MoveOperation location=QTextCursor::End, bool psk_highlight=false);

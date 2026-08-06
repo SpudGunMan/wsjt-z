@@ -498,6 +498,12 @@ void DisplayText::displayDecodedText(DecodedText const& decodedText, QString con
   if(!dxGrid.contains(kReGrid)) dxGrid="";
   message = message.left (message.indexOf (QChar::Nbsp)).trimmed ();
 
+  // Emit decoded-callsign signal for N6NU overlay (2026-05-11)
+  if (!dxCall.isEmpty()) {
+    emit decodedCallsign(static_cast<double>(decodedText.frequencyOffset()), 
+                         dxCall, CQcall, static_cast<int>(decodedText.timeInSeconds()));
+  }
+
   // Z
   if (m_config->removeExtra()) {
       message.replace(kReRemoveExtra, "");

@@ -1,6 +1,7 @@
 #include "pskreporterwidget.h"
 #include "ui_pskreporterwidget.h"
 #include "Configuration.hpp"
+#include "MultiSettings.hpp"
 #include <QUrlQuery>
 #include <QNetworkRequest>
 #include <QNetworkAccessManager>
@@ -12,17 +13,18 @@
 #include <QXmlStreamReader>
 #include "logbook/AD1CCty.hpp"
 #include <QString>
-#include <QSettings>
 #include <QCloseEvent>
 #include <QShowEvent>
 
-PSKReporterWidget::PSKReporterWidget(QWidget *parent, Configuration * cfg, LogBook * log) :
+PSKReporterWidget::PSKReporterWidget(QWidget *parent, Configuration * cfg, LogBook * log, MultiSettings * settings) :
     QWidget(parent),
     ui(new Ui::PSKReporterWidget)
 {
     ui->setupUi(this);
     m_config = cfg;
     m_logBook = log;
+    m_settings = settings;
+    m_geometryRestored = false;
     networkManager = new QNetworkAccessManager(this);
 
     ui->pskTable->horizontalHeader()->setSectionResizeMode(QHeaderView::ResizeToContents);
@@ -34,6 +36,8 @@ PSKReporterWidget::PSKReporterWidget(QWidget *parent, Configuration * cfg, LogBo
     m_refreshTimer = new QTimer(this);
     connect(m_refreshTimer, SIGNAL(timeout()), this, SLOT(refresh()));
     m_refreshTimer->start(5 * 60 * 1000);
+
+    ui->actionRefresh->setAutoRepeat(false);
 
     connect(networkManager, &QNetworkAccessManager::finished,
             this, &PSKReporterWidget::responseHandler);
@@ -50,16 +54,26 @@ PSKReporterWidget::~PSKReporterWidget()
 void PSKReporterWidget::showEvent(QShowEvent * event)
 {
     QWidget::showEvent(event);
-    // Restore saved size if available
-    QSettings settings;
-    QSize savedSize = settings.value("PSKReporter/size", QSize()).toSize();
-    if (!savedSize.isEmpty()) {
-        resize(savedSize);
+    // Restore saved size once at initial show
+    if (!m_geometryRestored && m_settings) {
+        m_geometryRestored = true;
+        auto * s = m_settings->settings();
+        s->beginGroup("PSKReporter");
+        QSize savedSize = s->value("size", QSize()).toSize();
+        s->endGroup();
+        if (!savedSize.isEmpty()) {
+            resize(savedSize);
+        }
     }
 }
 
 void PSKReporterWidget::refresh(bool init) {
     Q_UNUSED(init);
+    // Throttle manual refreshes by restarting the timer
+    if (!init && m_refreshTimer) {
+        m_refreshTimer->stop();
+        m_refreshTimer->start(5 * 60 * 1000);
+    }
     QUrlQuery query;
     query.addQueryItem("flowStartSeconds", "-3600");
     query.addQueryItem("callsign", m_config->my_callsign());
@@ -173,11 +187,26 @@ void PSKReporterWidget::on_pskTable_cellDoubleClicked(int row, int /*column*/)
 
 void PSKReporterWidget::closeEvent(QCloseEvent * event)
 {
-    // Save window size only
-    QSettings settings;
-    settings.setValue("PSKReporter/size", size());
-    settings.sync();
+    // Save window size
+    if (m_settings) {
+        auto * s = m_settings->settings();
+        s->beginGroup("PSKReporter");
+        s->setValue("size", size());
+        s->endGroup();
+        s->sync();
+    }
     event->accept();
 }
 
-
+void PSKReporterWidget::resizeEvent(QResizeEvent * event)
+{
+    QWidget::resizeEvent(event);
+    // Save size on resize to persist mid-session changes
+    // But skip during initial layout (before geometry is restored) and when not visible
+    if (m_geometryRestored && isVisible() && m_settings) {
+        auto * s = m_settings->settings();
+        s->beginGroup("PSKReporter");
+        s->setValue("size", size());
+        s->endGroup();
+    }
+}

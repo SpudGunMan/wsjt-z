@@ -506,6 +506,8 @@ private:
   void chkFT4();
   bool elide_tx1_not_allowed () const;
   bool elide_tx2_not_allowed () const;
+  bool isCallingForMe (DecodedText const&, QString& call, QString& grid) const;
+  bool shouldHideOwnCall (DecodedText const&) const;
   void readWidebandDecodes();
   void configActiveStations();
   void showQSYMessage(QString message);
@@ -782,6 +784,7 @@ private:
   QThread * m_pskReporterThread;
   QDateTime m_ignoreListReset;
   QDateTime m_watchdogAnchorUtc;
+  QDateTime m_lastRotateLogUtc;
   qint64 m_msTxFirst;
   bool m_TxFirstLock = false;
   bool m_savedAutoCQfiltering = false;

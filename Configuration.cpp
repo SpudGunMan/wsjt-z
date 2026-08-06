@@ -865,10 +865,10 @@ Configuration::Configuration (QNetworkAccessManager * network_manager, QDir cons
 
 void Configuration::rescan_logbook ()
 {
-  auto * impl = m_.operator-> ();
-  if (impl && impl->logbook_)
+  auto * impl_ptr = m_.operator-> ();
+  if (impl_ptr && impl_ptr->logbook_)
     {
-      impl->logbook_->rescan ();
+      impl_ptr->logbook_->rescan ();
     }
 }
 
@@ -1021,8 +1021,8 @@ bool Configuration::processTailenders() const {return m_->processTailenders_;}
 QString Configuration::permIgnoreList() const {return m_->permIgnoreList_;}
 void Configuration::set_permIgnoreList(QString const& value)
 {
-  auto const existing_lines = m_->permIgnoreList_.split(QRegularExpression{"[\r\n]+"}, Qt::SkipEmptyParts);
-  auto const incoming_lines = value.split(QRegularExpression{"[\r\n]+"}, Qt::SkipEmptyParts);
+  auto const existing_lines = m_->permIgnoreList_.split(QRegularExpression{"[\r\n]+"}, SkipEmptyParts);
+  auto const incoming_lines = value.split(QRegularExpression{"[\r\n]+"}, SkipEmptyParts);
 
   QStringList merged_lines = existing_lines;
   for (auto const& line : incoming_lines)
@@ -2165,7 +2165,7 @@ void Configuration::impl::read_settings ()
   rxTotxFreq_ = settings_->value("rxTotxFreq").toBool();
   udpFiltering_ = settings_->value("udpFiltering").toBool();
   highlightDX_ = settings_->value("highlightDX").toBool();
-  hideOwnCall_ = settings_->value("hideOwnCall", true).toBool();
+  hideOwnCall_ = settings_->value("hideOwnCall", false).toBool();
   dbgScreen_ = settings_->value("dbgScreen").toBool();
   dbgBoth_ = settings_->value("dbgBoth").toBool();
   autoFreqNarrow_ = settings_->value("autoFreqNarrow").toBool();

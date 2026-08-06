@@ -4,10 +4,13 @@
 
 #include <QDialog>
 #include <QScopedPointer>
+#include <QList>
+#include <QTimer>
 #include <QDir>
 #include <QHash>
 #include <QVariant>
 #include "WFPalette.hpp"
+#include "decode_label.h"
 
 #define MAX_SCREENSIZE 2048
 
@@ -54,12 +57,39 @@ public:
   void   setSingleDecode(bool b);
   void   setDiskUTC(int nutc);
   void   restartTotalPower();
+  void   setDarkStyle(bool b);
+
+  // Decoded-callsign overlay (N6NU port from QMAP 2026-05-11).
+  // DisplayText emits decodedCallsign(freq_hz, callsign, is_cq) on
+  // every decode line; MainWindow connects that to addDecodeLabel here.
+  // We dedupe by callsign, age out after m_decodeLabelPeriods × TR
+  // period, and push the live list to the plotter for rendering.
+  void   addDecodeLabel(double freq_hz, const QString& callsign,
+                        bool is_cq, int time_sec);
+  bool   decodeLabelsEnabled() const { return m_decodeLabelsEnabled; }
+  void   setDecodeLabelsEnabled(bool on);
+  int    decodeLabelPeriods() const { return m_decodeLabelPeriods; }
+  void   setDecodeLabelPeriods(int n);
+  // Wipe overlay when operator switches mode (FT8→FT4 etc.) -
+  // stale callsigns at FT8 audio offsets are meaningless in FT4 framing,
+  // and would just clutter the new mode.
+  void   clearDecodeLabels();
+  void   setActiveCallsign(const QString& call);
+  DecodeLabelFontSize decodeLabelFontSize() const { return m_decodeFontSize; }
+  int    decodeLabelAlpha() const { return m_decodeLabelAlpha; }
 
 signals:
   void freezeDecode2(int n);
   void f11f12(int n);
   void setXIT2(int n);
   void setFreq3(int rxFreq, int txFreq);
+  // Emitted when the decode-overlay enable state changes, so the View
+  // menu mirror in MainWindow stays in sync.
+  void decodeLabelsEnabledChanged(bool on);
+  // Emitted when the decode-overlay periods-to-keep changes (from the
+  // WideGraph spin box or the View menu radio items), so the other
+  // surface can sync without polling.
+  void decodeLabelPeriodsChanged(int n);
 
 public slots:
   void wideFreezeDecode(int n);
@@ -80,11 +110,14 @@ private slots:
   void on_cbFlatten_toggled(bool b);
   void on_cbRef_toggled(bool b);
   void on_cbControls_toggled(bool b);
-  // Z
   void on_cbBars_toggled(bool b);
+  void on_cbFreq_toggled(bool b);
   void on_cbClear_toggled(bool b);
   void on_pbClear_clicked();
-
+  void on_cbShowCallsigns_toggled(bool b);
+  void on_sbDecodeLabelPeriods_valueChanged(int n);
+  void on_pbClearDecodeLabels_clicked();
+  void on_timestampComboBox_currentIndexChanged(int n);
   void on_adjust_palette_push_button_clicked (bool);
   void on_gainSlider_valueChanged(int value);
   void on_zeroSlider_valueChanged(int value);
@@ -119,15 +152,35 @@ private:
   // Z
   bool	 m_bars;
   bool	 m_clear;
+  bool   m_freq;
+  qint32 m_timestamp;
   bool   m_bFlatten;
   bool   m_bRef;
   bool   m_bHaveTransmitted;    //Set true at end of a WSPR or FT4 transmission
 
   QString m_rxBand;
   QString m_mode;
-  QString m_waterfallPalette;  
+  QString m_waterfallPalette;
   float   m_swide[MAX_SCREENSIZE];
   QString m_user_defined;
+
+  // Decoded-callsign overlay state. List grows on each
+  // addDecodeLabel(); ageDecodeLabels() runs from m_ageTimer and
+  // prunes entries older than m_decodeLabelPeriods × m_TRperiod sec.
+  // Capped at kDecodeLabelMax to protect paint loop on busy bands.
+  QList<DecodeLabel> m_decodeLabels;
+  QString m_activeCallsign;       // mirror of WSJT-X DX Call entry
+  bool   m_decodeLabelsEnabled {true};
+  int    m_decodeLabelPeriods  {1};   // default 1 = vanish after one TR period
+  DecodeLabelFontSize m_decodeFontSize {DecodeLabelFontSize::Normal};
+  // Overlay transparency preset (0..255). UI offers 255/200/125 mapped
+  // to None/Medium/High in the View menu.
+  int    m_decodeLabelAlpha    {255};
+  QTimer m_ageTimer;
+  static constexpr int kDecodeLabelMax = 300;
+
+private slots:
+  void ageDecodeLabels();
 };
 
 #endif // WIDEGRAPH_H
