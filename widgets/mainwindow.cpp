@@ -301,18 +301,6 @@ namespace
     return words.size () > 1 && words.at (1) == "RR73;";
   }
 
-  bool composite_rr73_targets_me (QStringList const& words,
-                                  QString const& my_callsign,
-                                  QString const& base_call)
-  {
-    return composite_rr73 (words)
-      && ((token_matches_call (words.value (0), my_callsign)
-           || token_matches_call (words.value (0), base_call))
-          || (words.size () > 2
-              && (token_matches_call (words.value (2), my_callsign)
-                  || token_matches_call (words.value (2), base_call))));
-  }
-
   int ms_minute_error ()
   {
     auto const& now = QDateTime::currentDateTimeUtc ();
@@ -6164,9 +6152,11 @@ void MainWindow::auto_sequence (DecodedText const& message, unsigned start_toler
                     .arg(raw_words.size())
                     .arg(raw_words.size() > 1 ? raw_words.at(1) : "N/A"));
   // Check if we're either primary or secondary caller in composite RR73
-  bool const composite_rr73_for_me = composite_rr73_targets_me (raw_words,
-                                                                  m_config.my_callsign (),
-                                                                  m_baseCall);
+  bool composite_rr73_for_me = composite_rr73_detected
+    && ((token_matches_call (raw_words.value (0), m_config.my_callsign ())
+         || token_matches_call (raw_words.value (0), m_baseCall))
+        || (raw_words.size() > 2 && (token_matches_call (raw_words.value (2), m_config.my_callsign ())
+                                      || token_matches_call (raw_words.value (2), m_baseCall))));
   if (m_zdebug && composite_rr73_detected) 
     log(QString("composite_rr73_for_me=%1 (primary[0]=%2, secondary[2]=%3)")
         .arg(composite_rr73_for_me)
@@ -6247,20 +6237,20 @@ void MainWindow::auto_sequence (DecodedText const& message, unsigned start_toler
                       || (!ui->tx1->isEnabled () && m_QSOProgress == REPORT);
     bool const qrm_stop_window_match = m_QSOProgress == CALLING
       || qAbs (ui->TxFreqSpinBox->value () - df) <= int (stop_tolerance);
+    bool const directed_exchange_to_other_station = !directed_to_me
+      && !composite_rr73_for_me
+      && message_words.at (2) != "DE"
+      && !message_words.at (2).contains (QRegularExpression {"(^(CQ|QRZ))|" + m_baseCall});
+    bool const selected_dx_stop_match = have_selected_dx
+      && directed_with_selected_dx
+      && directed_exchange_to_other_station;
+    bool const no_selected_dx_stop_match = !have_selected_dx
+      && directed_exchange_to_other_station
+      && !message_words.at (3).isEmpty ();
+    bool const anti_qrm_stop_match = selected_dx_stop_match || no_selected_dx_stop_match;
     if (m_auto
-        && ui->cbAutoCall->isChecked()) {
-      bool const directed_exchange_to_other_station = !directed_to_me
-        && !composite_rr73_for_me
-        && message_words.at (2) != "DE"
-        && !message_words.at (2).contains (QRegularExpression {"(^(CQ|QRZ))|" + m_baseCall});
-      bool const selected_dx_stop_match = have_selected_dx
-        && directed_with_selected_dx
-        && directed_exchange_to_other_station;
-      bool const no_selected_dx_stop_match = !have_selected_dx
-        && directed_exchange_to_other_station
-        && !message_words.at (3).isEmpty ();
-      bool const anti_qrm_stop_match = selected_dx_stop_match || no_selected_dx_stop_match;
-      if (auto_qrm_guard_state
+        && ui->cbAutoCall->isChecked()
+        && auto_qrm_guard_state
         && (SpecOp::HOUND != m_specOp) && qrm_stop_window_match //
         && anti_qrm_stop_match) {
       // auto stop to avoid accidental QRM
@@ -6273,7 +6263,8 @@ void MainWindow::auto_sequence (DecodedText const& message, unsigned start_toler
       ui->stopTxButton->click (); // halt any transmission
       LOG_INFO("STOPPED!");
       if (ui->cbAutoCQ->isChecked() || ui->cbAutoCall->isChecked()) clearDX();
-      } else if (ui->cbAutoSeq->isChecked()
+    } else if (m_auto             // transmit allowed
+               && ui->cbAutoSeq->isChecked () // auto-sequencing allowed
           && !(have_selected_dx && directed_with_selected_dx && !directed_to_me && !composite_rr73_for_me)
                && ((!m_bCallingCQ      // not calling CQ/QRZ
                     && !m_sentFirst73       // not finished QSO
@@ -6322,7 +6313,6 @@ void MainWindow::auto_sequence (DecodedText const& message, unsigned start_toler
 
       }
       // Z
-    }
     } else if (ui->cbAutoSeq->isChecked()
                && message_words.at (2).contains (m_baseCall)
                && (ui->cbAutoCQ->isChecked() || ui->cbAutoCall->isChecked())
@@ -7769,11 +7759,11 @@ void MainWindow::processMessage (DecodedText const& message, Qt::KeyboardModifie
   }
 
   QStringList w=message.clean_string ().mid(22).remove("<").remove(">").split(" ",SkipEmptyParts);
-  auto const& raw_words = message.clean_string().mid(22).remove("<").remove(">").split(" ", SkipEmptyParts);
+  auto const& raw_words = message.clean_string().split(" ", SkipEmptyParts);
   bool const composite_rr73_detected = composite_rr73(raw_words);
-  bool const composite_rr73_for_me = composite_rr73_targets_me (raw_words,
-                                                                m_config.my_callsign (),
-                                                                m_baseCall);
+  bool const composite_rr73_for_me = composite_rr73_detected
+    && (token_matches_call(raw_words.value(0), m_config.my_callsign())
+        || token_matches_call(raw_words.value(0), m_baseCall));
 
   // Z - DEBUG composite RR73 detection in processMessage
   if (m_zdebug && composite_rr73_detected) {
@@ -8140,11 +8130,11 @@ void MainWindow::processMessage (DecodedText const& message, Qt::KeyboardModifie
     else if (composite_rr73_for_me
              || (5 == message_words.size ()
                  && m_baseCall == message_words.at (1))) {
-      // dual Fox style message, possibly from MSHV - QSO is complete
-      if (m_config.prompt_to_log() || m_config.autoLog()) {
-        logQSOTimer.start(0);
+      // dual Fox style message, possibly from MSHV - QSO is complete, always log
+      logQSOTimer.start(0);
+      if (!m_config.prompt_to_log() && !m_config.autoLog()) {
+        cease_auto_Tx_after_QSO ();
       }
-      cease_auto_Tx_after_QSO ();
       m_QSOProgress = SIGNOFF;
     }
     else if (m_QSOProgress >= ROGERS
