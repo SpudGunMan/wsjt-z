@@ -44,6 +44,7 @@ private:
     LogBook * m_logBook;
     MultiSettings * m_settings;
     QTimer * m_refreshTimer;
+    bool m_geometryRestored = false;
 
 private slots:
     void responseHandler(QNetworkReply * reply);
