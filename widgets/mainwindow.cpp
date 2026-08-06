@@ -2692,6 +2692,7 @@ void MainWindow::on_actionSettings_triggered()               //Setup Dialog
   auto my_grid = m_config.my_grid ();
   SpecOp nContest0=m_specOp;
   auto psk_on = m_config.spot_to_psk_reporter ();
+  auto perm_ignore_list = m_config.permIgnoreList ();
   inSettings = true;
   if (QDialog::Accepted == m_config.exec ()) {
     checkMSK144ContestType();
@@ -2703,6 +2704,9 @@ void MainWindow::on_actionSettings_triggered()               //Setup Dialog
     }
     if (m_config.my_callsign () != callsign || m_config.my_grid () != my_grid) {
       statusUpdate ();
+    }
+    if (m_config.permIgnoreList () != perm_ignore_list) {
+      invalidateFilterCache ();
     }
     on_dxGridEntry_textChanged (m_hisGrid); // recalculate distances in case of units change
     enable_DXCC_entity (m_config.DXCC ());  // sets text window proportions and (re)inits the logbook
@@ -6231,6 +6235,7 @@ void MainWindow::auto_sequence (DecodedText const& message, unsigned start_toler
       return;
     }
 
+    if (!m_filterCacheValid) rebuildFilterCache();
     if (m_ignoredStationsCache.contains(hiscall)
         || m_ignoredStationsCache.contains(Radio::base_callsign(hiscall))) {
       return;
