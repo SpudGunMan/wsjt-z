@@ -2621,10 +2621,9 @@ void MainWindow::fastSink(qint64 frames)
     }
     
     // Plot on DXStationMap if calling ME
-    if (m_dxStationMap && isCallingForMe(decodedtext)) {
+    if (m_dxStationMap) {
       QString dxCall, dxGrid;
-      decodedtext.deCallAndGrid(dxCall, dxGrid);
-      if (!dxCall.isEmpty() && !dxGrid.isEmpty()) {
+      if (isCallingForMe(decodedtext, dxCall, dxGrid)) {
         PlottedStation s;
         s.call = dxCall;
         s.grid = dxGrid.toUpper().left(4);
@@ -6020,10 +6019,9 @@ void MainWindow::readFromStdout()                             //readFromStdout
                 m_logBook, m_currentBand, m_config.ppfx (), false, false, 0.0, bDisplayPoints, m_points, false, false, "", "", isFiltered);
           
           // Plot on DXStationMap if calling ME
-          if (m_dxStationMap && isCallingForMe(decodedtext0)) {
+          if (m_dxStationMap) {
             QString dxCall, dxGrid;
-            decodedtext0.deCallAndGrid(dxCall, dxGrid);
-            if (!dxCall.isEmpty() && !dxGrid.isEmpty()) {
+            if (isCallingForMe(decodedtext0, dxCall, dxGrid)) {
               PlottedStation s;
               s.call = dxCall;
               s.grid = dxGrid.toUpper().left(4);
@@ -7288,6 +7286,11 @@ void MainWindow::guiUpdate()
     if(!m_monitoring and !m_diskData) ui->signal_meter_widget->setValue(0,0);
     m_sec0=nsec;
     displayDialFrequency ();
+    
+    // Enforce MAX_STATIONS hard limit on DXStationMap
+    if (m_dxStationMap) {
+      m_dxStationMap->expireStations();
+    }
   }
   m_iptt0=g_iptt;
   m_btxok0=m_btxok;
@@ -7473,11 +7476,22 @@ bool MainWindow::elide_tx2_not_allowed () const
     || (my_callsign != m_baseCall && !shortList (my_callsign));
 }
 
-bool MainWindow::isCallingForMe (DecodedText const& dt) const
+bool MainWindow::isCallingForMe (DecodedText const& dt, QString& call, QString& grid) const
 {
-  QString deCall, deGrid;
-  dt.deCallAndGrid (deCall, deGrid);
-  return !deCall.isEmpty () && Radio::base_callsign (deCall) == m_baseCall;
+  // Check addressee (word 1), not DX station (word 2)
+  QString myCall = dt.call ();
+  if (myCall.isEmpty ()) return false;
+  
+  // Handle hashed calls like <K1ABC> — strip angle brackets
+  if (myCall.startsWith ("<") && myCall.endsWith (">")) {
+    myCall = myCall.mid (1, myCall.length () - 2);
+  }
+  
+  if (Radio::base_callsign (myCall) != m_baseCall) return false;
+  
+  // Parse the DX station (word 2) and grid (word 3) for plotting
+  dt.deCallAndGrid (call, grid);
+  return !call.isEmpty () && !grid.isEmpty ();
 }
 
 void MainWindow::on_txrb1_doubleClicked ()
@@ -8240,10 +8254,9 @@ void MainWindow::processMessage (DecodedText const& message, Qt::KeyboardModifie
       m_logBook, m_currentBand, m_config.ppfx ());
       
       // Plot on DXStationMap if calling ME
-      if (m_dxStationMap && isCallingForMe(message)) {
+      if (m_dxStationMap) {
         QString dxCall, dxGrid;
-        message.deCallAndGrid(dxCall, dxGrid);
-        if (!dxCall.isEmpty() && !dxGrid.isEmpty()) {
+        if (isCallingForMe(message, dxCall, dxGrid)) {
           PlottedStation s;
           s.call = dxCall;
           s.grid = dxGrid.toUpper().left(4);

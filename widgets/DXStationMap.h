@@ -39,7 +39,7 @@ public:
                           QString const& mode = QString());
     void tryAddCallsign(QString const& call, int freqHz, int snr, bool forMe);
     void setMyCall(QString const& call);
-    void expireStations(int currentPeriod, int maxAge = 20);
+    void expireStations();  // Enforce hard limit of MAX_STATIONS
     // DXCC/CQ-zone/ITU-zone/continent come from the local country-file lookup
     // (m_logBook), not QRZ.com — mainwindow pushes it in here so this panel is
     // the single place all call info is shown (was previously duplicated in
@@ -72,6 +72,7 @@ protected:
 private:
     // ── Map geometry ──────────────────────────────────────────────────────────
     static constexpr int INFO_H = 0;    // bottom info panel height (removed in favor of popup tooltip)
+    static constexpr int MAX_STATIONS = 300;  // Hard limit on active station list size
     QPointF project(double lon, double lat) const;
     bool    gridToLatLon(QString const& grid, double &lat, double &lon) const;
     double  haversineKm(double, double, double, double) const;

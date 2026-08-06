@@ -501,7 +501,7 @@ private:
   void chkFT4();
   bool elide_tx1_not_allowed () const;
   bool elide_tx2_not_allowed () const;
-  bool isCallingForMe (DecodedText const&) const;
+  bool isCallingForMe (DecodedText const&, QString& call, QString& grid) const;
   void readWidebandDecodes();
   void configActiveStations();
   void showQSYMessage(QString message);

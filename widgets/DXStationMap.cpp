@@ -369,8 +369,8 @@ void DXStationMap::addStation(PlottedStation const& s)
 
     if (!updated.grid.isEmpty()) {
         m_stations.append(updated);
-        // Enforce hard limit of 200 most recent stations
-        while (m_stations.size() > 200) {
+        // Enforce hard limit of MAX_STATIONS most recent stations
+        while (m_stations.size() > MAX_STATIONS) {
             m_stations.removeFirst();
         }
     }
@@ -455,20 +455,10 @@ void DXStationMap::tryAddCallsign(QString const& call, int freqHz, int snr, bool
     update();
 }
 
-void DXStationMap::expireStations(int currentPeriod, int maxAge)
+void DXStationMap::expireStations()
 {
-    m_currentPeriod = currentPeriod;
-    // Remove stations older than maxAge periods
-    auto it = m_stations.begin();
-    while (it != m_stations.end()) {
-        if (currentPeriod - it->period > maxAge) {
-            it = m_stations.erase(it);
-        } else {
-            ++it;
-        }
-    }
-    // Hard limit: keep only 200 most recent stations
-    while (m_stations.size() > 200) {
+    // Enforce hard limit: keep only MAX_STATIONS most recent stations (evict by insertion order)
+    while (m_stations.size() > MAX_STATIONS) {
         m_stations.removeFirst();
     }
     update();
