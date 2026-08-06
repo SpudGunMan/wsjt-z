@@ -6401,15 +6401,9 @@ void MainWindow::on_EraseButton_clicked ()
   }
 
   if (m_nEraseClicks >= 3) {
+    clearDX();
+    ui->tx5->clearEditText();  // match triple-click behavior
     ui->stopTxButton->click (); // halt any transmission
-    ui->tx1->clear();
-    ui->tx2->clear();
-    ui->tx3->clear();
-    ui->tx4->clear();
-    ui->tx5->clearEditText();
-    ui->dxCallEntry->clear();
-    ui->dxGridEntry->clear();
-    ui->txrb6->setChecked(true);
     if (m_zdebug) log("Auto-sequencing stopped by triple Erase click");
     m_nEraseClicks = 0;
   }
