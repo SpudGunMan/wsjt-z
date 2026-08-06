@@ -88,6 +88,7 @@
      logical(c_bool) :: lwidedxcsearch
      logical(c_bool) :: lmultinst
      logical(c_bool) :: lskiptx1
+     logical(c_bool) :: ldx_mode
      integer(c_int) :: ndecoderstart
   end type params_block
 

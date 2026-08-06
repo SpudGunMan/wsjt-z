@@ -82,7 +82,7 @@ subroutine ft8bvar(newdat1,nQSOProgress,nfqso,nftx,napwid,lsubtract,npos,freqsub
 
   iaptype2 = 99  !ft8md
   
-  max_iterations=30
+  max_iterations=50
   nharderrors=-1
   nbadcrc=1
   delfbest=0.
