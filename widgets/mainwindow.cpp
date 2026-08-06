@@ -2323,11 +2323,15 @@ void MainWindow::dataSink(qint64 frames)
     freqcal_(&dec_data.d2[0], &k, &nkhz, &RxFreq, &ftol, &line[0], (FCL)80);
     QString t=QString::fromLatin1(line);
     DecodedText decodedtext {t};
-    if (m_bandActivityRawView) {
-      ui->decodedTextBrowser->insertText(decodedtext.clean_string().trimmed());
-    } else {
-      ui->decodedTextBrowser->displayDecodedText (decodedtext, m_config.my_callsign(),
-            m_mode, m_config.DXCC(), m_logBook, m_currentBand, m_config.ppfx());
+    // Check if we should hide our own call decodes
+    bool hideThisDecode = shouldHideOwnCall(decodedtext);
+    if (!hideThisDecode) {
+      if (m_bandActivityRawView) {
+        ui->decodedTextBrowser->insertText(decodedtext.clean_string().trimmed());
+      } else {
+        ui->decodedTextBrowser->displayDecodedText (decodedtext, m_config.my_callsign(),
+              m_mode, m_config.DXCC(), m_logBook, m_currentBand, m_config.ppfx());
+      }
     }
     if (ui->measure_check_box->isChecked ()) {
       // Append results text to file "fmt.all".
@@ -2635,11 +2639,15 @@ void MainWindow::fastSink(qint64 frames)
   if(bmsk144 and (line[0]!=0)) {
     QString message {QString::fromLatin1 (line)};
     DecodedText decodedtext {message.replace (QChar::LineFeed, "")};
-    if (m_bandActivityRawView) {
-      ui->decodedTextBrowser->insertText(decodedtext.clean_string().trimmed());
-    } else {
-      ui->decodedTextBrowser->displayDecodedText (decodedtext, m_config.my_callsign (), m_mode, m_config.DXCC(),
+    // Check if we should hide our own call decodes
+    bool hideThisDecode = shouldHideOwnCall(decodedtext);
+    if (!hideThisDecode) {
+      if (m_bandActivityRawView) {
+        ui->decodedTextBrowser->insertText(decodedtext.clean_string().trimmed());
+      } else {
+        ui->decodedTextBrowser->displayDecodedText (decodedtext, m_config.my_callsign (), m_mode, m_config.DXCC(),
            m_logBook, m_currentBand, m_config.ppfx ());
+      }
     }
     
     // Plot on DXStationMap if calling ME
@@ -3285,10 +3293,17 @@ void MainWindow::handleVerifyMsg(int status, QDateTime ts, QString callsign, QSt
           ui->labDXped->setStyleSheet("QLabel {background-color: #00ff00; color: black;}");
         }
         if (m_bandActivityRawView) {
-          ui->decodedTextBrowser->insertText(DecodedText{msg}.clean_string().trimmed());
+          DecodedText decodedMsg{msg};
+          if (!shouldHideOwnCall(decodedMsg)) {
+            ui->decodedTextBrowser->insertText(decodedMsg.clean_string().trimmed());
+          }
         } else {
-          ui->decodedTextBrowser->displayDecodedText(DecodedText{msg}, m_config.my_callsign(), m_mode, m_config.DXCC(),
-                                                     m_logBook, m_currentBand, m_config.ppfx());
+          DecodedText decodedMsg{msg};
+          // Check if we should hide our own call decodes
+          if (!shouldHideOwnCall(decodedMsg)) {
+            ui->decodedTextBrowser->displayDecodedText(decodedMsg, m_config.my_callsign(), m_mode, m_config.DXCC(),
+                                                       m_logBook, m_currentBand, m_config.ppfx());
+          }
         }
         write_all("Ck",msg);
       }
@@ -4958,7 +4973,8 @@ void::MainWindow::fast_decode_done()
 
 //Left (Band activity) window
     DecodedText decodedtext {message.replace (QChar::LineFeed, "")};
-    if(!m_bFastDone) {
+    // Check if we should hide our own call decodes
+    if(!m_bFastDone && !shouldHideOwnCall(decodedtext)) {
       if (m_bandActivityRawView) {
         ui->decodedTextBrowser->insertText(decodedtext.clean_string().trimmed());
       } else {
@@ -5756,7 +5772,7 @@ void MainWindow::readFromStdout()                             //readFromStdout
       m_unfilteredView->display(rawViewLine);
         }
 
-        if (m_bandActivityRawView) {
+        if (m_bandActivityRawView && !shouldHideOwnCall(decodedtext)) {
       ui->decodedTextBrowser->insertText(rawViewLine);
         }
 
@@ -5865,20 +5881,28 @@ void MainWindow::readFromStdout()                             //readFromStdout
                   QString stripped = line_read;
                   stripped.replace(kReAP, "");
                   DecodedText decodedtextNoAP {stripped};
-                  ui->decodedTextBrowser->displayDecodedText(decodedtextNoAP,m_baseCall,m_mode,dxcc,
-                                                             m_logBook,m_currentBand,m_config.ppfx(),
-                                                             ui->cbCQonly->isVisible() && ui->cbCQonly->isChecked(),
-                                                             haveFSpread, fSpread, bDisplayPoints, m_points, ui->cbCQonlyIncl73->isChecked(), m_config.colourAll(), distance, state, isFiltered);
-                  if (m_pskReporterReceivers.contains(decodedtextNoAP.transmittingCall().toUpper())) {
-                      ui->decodedTextBrowser->highlight_callsign_line(decodedtextNoAP.transmittingCall(), QColor{}, QColor{}, false, true);
+                  // Check if we should hide our own call decodes
+                  bool hideThisDecode = shouldHideOwnCall(decodedtextNoAP);
+                  if (!hideThisDecode) {
+                    ui->decodedTextBrowser->displayDecodedText(decodedtextNoAP,m_baseCall,m_mode,dxcc,
+                                                               m_logBook,m_currentBand,m_config.ppfx(),
+                                                               ui->cbCQonly->isVisible() && ui->cbCQonly->isChecked(),
+                                                               haveFSpread, fSpread, bDisplayPoints, m_points, ui->cbCQonlyIncl73->isChecked(), m_config.colourAll(), distance, state, isFiltered);
+                    if (m_pskReporterReceivers.contains(decodedtextNoAP.transmittingCall().toUpper())) {
+                        ui->decodedTextBrowser->highlight_callsign_line(decodedtextNoAP.transmittingCall(), QColor{}, QColor{}, false, true);
+                    }
                   }
               } else {
-                  ui->decodedTextBrowser->displayDecodedText(decodedtext1,m_baseCall,m_mode,dxcc,
-                                                             m_logBook,m_currentBand,m_config.ppfx(),
-                                                             ui->cbCQonly->isVisible() && ui->cbCQonly->isChecked(),
-                                                             haveFSpread, fSpread, bDisplayPoints, m_points, ui->cbCQonlyIncl73->isChecked(), m_config.colourAll(), distance, state, isFiltered);
-                  if (m_pskReporterReceivers.contains(decodedtext1.transmittingCall().toUpper())) {
-                      ui->decodedTextBrowser->highlight_callsign_line(decodedtext1.transmittingCall(), QColor{}, QColor{}, false, true);
+                  // Check if we should hide our own call decodes
+                  bool hideThisDecode = shouldHideOwnCall(decodedtext1);
+                  if (!hideThisDecode) {
+                    ui->decodedTextBrowser->displayDecodedText(decodedtext1,m_baseCall,m_mode,dxcc,
+                                                               m_logBook,m_currentBand,m_config.ppfx(),
+                                                               ui->cbCQonly->isVisible() && ui->cbCQonly->isChecked(),
+                                                               haveFSpread, fSpread, bDisplayPoints, m_points, ui->cbCQonlyIncl73->isChecked(), m_config.colourAll(), distance, state, isFiltered);
+                    if (m_pskReporterReceivers.contains(decodedtext1.transmittingCall().toUpper())) {
+                        ui->decodedTextBrowser->highlight_callsign_line(decodedtext1.transmittingCall(), QColor{}, QColor{}, false, true);
+                    }
                   }
               }
 
@@ -6048,7 +6072,7 @@ void MainWindow::readFromStdout()                             //readFromStdout
       if((m_mode=="JT4" or m_mode=="Q65" or m_mode=="JT65") and decodedtext.string().contains(m_baseCall) && ui->actionInclude_averaging->isVisible() && !ui->actionInclude_averaging->isChecked()) bDisplayRight=true;
       if((m_mode=="FT8" or m_mode=="FT4" or m_mode=="FT2") and SpecOp::FOX!=m_specOp && decodedtext0.string().replace("<","").replace(">","").contains(m_baseCall + " " + m_hisCall)) bDisplayRight=true;  // really all messages for us
 
-      if (bDisplayRight) {
+      if (bDisplayRight && !shouldHideOwnCall(decodedtext0)) {
         // This msg is within 10 hertz of our tuned frequency, or a JT4 or JT65 avg,
         // or contains MyCall
         if(!m_bBestSPArmed or (m_mode!="FT4" and m_mode!="FT2")) {
@@ -7552,6 +7576,16 @@ bool MainWindow::isCallingForMe (DecodedText const& dt, QString& call, QString& 
   // Parse the DX station (word 2) and grid (word 3) for plotting
   dt.deCallAndGrid (call, grid);
   return !call.isEmpty () && !grid.isEmpty ();
+}
+bool MainWindow::shouldHideOwnCall (DecodedText const& dt) const
+{
+  if (!m_config.hideOwnCall ()) return false;
+  // Cheap guard: avoid expensive transmittingCall() parsing if m_baseCall not in message
+  if (!dt.string ().contains (m_baseCall)) return false;
+  QString txCall = dt.transmittingCall ();
+  if (txCall.isEmpty ()) return false;
+  // Strip angle brackets from hashed calls (e.g., "<K1ABC>" -> "K1ABC")
+  return Radio::base_callsign (txCall.remove ('<').remove ('>')) == m_baseCall;
 }
 
 void MainWindow::on_txrb1_doubleClicked ()
@@ -14385,6 +14419,12 @@ bool MainWindow::callsignFiltered(DecodedText dt)
 
     if (dxCall.endsWith("/R")) {
         if (m_zdebug) log("callsignFiltered: False decode (ends with /R). Skipping.");
+        return true;
+    }
+
+    // Filter out our own transmissions if enabled
+    if (shouldHideOwnCall(dt)) {
+        if (m_zdebug) log("callsignFiltered: Own call filtered (transmitter=" + dt.transmittingCall() + ")");
         return true;
     }
 
