@@ -10481,12 +10481,33 @@ void MainWindow::rotate_wsjtx_log_adi(bool confirm)
           return;
         }
     }
+  else
+    {
+      // Rate limit remote rotations to prevent DoS via repeated UDP datagrams
+      auto now = QDateTime::currentDateTimeUtc ();
+      if (m_lastRotateLogUtc.isValid () && m_lastRotateLogUtc.secsTo (now) < 5)
+        {
+          if (m_zdebug)
+            {
+              log (tr ("Rotate: Rate limited, ignoring rotation request within 5 seconds"));
+            }
+          return;
+        }
+      m_lastRotateLogUtc = now;
+    }
 
   QDir log_dir = m_config.writeable_data_dir ();
   QFileInfo current_log {log_dir.absoluteFilePath ("wsjtx_log.adi")};
   if (!current_log.exists ())
     {
-      MessageBox::warning_message (this, tr ("Rotate ADIF Log"), tr ("No wsjtx_log.adi file exists to rotate."));
+      if (confirm)
+        {
+          MessageBox::warning_message (this, tr ("Rotate ADIF Log"), tr ("No wsjtx_log.adi file exists to rotate."));
+        }
+      else if (m_zdebug)
+        {
+          log (tr ("Rotate: No wsjtx_log.adi file exists to rotate."));
+        }
       return;
     }
 
@@ -10494,27 +10515,43 @@ void MainWindow::rotate_wsjtx_log_adi(bool confirm)
   QString rotated_name = QString {"wsjtx_log_%1.adi"}.arg (timestamp);
   QString rotated_path = log_dir.absoluteFilePath (rotated_name);
 
-  if (QFile::exists (rotated_path))
+  // Handle duplicate filenames from rapid successive rotations (1s granularity)
+  for (int suffix = 1; QFile::exists (rotated_path); ++suffix)
     {
-      QFile::remove (rotated_path);
+      rotated_name = QString {"wsjtx_log_%1_%2.adi"}.arg (timestamp).arg (suffix);
+      rotated_path = log_dir.absoluteFilePath (rotated_name);
     }
 
   if (!QFile::rename (current_log.absoluteFilePath (), rotated_path))
     {
-      MessageBox::warning_message (this, tr ("Rotate ADIF Log"), tr ("Failed to rotate the current ADIF log file."));
+      if (confirm)
+        {
+          MessageBox::warning_message (this, tr ("Rotate ADIF Log"), tr ("Failed to rotate the current ADIF log file."));
+        }
+      else if (m_zdebug)
+        {
+          log (tr ("Rotate: Failed to rotate the current ADIF log file."));
+        }
       return;
     }
 
   QFile new_log {log_dir.absoluteFilePath ("wsjtx_log.adi")};
   if (!new_log.open (QIODevice::WriteOnly | QIODevice::Text))
     {
-      MessageBox::warning_message (this, tr ("Rotate ADIF Log"), tr ("Failed to create a new ADIF log file."));
+      if (confirm)
+        {
+          MessageBox::warning_message (this, tr ("Rotate ADIF Log"), tr ("Failed to create a new ADIF log file."));
+        }
+      else if (m_zdebug)
+        {
+          log (tr ("Rotate: Failed to create a new ADIF log file."));
+        }
       return;
     }
 
   QTextStream out {&new_log};
   auto const created_timestamp = QDateTime::currentDateTimeUtc ().toString ("yyyyMMdd HHmmss");
-  auto const ver = QApplication::applicationVersion ();
+  auto const ver = version (true);
   out << "ADIF Export\n"
       << "<adif_ver:5>3.1.1\n"
       << "<created_timestamp:15>" << created_timestamp << "\n"

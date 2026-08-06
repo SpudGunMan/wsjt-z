@@ -5202,7 +5202,7 @@ list. The list can be maintained in Settings (F2).</string>
   </action>
   <action name="actionRotate_wsjtx_log_adi">
    <property name="text">
-    <string>Rotate _log.adi</string>
+    <string>Rotate wsjtx_log.adi</string>
    </property>
   </action>
   <action name="actionJT65">

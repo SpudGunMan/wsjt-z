@@ -864,10 +864,10 @@ Configuration::Configuration (QNetworkAccessManager * network_manager, QDir cons
 
 void Configuration::rescan_logbook ()
 {
-  auto * impl = m_.operator-> ();
-  if (impl && impl->logbook_)
+  auto * impl_ptr = m_.operator-> ();
+  if (impl_ptr && impl_ptr->logbook_)
     {
-      impl->logbook_->rescan ();
+      impl_ptr->logbook_->rescan ();
     }
 }
 
