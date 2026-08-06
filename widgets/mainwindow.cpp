@@ -6145,7 +6145,7 @@ void MainWindow::auto_sequence (DecodedText const& message, unsigned start_toler
   if (m_zdebug) log("isStandardMessage: " +  QString::number(message.isStandardMessage()));
   if (m_zdebug) log("message.is_composite_message(): " + QString::number(message.is_composite_message()));
 
-  auto const& raw_words = msg_no_hash.split(" ",SkipEmptyParts);
+  auto const& raw_words = msg_no_hash.split (" ", SkipEmptyParts);
   bool composite_rr73_detected = composite_rr73 (raw_words);
   if (m_zdebug) log(QString("composite_rr73_detected: %1, raw_words.size: %2, raw_words[1]: %3")
                     .arg(composite_rr73_detected)
@@ -6292,8 +6292,19 @@ void MainWindow::auto_sequence (DecodedText const& message, unsigned start_toler
           if (composite_rr73_for_me && message.is_composite_message ())
             {
               auto const& fields = message.composite_message_fields ();
-              // Always target the tertiary regardless of whether we're primary or secondary
-              m_hisCall = fields.tertiary_caller;
+              QString composite_target;
+              if (!fields.tertiary_caller.isEmpty ())
+                {
+                  composite_target = fields.tertiary_caller;
+                }
+              else if (!raw_words.isEmpty ())
+                {
+                  composite_target = raw_words.value (0);
+                }
+              if (!composite_target.isEmpty ())
+                {
+                  m_hisCall = composite_target;
+                }
               if (m_zdebug) log (QString ("Composite RR73 for me: setting target to %1").arg (m_hisCall));
             }
           
