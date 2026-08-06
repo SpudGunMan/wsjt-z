@@ -3328,7 +3328,7 @@ list. The list can be maintained in Settings (F2).</string>
                          <item>
                           <widget class="QPushButton" name="btn_addToPermIgnore">
                            <property name="toolTip">
-                            <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Save the current ignore list into the persistent configuration.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                            <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Add the current ignore list to the persistent configuration (merge-only, never removes).&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
                            </property>
                            <property name="text">
                             <string>Add to permaIgnore</string>

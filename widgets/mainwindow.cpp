@@ -13984,7 +13984,7 @@ void MainWindow::on_btn_addToIgnore_clicked( ) {
 void MainWindow::on_btn_addToPermIgnore_clicked()
 {
     m_config.set_permIgnoreList(ui->pte_IgnoredStations->toPlainText());
-    showStatusMessage(tr("Saved current ignore list to permanent ignore list"));
+    showStatusMessage(tr("Added current ignore list to permanent ignore list"));
 }
 
 void MainWindow::on_btn_clearIgnore_clicked( ) {

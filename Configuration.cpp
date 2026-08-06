@@ -1010,8 +1010,8 @@ bool Configuration::processTailenders() const {return m_->processTailenders_;}
 QString Configuration::permIgnoreList() const {return m_->permIgnoreList_;}
 void Configuration::set_permIgnoreList(QString const& value)
 {
-  auto const existing_lines = m_->permIgnoreList_.split(QRegularExpression{"[\r\n]+"}, Qt::SkipEmptyParts);
-  auto const incoming_lines = value.split(QRegularExpression{"[\r\n]+"}, Qt::SkipEmptyParts);
+  auto const existing_lines = m_->permIgnoreList_.split(QRegularExpression{"[\r\n]+"}, SkipEmptyParts);
+  auto const incoming_lines = value.split(QRegularExpression{"[\r\n]+"}, SkipEmptyParts);
 
   QStringList merged_lines = existing_lines;
   for (auto const& line : incoming_lines)
