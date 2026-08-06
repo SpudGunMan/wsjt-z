@@ -1,6 +1,7 @@
 #include "pskreporterwidget.h"
 #include "ui_pskreporterwidget.h"
 #include "Configuration.hpp"
+#include "MultiSettings.hpp"
 #include <QUrlQuery>
 #include <QNetworkRequest>
 #include <QNetworkAccessManager>
@@ -16,13 +17,14 @@
 #include <QCloseEvent>
 #include <QShowEvent>
 
-PSKReporterWidget::PSKReporterWidget(QWidget *parent, Configuration * cfg, LogBook * log) :
+PSKReporterWidget::PSKReporterWidget(QWidget *parent, Configuration * cfg, LogBook * log, MultiSettings * settings) :
     QWidget(parent),
     ui(new Ui::PSKReporterWidget)
 {
     ui->setupUi(this);
     m_config = cfg;
     m_logBook = log;
+    m_settings = settings;
     networkManager = new QNetworkAccessManager(this);
 
     ui->pskTable->horizontalHeader()->setSectionResizeMode(QHeaderView::ResizeToContents);
@@ -51,10 +53,11 @@ void PSKReporterWidget::showEvent(QShowEvent * event)
 {
     QWidget::showEvent(event);
     // Restore saved size if available
-    QSettings settings;
-    QSize savedSize = settings.value("PSKReporter/size", QSize()).toSize();
-    if (!savedSize.isEmpty()) {
-        resize(savedSize);
+    if (m_settings) {
+        QSize savedSize = m_settings->value("PSKReporter/size", QSize()).toSize();
+        if (!savedSize.isEmpty()) {
+            resize(savedSize);
+        }
     }
 }
 
@@ -173,11 +176,21 @@ void PSKReporterWidget::on_pskTable_cellDoubleClicked(int row, int /*column*/)
 
 void PSKReporterWidget::closeEvent(QCloseEvent * event)
 {
-    // Save window size only
-    QSettings settings;
-    settings.setValue("PSKReporter/size", size());
-    settings.sync();
+    // Save window size
+    if (m_settings) {
+        m_settings->setValue("PSKReporter/size", size());
+        m_settings->sync();
+    }
     event->accept();
+}
+
+void PSKReporterWidget::resizeEvent(QResizeEvent * event)
+{
+    QWidget::resizeEvent(event);
+    // Save size on resize to persist mid-session changes
+    if (m_settings) {
+        m_settings->setValue("PSKReporter/size", size());
+    }
 }
 
 
