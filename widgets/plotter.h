@@ -12,8 +12,10 @@
 #include <QSize>
 #include <QImage>
 #include <QVector>
+#include <QList>
 #include <QColor>
 #include <QToolTip>
+#include "decode_label.h"
 
 #define VERT_DIVS 7	//specify grid screen divisions
 #define HORZ_DIVS 20
@@ -77,6 +79,8 @@ public:
   void setColours(QVector<QColor> const& cl);
   void setBars(bool b);
   void setClear(bool b);
+  void showFreq(bool b);
+  void setTimestamp(int n);
   void clear();
   void setFlatten(bool b1, bool b2);
   void setTol(int n);
@@ -97,6 +101,11 @@ public:
   void setDiskUTC(int nutc);
   void restartTotalPower();
 
+  // Decoded-callsign overlay rendering
+  void setDecodeLabels(const QList<DecodeLabel>& labels);
+  void setDecodeLabelFontSize(DecodeLabelFontSize sz);
+  void setDecodeLabelAlpha(int alpha);
+
   bool scaleOK () const {return m_bScaleOK;}
 signals:
   void freezeDecode1(int n);
@@ -115,6 +124,7 @@ private:
   void MakeFrequencyStrs();
   int XfromFreq(float f);
   float FreqfromX(int x);
+  void paintDecodeLabels(QPainter& painter);
 
   QAction * m_set_freq_action;
 
@@ -203,7 +213,16 @@ private:
   qint32  m_tol;
   qint32  m_lastMouseX;
   qint32  m_lastPaintedX;
+  bool    m_showFreq;
+  qint32  m_timestamp;
   qint32  m_j;
+
+  // Decoded-callsign overlay state
+  QList<DecodeLabel> m_decodeLabels;
+  DecodeLabelFontSize m_decodeFontSize {DecodeLabelFontSize::Normal};
+  int m_decodeLabelAlpha {255};
+  mutable QFont m_cachedDecodeFont;       // cached for paintDecodeLabels
+  mutable QFontMetrics m_cachedFontMetrics {m_cachedDecodeFont}; // avoid rebuild per paint
 
   char    m_sutc[6];
 

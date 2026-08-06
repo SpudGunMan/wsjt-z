@@ -60,6 +60,9 @@ WideGraph::WideGraph(QSettings * settings, QWidget *parent) :
 	m_bars=m_settings->value("Bars",true).toBool();
     ui->cbBars->setChecked(m_bars);
     ui->widePlot->setBars(m_bars);
+    m_freq=m_settings->value("Freq",true).toBool();
+    ui->cbFreq->setChecked(m_freq);
+    ui->widePlot->showFreq(m_freq);
     m_clear=m_settings->value("Clear",true).toBool();
     ui->cbClear->setChecked(m_clear);
     ui->widePlot->setClear(m_clear);
@@ -93,6 +96,15 @@ WideGraph::WideGraph(QSettings * settings, QWidget *parent) :
     ui->sbPercent2dPlot->setValue(m_Percent2DScreen);
     ui->widePlot->setStartFreq(m_settings->value("StartFreq",0).toInt());
     ui->fStartSpinBox->setValue(ui->widePlot->startFreq());
+    m_timestamp = 1; int itstamp=m_settings->value("Timestamp",1).toInt();
+    QString ststamp=m_settings->value("Timestamp","1").toString();
+    if(ststamp == "0" || ststamp == "1" || ststamp == "2") m_timestamp=itstamp;
+    // Populate timestamp combo box before setting current index
+    ui->timestampComboBox->addItem("Off");
+    ui->timestampComboBox->addItem("UTC");
+    ui->timestampComboBox->addItem("Local");
+    ui->timestampComboBox->setCurrentIndex(m_timestamp); 
+    ui->widePlot->setTimestamp(m_timestamp);
     m_waterfallPalette=m_settings->value("WaterfallPalette","Default").toString();
     m_userPalette = WFPalette {m_settings->value("UserPalette").value<WFPalette::Colours> ()};
     m_fMinPerBand = m_settings->value ("FminPerBand").toHash ();
@@ -115,6 +127,33 @@ WideGraph::WideGraph(QSettings * settings, QWidget *parent) :
   ui->paletteComboBox->addItem (m_user_defined);
   if (m_user_defined == m_waterfallPalette) ui->paletteComboBox->setCurrentIndex(index);
   readPalette ();
+
+  // Decoded-callsign overlay (N6NU 2026-05-11): load persisted toggle
+  // + age-periods under [WideGraph] group. Defaults match QMAP-side
+  // feature: ON, 1 TR period before vanish. Age timer at 1 Hz.
+  if (m_settings) {
+    SettingsGroup g {m_settings, "WideGraph"};
+    m_decodeLabelsEnabled = m_settings->value("DecodeLabelsEnabled", true).toBool();
+    m_decodeLabelPeriods = m_settings->value("DecodeLabelPeriods", 1).toInt();
+    auto sz = m_settings->value("DecodeLabelFontSize", static_cast<int>(DecodeLabelFontSize::Normal)).toInt();
+    m_decodeFontSize = static_cast<DecodeLabelFontSize>(sz);
+    m_decodeLabelAlpha = m_settings->value("DecodeLabelAlpha", 255).toInt();
+  }
+
+  // WideGraph-side controls (mirror of QMAP's row): Show Callsigns
+  // checkbox, periods spin, and Clear button. The View menu's existing
+  // toggle / persist radios / etc. stay authoritative — these widgets
+  // are just an in-window mirror so the operator doesn't have to open
+  // the menu for the most-used knobs.
+  if (ui) {
+    ui->cbShowCallsigns->setChecked(m_decodeLabelsEnabled);
+    ui->sbDecodeLabelPeriods->setMinimum(1);
+    ui->sbDecodeLabelPeriods->setMaximum(5);
+    ui->sbDecodeLabelPeriods->setValue(m_decodeLabelPeriods);
+  }
+
+  connect(&m_ageTimer, &QTimer::timeout, this, &WideGraph::ageDecodeLabels);
+  m_ageTimer.start(1000);
 }
 
 WideGraph::~WideGraph ()
@@ -154,8 +193,14 @@ void WideGraph::saveSettings()                                           //saveS
   m_settings->setValue("UseRef",m_bRef);
   m_settings->setValue ("HideControls", ui->controls_widget->isHidden ());
   m_settings->setValue ("Bars", m_bars);
+  m_settings->setValue ("Freq", m_freq);
   m_settings->setValue ("Clear", m_clear);
+  m_settings->setValue ("Timestamp", m_timestamp);
   m_settings->setValue ("FminPerBand", m_fMinPerBand);
+  m_settings->setValue("DecodeLabelsEnabled", m_decodeLabelsEnabled);
+  m_settings->setValue("DecodeLabelPeriods", m_decodeLabelPeriods);
+  m_settings->setValue("DecodeLabelFontSize", static_cast<int>(m_decodeFontSize));
+  m_settings->setValue("DecodeLabelAlpha", m_decodeLabelAlpha);
 }
 
 void WideGraph::drawRed(int ia, int ib)
@@ -452,14 +497,27 @@ void WideGraph::on_cbBars_toggled(bool b)
   ui->widePlot->setBars(m_bars);
 }
 
+void WideGraph::on_cbFreq_toggled(bool b)
+{
+  m_freq = b;
+  ui->widePlot->showFreq(m_freq);
+}
+
 void WideGraph::on_cbClear_toggled(bool b)
 {
   m_clear = b;
   ui->widePlot->setClear(m_clear);
 }
 
-void WideGraph::on_pbClear_clicked() {
-  ui->widePlot->clear();
+void WideGraph::on_pbClear_clicked()
+{
+  ui->widePlot->update();
+}
+
+void WideGraph::on_timestampComboBox_currentIndexChanged(int n)
+{
+  m_timestamp = n;
+  ui->widePlot->setTimestamp(m_timestamp);
 }
 
 void WideGraph::on_adjust_palette_push_button_clicked (bool)   //Adjust Palette
@@ -592,4 +650,117 @@ void WideGraph::setDiskUTC(int nutc)
 void WideGraph::restartTotalPower()
 {
   ui->widePlot->restartTotalPower();
+}
+
+void WideGraph::addDecodeLabel(double freq_hz, const QString& callsign,
+                               bool is_cq, int time_sec)
+{
+  if (callsign.isEmpty()) return;
+  if (!m_decodeLabelsEnabled) return;
+  const qint64 now = QDateTime::currentMSecsSinceEpoch();
+  // Period parity: decode time-of-day / TR period → period number.
+  // Even = period 0/2/4..., odd = period 1/3/5... within the minute.
+  const double trp = (m_TRperiod > 0) ? m_TRperiod : 15.0;
+  const int    trp_sec = std::max(1, static_cast<int>(trp + 0.5));
+  const bool   is_even = ((time_sec / trp_sec) % 2) == 0;
+  const bool   is_active = !m_activeCallsign.isEmpty()
+                           && callsign.compare(m_activeCallsign, Qt::CaseInsensitive) == 0;
+
+  // Dedupe by callsign: refresh existing entry's timestamp + freq +
+  // period parity (a refreshed entry takes the current decode's period).
+  for (auto& lab : m_decodeLabels) {
+    if (lab.callsign.compare(callsign, Qt::CaseInsensitive) == 0) {
+      lab.freq_hz = freq_hz;
+      lab.last_seen_ms = now;
+      lab.is_even_period = is_even;
+      lab.is_active = is_active;
+      return;
+    }
+  }
+  if (m_decodeLabels.size() >= kDecodeLabelMax) return;
+  DecodeLabel lab{freq_hz, callsign, now, is_cq, is_even};
+  lab.is_active = is_active;
+  m_decodeLabels.append(lab);
+  if (ui && ui->widePlot) ui->widePlot->setDecodeLabels(m_decodeLabels);
+}
+
+void WideGraph::clearDecodeLabels()
+{
+  if (m_decodeLabels.isEmpty()) return;
+  m_decodeLabels.clear();
+  if (ui && ui->widePlot) ui->widePlot->setDecodeLabels(m_decodeLabels);
+}
+
+void WideGraph::setActiveCallsign(const QString& call)
+{
+  if (call == m_activeCallsign) return;
+  m_activeCallsign = call;
+  // Re-flag each label's is_active. Cheap O(N) scan; the list is
+  // bounded at kDecodeLabelMax (300).
+  for (auto& lab : m_decodeLabels) {
+    lab.is_active = !call.isEmpty()
+                    && call.compare(lab.callsign, Qt::CaseInsensitive) == 0;
+  }
+  if (ui && ui->widePlot) ui->widePlot->setDecodeLabels(m_decodeLabels);
+}
+
+void WideGraph::ageDecodeLabels()
+{
+  if (m_decodeLabels.isEmpty()) return;
+  // Use TR period (s) × user's periods count as the time-to-live.
+  // 1 TR period = the natural cadence; user can extend for persistence.
+  const double trp = (m_TRperiod > 0) ? m_TRperiod : 15.0;
+  const qint64 ttl_ms = static_cast<qint64>(trp * m_decodeLabelPeriods * 1000.0);
+  const qint64 cutoff = QDateTime::currentMSecsSinceEpoch() - ttl_ms;
+  const int    before = m_decodeLabels.size();
+  m_decodeLabels.erase(
+      std::remove_if(m_decodeLabels.begin(), m_decodeLabels.end(),
+                     [cutoff](const DecodeLabel& l) { return l.last_seen_ms < cutoff; }),
+      m_decodeLabels.end());
+  if (m_decodeLabels.size() != before && ui && ui->widePlot) {
+    ui->widePlot->setDecodeLabels(m_decodeLabels);
+  }
+}
+
+void WideGraph::setDecodeLabelsEnabled(bool on)
+{
+  if (m_decodeLabelsEnabled == on) return;
+  m_decodeLabelsEnabled = on;
+  if (m_settings) {
+    SettingsGroup g {m_settings, "WideGraph"};
+    m_settings->setValue("DecodeLabelsEnabled", on);
+  }
+  if (!on) {
+    clearDecodeLabels();
+  }
+  emit decodeLabelsEnabledChanged(on);
+}
+
+void WideGraph::setDecodeLabelPeriods(int n)
+{
+  if (n < 1) n = 1;
+  if (n > 5) n = 5;
+  if (m_decodeLabelPeriods == n) return;
+  m_decodeLabelPeriods = n;
+  if (m_settings) {
+    SettingsGroup g {m_settings, "WideGraph"};
+    m_settings->setValue("DecodeLabelPeriods", n);
+  }
+  emit decodeLabelPeriodsChanged(n);
+}
+
+void WideGraph::on_cbShowCallsigns_toggled(bool b)
+{
+  setDecodeLabelsEnabled(b);
+  if (ui) ui->sbDecodeLabelPeriods->setEnabled(b);
+}
+
+void WideGraph::on_sbDecodeLabelPeriods_valueChanged(int n)
+{
+  setDecodeLabelPeriods(n);
+}
+
+void WideGraph::on_pbClearDecodeLabels_clicked()
+{
+  clearDecodeLabels();
 }
