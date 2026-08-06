@@ -235,6 +235,7 @@ public:
   bool wd_Timer() const;
   bool processTailenders() const;
   QString permIgnoreList() const;
+  void set_permIgnoreList(QString const& value);
   bool showDistance() const ;
   bool showBearing() const ;
   bool autoTune() const;
