@@ -14330,6 +14330,7 @@ void MainWindow::on_btn_addToPermIgnore_clicked()
 
 void MainWindow::on_btn_clearIgnore_clicked( ) {
     ui->pte_IgnoredStations->clear();
+    ui->pte_IgnoredStations->appendPlainText(m_config.permIgnoreList());
     m_ignoreListReset = QDateTime::currentDateTime();
     m_filterCacheValid = false;
 }
