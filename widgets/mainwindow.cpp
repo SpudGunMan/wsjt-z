@@ -14291,9 +14291,8 @@ bool MainWindow::callsignFiltered(DecodedText dt)
 
     //State filter
     if (ui->cb_stateFilter->currentIndex() > 0) {
-        QString country = looked_up.entity_name;
-        if  (country == "United States")  {
-            QString state = stateLookup(dxCall);
+        QString state = stateLookup(dxCall);
+        if (!state.isEmpty()) {
             if (m_zdebug) log("callsignFiltered: US State filtering: " + state);
 
             QStringList const& filterLines = m_stateFilterLinesCache;
