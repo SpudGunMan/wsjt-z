@@ -14675,14 +14675,14 @@ bool MainWindow::callsignFiltered(DecodedText dt)
                     if (ui->cb_stateFilter->currentIndex() == 2)
                         for ( const auto& i : filterPrefixes  )
                         {
-                            if (state.toUpper() == i.trimmed().toUpper()) return true;
+                            if (state == i.trimmed()) return true;
                         }
                     // Include
                     if (ui->cb_stateFilter->currentIndex() == 1) {
                         bool filtered = true;
                         for ( const auto& i : filterPrefixes  )
                         {
-                                if (state.toUpper() == i.trimmed().toUpper())
+                                if (state == i.trimmed())
                                 {
                                     filtered = false;
                                     break;
