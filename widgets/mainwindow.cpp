@@ -12791,6 +12791,8 @@ void MainWindow::on_respondComboBox_currentIndexChanged(int index)
       ui->cbFirst->setChecked(call_first);
       ui->cbFirst->blockSignals(blocked);
     }
+  // Enable cb_autoCallPriority only when cbFirst is disabled (call_first is false)
+  ui->cb_autoCallPriority->setEnabled(!call_first);
 }
 
 void MainWindow::on_measure_check_box_stateChanged (int state)
