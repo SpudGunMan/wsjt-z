@@ -29,6 +29,10 @@ jobs:
             VERSION="${GITHUB_REF#refs/tags/v}"
           else
             VERSION="${{ inputs.version }}"
+            if [ -z "$VERSION" ]; then
+              # Extract VERSION_Z from CMakeLists.txt
+              VERSION=$(grep 'set (VERSION_Z' CMakeLists.txt | sed 's/.*set (VERSION_Z "\(.*\)").*/\1/')
+            fi
           fi
           
           if [ -z "$VERSION" ]; then
