@@ -15,10 +15,17 @@
   </property>
   <layout class="QVBoxLayout" name="verticalLayout_2">
    <item>
-    <widget class="QTabWidget" name="configuration_tabs">
-     <property name="currentIndex">
-      <number>8</number>
+    <widget class="QScrollArea" name="configuration_scroll_area">
+     <property name="widgetResizable">
+      <bool>true</bool>
      </property>
+     <widget class="QWidget" name="scrollAreaWidgetContents">
+      <layout class="QVBoxLayout" name="verticalLayout_scroll">
+       <item>
+        <widget class="QTabWidget" name="configuration_tabs">
+         <property name="currentIndex">
+          <number>8</number>
+         </property>
      <widget class="QWidget" name="general_tab">
       <attribute name="title">
        <string>Genera&amp;l</string>
@@ -4062,6 +4069,10 @@ Right click for insert and delete options.</string>
            </widget>
           </item>
          </layout>
+        </widget>
+       </item>
+      </layout>
+     </widget>
         </widget>
        </item>
       </layout>

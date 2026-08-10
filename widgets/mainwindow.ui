@@ -2401,7 +2401,49 @@ list. The list can be maintained in Settings (F2).</string>
                            </property>
                           </widget>
                          </item>
-                         <item row="10" column="0" colspan="2">
+                         <item row="10" column="0">
+                          <layout class="QHBoxLayout" name="horizontalLayout_priority">
+                           <item>
+                            <widget class="QLabel" name="label_23">
+                             <property name="text">
+                              <string>Priority:</string>
+                             </property>
+                             <property name="alignment">
+                              <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+                             </property>
+                            </widget>
+                           </item>
+                           <item>
+                            <widget class="QComboBox" name="cb_autoCallPriority">
+                             <property name="sizePolicy">
+                              <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                               <horstretch>0</horstretch>
+                               <verstretch>0</verstretch>
+                              </sizepolicy>
+                             </property>
+                             <property name="toolTip">
+                              <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Priority of automatic station selection:&lt;/p&gt;&lt;p&gt;&lt;span style=&quot; font-weight:600;&quot;&gt;- Last decoded: &lt;/span&gt;call last decoded station&lt;/p&gt;&lt;p&gt;&lt;span style=&quot; font-weight:600;&quot;&gt;- Distance: &lt;/span&gt;call the station with the longest distance&lt;/p&gt;&lt;p&gt;&lt;span style=&quot; font-weight:600;&quot;&gt;- Signal strength: &lt;/span&gt;call the station with the strongest signal&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                             </property>
+                             <item>
+                              <property name="text">
+                               <string>Last decoded</string>
+                              </property>
+                             </item>
+                             <item>
+                              <property name="text">
+                               <string>Signal strength</string>
+                              </property>
+                             </item>
+                             <item>
+                              <property name="text">
+                               <string>Distance</string>
+                              </property>
+                             </item>
+                            </widget>
+                           </item>
+                          </layout>
+                         </item>
+                         <item row="10" column="1">
                           <widget class="QCheckBox" name="cb_autoCallPreferPSKSpotted">
                            <property name="toolTip">
                             <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Prefer AutoCall candidates that are already seen by PSK Reporter receivers when PSK Reporter band activity feedback is enabled.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
@@ -3738,7 +3780,7 @@ list. The list can be maintained in Settings (F2).</string>
                          </layout>
                         </widget>
                        </item>
-                       <item row="1" column="1">
+                       <item row="2" column="1">
                         <layout class="QHBoxLayout" name="horizontalLayout_5">
                          <property name="spacing">
                           <number>6</number>
@@ -3771,7 +3813,7 @@ list. The list can be maintained in Settings (F2).</string>
                          </item>
                         </layout>
                        </item>
-                       <item row="2" column="0" colspan="2">
+                       <item row="2" column="0">
                         <layout class="QHBoxLayout" name="horizontalLayout_17">
                          <item>
                           <widget class="QCheckBox" name="cbCQonlyIncl73">
@@ -3791,60 +3833,6 @@ list. The list can be maintained in Settings (F2).</string>
                            <property name="text">
                             <string>AutoCQ even/odd</string>
                            </property>
-                          </widget>
-                         </item>
-                         <item>
-                          <spacer name="horizontalSpacer_8">
-                           <property name="orientation">
-                            <enum>Qt::Horizontal</enum>
-                           </property>
-                           <property name="sizeType">
-                            <enum>QSizePolicy::MinimumExpanding</enum>
-                           </property>
-                           <property name="sizeHint" stdset="0">
-                            <size>
-                             <width>40</width>
-                             <height>20</height>
-                            </size>
-                           </property>
-                          </spacer>
-                         </item>
-                         <item>
-                          <widget class="QLabel" name="label_autoCallPriority">
-                           <property name="text">
-                            <string>Priority:</string>
-                           </property>
-                           <property name="alignment">
-                            <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-                           </property>
-                          </widget>
-                         </item>
-                         <item>
-                          <widget class="QComboBox" name="cb_autoCallPriority">
-                           <property name="sizePolicy">
-                            <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
-                             <horstretch>0</horstretch>
-                             <verstretch>0</verstretch>
-                            </sizepolicy>
-                           </property>
-                           <property name="toolTip">
-                            <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Priority of automatic station selection:&lt;/p&gt;&lt;p&gt;&lt;span style=&quot; font-weight:600;&quot;&gt;- Last decoded: &lt;/span&gt;call last decoded station&lt;/p&gt;&lt;p&gt;&lt;span style=&quot; font-weight:600;&quot;&gt;- Distance: &lt;/span&gt;call the station with the longest distance&lt;/p&gt;&lt;p&gt;&lt;span style=&quot; font-weight:600;&quot;&gt;- Signal strength: &lt;/span&gt;call the station with the strongest signal&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-                           </property>
-                           <item>
-                            <property name="text">
-                             <string>Last decoded</string>
-                            </property>
-                           </item>
-                           <item>
-                            <property name="text">
-                             <string>Signal strength</string>
-                            </property>
-                           </item>
-                           <item>
-                            <property name="text">
-                             <string>Distance</string>
-                            </property>
-                           </item>
                           </widget>
                          </item>
                         </layout>

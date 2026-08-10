@@ -2045,6 +2045,7 @@ void MainWindow::readSettings()
   ui->syncSpinBox->setValue(m_minSync);
   ui->cbAutoSeq->setChecked (m_settings->value ("AutoSeq", false).toBool());
   ui->cbFirst->setChecked (ui->respondComboBox->currentIndex() == 1);
+  ui->cb_autoCallPriority->setEnabled (!ui->cbFirst->isChecked ());
   ui->cbRxAll->setChecked (m_settings->value ("RxAll", false).toBool());
 // m_bShMsgs=m_settings->value("ShMsgs",false).toBool();
   m_bSWL=m_settings->value("SWL",false).toBool();
@@ -12777,6 +12778,8 @@ void MainWindow::on_cbFirst_toggled(bool checked)
       ui->respondComboBox->setCurrentIndex(desired_index);
       ui->respondComboBox->blockSignals(blocked);
     }
+  // Enable cb_autoCallPriority only when cbFirst is disabled
+  ui->cb_autoCallPriority->setEnabled(!checked);
 }
 
 void MainWindow::on_respondComboBox_currentIndexChanged(int index)
@@ -12788,6 +12791,8 @@ void MainWindow::on_respondComboBox_currentIndexChanged(int index)
       ui->cbFirst->setChecked(call_first);
       ui->cbFirst->blockSignals(blocked);
     }
+  // Enable cb_autoCallPriority only when cbFirst is disabled (call_first is false)
+  ui->cb_autoCallPriority->setEnabled(!call_first);
 }
 
 void MainWindow::on_measure_check_box_stateChanged (int state)
@@ -14652,9 +14657,17 @@ bool MainWindow::callsignFiltered(DecodedText dt)
 
     //State filter
     if (ui->cb_stateFilter->currentIndex() > 0) {
-        QString country = looked_up.entity_name;
-        if  (country == "United States")  {
-            QString state = stateLookup(dxCall);
+        QString state = stateLookup(dxCall);
+        
+        // If state lookup failed, handle based on filter mode
+        if (state.isEmpty()) {
+            // INCLUDE mode: filter out (hide) unknown states
+            if (ui->cb_stateFilter->currentIndex() == 1) {
+                if (m_zdebug) log("callsignFiltered: US State filtering: unknown state for " + dxCall);
+                return true;
+            }
+            // EXCLUDE mode: let unknown states pass through
+        } else {
             if (m_zdebug) log("callsignFiltered: US State filtering: " + state);
 
             QStringList const& filterLines = m_stateFilterLinesCache;
