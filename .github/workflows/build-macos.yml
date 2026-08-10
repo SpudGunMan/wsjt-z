@@ -1,9 +1,5 @@
 name: Build macOS
 
-permissions:
-  contents: read  # for checkout
-  actions: write  # for cache and upload-artifact
-
 on:
   workflow_call:
     inputs:
@@ -31,6 +27,9 @@ on:
 
 jobs:
   build:
+    permissions:
+      contents: read  # for checkout
+      actions: write  # for cache and upload-artifact
     strategy:
       matrix:
         include:
