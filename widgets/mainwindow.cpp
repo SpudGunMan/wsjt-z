@@ -14291,7 +14291,12 @@ bool MainWindow::callsignFiltered(DecodedText dt)
 
     //State filter
     if (ui->cb_stateFilter->currentIndex() > 0) {
-        QString state = stateLookup(dxCall);
+        // Strip /AG (Acting General) and /AE (Acting Extra) before lookup to get home state
+        QString callForStateLookup = dxCall;
+        if (dxCall.endsWith("/AG") || dxCall.endsWith("/AE")) {
+            callForStateLookup = dxCall.left(dxCall.length() - 3);  // Remove the /XX suffix
+        }
+        QString state = stateLookup(callForStateLookup);
         
         // If state lookup failed, handle based on filter mode
         if (state.isEmpty()) {
