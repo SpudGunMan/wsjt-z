@@ -1,4 +1,16 @@
 #include "helper_functions.h"
+#include <QRegularExpression>
+
+bool isValidRegexPattern(const QString& pattern)
+{
+  // Validate regex pattern contains only safe characters
+  // Allowed: A-Za-z0-9 () [] {} | - ^ $ . * + ? \ : and space
+  // Escape sequences like \d, \w, \s work naturally (backslash + letter)
+  // Disallowed: < > & ; ' " ` ~ / (injection/shell metacharacters)
+  // This encourages simple patterns and prevents ReDoS/injection attacks
+  static const QRegularExpression safe_chars_re{"^[A-Za-z0-9()\\[\\]{}|\\-^$.+*?\\\\:\\s]+$"};
+  return safe_chars_re.match(pattern).hasMatch();
+}
 
 double tx_duration(QString mode, double trPeriod, int nsps, bool bFast9)
 {
