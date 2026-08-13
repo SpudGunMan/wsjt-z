@@ -1908,7 +1908,7 @@ void MainWindow::readSettings()
     ui->sbTR->setValue (m_settings->value ("TRPeriod_FST4", 60).toInt());
   }
   if (m_mode=="MSK144") {
-    ui->sbFtol->setValue (m_settings->value("Ftol_MSK144",50).toInt());
+    ui->sbFtol->setValue (m_settings->value("Ftol_MSK144",100).toInt());
     if (!(m_currentBand=="6m" or m_currentBand=="4m" or m_currentBand=="2m")) ui->sbTR->setValue (m_settings->value ("TRPeriod_MSK144", 30).toInt());
     if (m_currentBand=="6m" or m_currentBand=="4m") ui->sbTR->setValue (m_settings->value ("TRPeriod_MSK144_6m", 15).toInt());
     if (m_currentBand=="2m") ui->sbTR->setValue (m_settings->value ("TRPeriod_MSK144_2m", 30).toInt());
