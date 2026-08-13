@@ -14365,7 +14365,7 @@ void MainWindow::on_btn_clearIgnore_clicked( ) {
 }
 
 
-void MainWindow::rebuildFilterCache()
+void MainWindow::rebuildFilterCache() const
 {
     // Split on '\n' after stripping '\r'; faster than QRegExp("[\r\n]")
     auto split_lines = [](QString s) {
@@ -14387,61 +14387,6 @@ void MainWindow::rebuildFilterCache()
     m_ignoredStationsCache    = split_lines(combined_ignored);
     m_prefixFilterLinesCache  = split_lines(ui->pte_prefixFilter->toPlainText());
     m_stateFilterLinesCache   = split_lines(ui->pte_stateFilter->toPlainText());
-    
-    // Build prefix filter entries with compiled regex patterns
-    m_prefixFilterEntriesByBand.clear();
-    for (const QString& line : m_prefixFilterLinesCache)
-    {
-        // Format: "BAND:prefix1,prefix2,/regex/,+entity"
-        int colon_idx = line.indexOf(':');
-        if (colon_idx <= 0) continue;
-        
-        QString band = line.left(colon_idx).trimmed();
-        QString filters_str = line.mid(colon_idx + 1).trimmed();
-        if (filters_str.isEmpty()) continue;
-        
-        QList<PrefixFilterEntry> entries;
-        QStringList filter_items = filters_str.split(',');
-        
-        for (const QString& item : filter_items)
-        {
-            QString trimmed = item.trimmed();
-            if (trimmed.isEmpty()) continue;
-            
-            PrefixFilterEntry entry(trimmed);
-            
-            // If it's a regex, compile it
-            if (entry.type == PrefixFilterEntry::Regex)
-            {
-                QString pattern = trimmed.mid(1, trimmed.size() - 2);  // extract /pattern/
-                
-                // Validate regex pattern for safety
-                if (!isValidRegexPattern(pattern))
-                {
-                    // Log warning but skip invalid regex
-                    if (m_zdebug) log("Invalid regex in prefix filter: " + pattern);
-                    continue;
-                }
-                
-                // Try to compile regex
-                entry.regex_compiled.setPattern(pattern);
-                if (!entry.regex_compiled.isValid())
-                {
-                    // Log warning if compilation fails
-                    if (m_zdebug) log("Failed to compile regex in prefix filter: " + pattern);
-                    continue;
-                }
-            }
-            
-            entries.append(entry);
-        }
-        
-        if (!entries.isEmpty())
-        {
-            m_prefixFilterEntriesByBand[band] = entries;
-        }
-    }
-    
     m_filterCacheValid = true;
 }
 
@@ -14679,76 +14624,55 @@ bool MainWindow::callsignFiltered(DecodedText dt)
     // Prefix filter
     if (ui->cb_prefixFilter->currentIndex() > 0) {
         if (m_zdebug) log("callsignFiltered: Prefix filtering...");
-
-        // Look up compiled filter entries for current band
-        auto it = m_prefixFilterEntriesByBand.find(m_currentBand.toUpper());
-        if (it == m_prefixFilterEntriesByBand.end()) {
-            it = m_prefixFilterEntriesByBand.find(m_currentBand);
+        QStringList const& filterLines = m_prefixFilterLinesCache;
+        // Linear scan for prefix match (cheaper than QRegExp with anchored ^band:)
+        QString const bandPrefix = m_currentBand.toUpper() + ":";
+        int filterIndex = -1;
+        for (int i = 0; i < filterLines.size(); ++i) {
+            if (filterLines[i].startsWith(bandPrefix)) { filterIndex = i; break; }
         }
-        if (it != m_prefixFilterEntriesByBand.end()) {
-            QList<PrefixFilterEntry> const& entries = it.value();
-            
-            if (entries.size() > 0) {
-                // Exclude mode: hide stations matching any filter
-                if (ui->cb_prefixFilter->currentIndex() == 2) {
-                    for (const auto& entry : entries) {
-                        bool matches = false;
-                        
-                        if (entry.type == PrefixFilterEntry::Entity) {
-                            // Entity name substring match
-                            QString entity_name = entry.text.trimmed().remove(0, 1);  // remove leading '+'
-                            if (looked_up.entity_name.toUpper().indexOf(entity_name.toUpper()) >= 0) {
-                                matches = true;
+        QStringList filterPrefixes;
 
+        if (filterIndex > -1) {
+            QString filterLine = filterLines[filterIndex];
+            filterLine = filterLine.mid(filterLine.indexOf(":")+1, -1);
+            if (filterLine.trimmed().length() > 0)
+                filterPrefixes = filterLine.split(",");
+
+            if (filterPrefixes.size()>0) {
+                // Exclude
+                if (ui->cb_prefixFilter->currentIndex() == 2)
+                    for ( const auto& i : filterPrefixes  )
+                    {
+                            if (i.trimmed().startsWith("+")) {
+                                    if(looked_up.entity_name.toUpper().indexOf(i.trimmed().toUpper().remove(0,1)) >= 0) return true;
+                            } else {
+                                    if (dxCall.startsWith(i.trimmed())) return true;
                             }
-                        } else if (entry.type == PrefixFilterEntry::Regex) {
-                            // Regex match on call prefix
-                            if (entry.regex_compiled.match(dxCall).hasMatch()) {
-                                matches = true;
-                            }
-                        } else {
-                            // Literal prefix match
-                            if (dxCall.startsWith(entry.text.trimmed())) {
-                                matches = true;
-                            }
-                        }
-                        
-                        if (matches) return true;  // Matched in exclude mode = filtered out
                     }
-                }
-                // Include mode: show only stations matching at least one filter
-                else if (ui->cb_prefixFilter->currentIndex() == 1) {
-                    bool filtered = true;  // assume filtered until we find a match
-                    
-                    for (const auto& entry : entries) {
-                        bool matches = false;
-                        
-                        if (entry.type == PrefixFilterEntry::Entity) {
-                            // Entity name substring match
-                            QString entity_name = entry.text.trimmed().remove(0, 1);  // remove leading '+'
-                            if (looked_up.entity_name.toUpper().indexOf(entity_name.toUpper()) >= 0) {
-                                matches = true;
+                // Include
+                if (ui->cb_prefixFilter->currentIndex() == 1) {
+                    bool filtered = true;
+                    for ( const auto& i : filterPrefixes  )
+                    {
+                            if (i.trimmed().startsWith("+")) {
+                                    if(looked_up.entity_name.toUpper().indexOf(i.trimmed().toUpper().remove(0,1)) >= 0)
+                                        {
+                                            filtered = false;
+                                            break;
+                                        }
+                            } else {
+                                    if (dxCall.startsWith(i.trimmed()))
+                                    {
+                                        filtered = false;
+                                        break;
+                                    }
                             }
-                        } else if (entry.type == PrefixFilterEntry::Regex) {
-                            // Regex match on call prefix
-                            if (entry.regex_compiled.match(dxCall).hasMatch()) {
-                                matches = true;
-                            }
-                        } else {
-                            // Literal prefix match
-                            if (dxCall.startsWith(entry.text.trimmed())) {
-                                matches = true;
-                            }
-                        }
-                        
-                        if (matches) {
-                            filtered = false;
-                            break;
-                        }
                     }
-                    
-                    if (filtered) return true;  // Didn't match any include filter = filtered out
+
+                    if (filtered) return true;
                 }
+
             }
         }
     }
