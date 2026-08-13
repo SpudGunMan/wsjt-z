@@ -26,6 +26,7 @@
 #include <QFuture>
 #include <QFutureWatcher>
 #include <QDateTime>
+#include <QRegularExpression>
 // Z
 #include <qrzlookup.h>
 
@@ -112,6 +113,33 @@ class SampleDownloader;
 class MultiSettings;
 class EqualizationToolsDialog;
 class DecodedText;
+
+// Helper struct for prefix filter entries that may be regex or literal
+struct PrefixFilterEntry
+{
+  enum Type { Literal, Regex, Entity };
+  Type type = Literal;
+  QString text;  // original text (with /.../ for regex, + for entity)
+  QRegularExpression regex_compiled;  // only populated if type == Regex
+  
+  PrefixFilterEntry(const QString& raw_text)
+    : text(raw_text)
+  {
+    QString trimmed = raw_text.trimmed();
+    if (trimmed.startsWith('/') && trimmed.endsWith('/') && trimmed.size() >= 3)
+    {
+      type = Regex;
+    }
+    else if (trimmed.startsWith('+'))
+    {
+      type = Entity;
+    }
+    else
+    {
+      type = Literal;
+    }
+  }
+};
 
 class MainWindow
   : public MultiGeometryWidget<3, QMainWindow>
@@ -523,11 +551,13 @@ private:
   // Filter cache: parsed once when the QPlainTextEdit changes, reused per-decode.
   // Invalidated by textChanged signals connected in the ctor.
   void invalidateFilterCache() { m_filterCacheValid = false; }
-  void rebuildFilterCache() const;
+  void rebuildFilterCache();  // Not const; calls log() and modifies mutable caches
   mutable bool m_filterCacheValid = false;
   mutable QStringList m_ignoredStationsCache;
   mutable QStringList m_prefixFilterLinesCache;
   mutable QStringList m_stateFilterLinesCache;
+  // Compiled regex patterns for prefix filter (caches QRegularExpression per pattern)
+  mutable QMap<QString, QList<PrefixFilterEntry>> m_prefixFilterEntriesByBand;
 
   // Parallel FT8 decoder thread count (0 = OpenMP auto-detect; 1..12 = pinned).
   // Bound to the Decode > Parameters > Number of threads radio menu.
