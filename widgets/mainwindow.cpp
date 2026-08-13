@@ -1939,10 +1939,11 @@ void MainWindow::readSettings()
     ui->sbTR->setValue (m_settings->value ("TRPeriod_FST4", 60).toInt());
   }
   if (m_mode=="MSK144") {
-    ui->sbFtol->setValue (m_settings->value("Ftol_MSK144",50).toInt());
-    if (!(m_currentBand=="6m" or m_currentBand=="4m" or m_currentBand=="2m")) ui->sbTR->setValue (m_settings->value ("TRPeriod_MSK144", 30).toInt());
-    if (m_currentBand=="6m" or m_currentBand=="4m") ui->sbTR->setValue (m_settings->value ("TRPeriod_MSK144_6m", 15).toInt());
-    if (m_currentBand=="2m") ui->sbTR->setValue (m_settings->value ("TRPeriod_MSK144_2m", 30).toInt());
+    ui->sbFtol->setValue (m_settings->value("Ftol_MSK144",100).toInt());
+    auto const&curBand = ui->bandComboBox->currentText();
+    if (!(curBand=="6m" or curBand=="4m" or curBand=="2m")) ui->sbTR->setValue (m_settings->value ("TRPeriod_MSK144", 30).toInt());
+    if (curBand=="6m" or curBand=="4m") ui->sbTR->setValue (m_settings->value ("TRPeriod_MSK144_6m", 15).toInt());
+    if (curBand=="2m") ui->sbTR->setValue (m_settings->value ("TRPeriod_MSK144_2m", 30).toInt());
   }
   if (m_mode=="MSK144") m_bShMsgs=m_settings->value("ShMsgs_MSK144",false).toBool();
   if (m_mode=="Q65") m_bShMsgs=m_settings->value("ShMsgs_Q65",false).toBool();
@@ -10262,7 +10263,15 @@ void MainWindow::on_actionMSK144_triggered()
   m_bFastMode=true;
   m_bFast9=false;
   ui->sbTR->values ({5, 10, 15, 30});
-  ui->sbTR->setValue (m_settings->value ("TRPeriod_MSK144", 15).toInt());    // restore last used TRperiod
+  // Set TR period based on current band
+  auto const&curBand = ui->bandComboBox->currentText();
+  if (!(curBand=="6m" or curBand=="4m" or curBand=="2m")) {
+    ui->sbTR->setValue (m_settings->value ("TRPeriod_MSK144", 30).toInt());
+  } else if (curBand=="6m" or curBand=="4m") {
+    ui->sbTR->setValue (m_settings->value ("TRPeriod_MSK144_6m", 15).toInt());
+  } else if (curBand=="2m") {
+    ui->sbTR->setValue (m_settings->value ("TRPeriod_MSK144_2m", 30).toInt());
+  }
   QTimer::singleShot (50, [=] {on_sbTR_valueChanged (ui->sbTR->value());});
   m_bShMsgs=m_settings->value("ShMsgs_MSK144",false).toBool();
   ui->cbShMsgs->setChecked(m_bShMsgs);
@@ -10877,14 +10886,26 @@ void MainWindow::band_changed (Frequency f)
   no_a7_decodes = true;
   QTimer::singleShot ((int(1500.0*m_TRperiod)), [=] {no_a7_decodes = false;});
 
+  auto const&curBand = ui->bandComboBox->currentText();
+  
   // Set the attenuation value if options are checked
   if (m_config.pwrBandTxMemory() && !m_tune) {
-    auto const&curBand = ui->bandComboBox->currentText();
     if (m_pwrBandTxMemory.contains(curBand)) {
       ui->outAttenuation->setValue(m_pwrBandTxMemory[curBand].toInt());
     }
     else {
       m_pwrBandTxMemory[curBand] = ui->outAttenuation->value();
+    }
+  }
+  
+  // Update sbTR based on band for MSK144 mode
+  if (m_mode == "MSK144") {
+    if (!(curBand=="6m" or curBand=="4m" or curBand=="2m")) {
+      ui->sbTR->setValue (m_settings->value ("TRPeriod_MSK144", 30).toInt());
+    } else if (curBand=="6m" or curBand=="4m") {
+      ui->sbTR->setValue (m_settings->value ("TRPeriod_MSK144_6m", 15).toInt());
+    } else if (curBand=="2m") {
+      ui->sbTR->setValue (m_settings->value ("TRPeriod_MSK144_2m", 30).toInt());
     }
   }
 
@@ -11748,14 +11769,15 @@ void MainWindow::on_sbTR_valueChanged(int value)
   statusUpdate ();
   // save last used parameters
   QTimer::singleShot (200, [=] {
+    auto const&curBand = ui->bandComboBox->currentText();
     if (m_mode=="Q65") m_settings->setValue ("TRPeriod_Q65", ui->sbTR->value ());
-    if (m_mode=="MSK144" && (!(m_currentBand=="6m" or m_currentBand=="4m" or m_currentBand=="2m"))) {
+    if (m_mode=="MSK144" && (!(curBand=="6m" or curBand=="4m" or curBand=="2m"))) {
       m_settings->setValue ("TRPeriod_MSK144", ui->sbTR->value ());
     }
-    if (m_mode=="MSK144" && (m_currentBand=="6m" or m_currentBand=="4m")) {
+    if (m_mode=="MSK144" && (curBand=="6m" or curBand=="4m")) {
       m_settings->setValue ("TRPeriod_MSK144_6m", ui->sbTR->value ());
     }
-    if (m_mode=="MSK144" && m_currentBand=="2m") {
+    if (m_mode=="MSK144" && curBand=="2m") {
       m_settings->setValue ("TRPeriod_MSK144_2m", ui->sbTR->value ());
     }
     if (m_mode=="FST4") m_settings->setValue ("TRPeriod_FST4", ui->sbTR->value ());
@@ -14343,7 +14365,7 @@ void MainWindow::on_btn_clearIgnore_clicked( ) {
 }
 
 
-void MainWindow::rebuildFilterCache() const
+void MainWindow::rebuildFilterCache()
 {
     // Split on '\n' after stripping '\r'; faster than QRegExp("[\r\n]")
     auto split_lines = [](QString s) {
@@ -14365,6 +14387,61 @@ void MainWindow::rebuildFilterCache() const
     m_ignoredStationsCache    = split_lines(combined_ignored);
     m_prefixFilterLinesCache  = split_lines(ui->pte_prefixFilter->toPlainText());
     m_stateFilterLinesCache   = split_lines(ui->pte_stateFilter->toPlainText());
+    
+    // Build prefix filter entries with compiled regex patterns
+    m_prefixFilterEntriesByBand.clear();
+    for (const QString& line : m_prefixFilterLinesCache)
+    {
+        // Format: "BAND:prefix1,prefix2,/regex/,+entity"
+        int colon_idx = line.indexOf(':');
+        if (colon_idx <= 0) continue;
+        
+        QString band = line.left(colon_idx).trimmed();
+        QString filters_str = line.mid(colon_idx + 1).trimmed();
+        if (filters_str.isEmpty()) continue;
+        
+        QList<PrefixFilterEntry> entries;
+        QStringList filter_items = filters_str.split(',');
+        
+        for (const QString& item : filter_items)
+        {
+            QString trimmed = item.trimmed();
+            if (trimmed.isEmpty()) continue;
+            
+            PrefixFilterEntry entry(trimmed);
+            
+            // If it's a regex, compile it
+            if (entry.type == PrefixFilterEntry::Regex)
+            {
+                QString pattern = trimmed.mid(1, trimmed.size() - 2);  // extract /pattern/
+                
+                // Validate regex pattern for safety
+                if (!isValidRegexPattern(pattern))
+                {
+                    // Log warning but skip invalid regex
+                    if (m_zdebug) log("Invalid regex in prefix filter: " + pattern);
+                    continue;
+                }
+                
+                // Try to compile regex
+                entry.regex_compiled.setPattern(pattern);
+                if (!entry.regex_compiled.isValid())
+                {
+                    // Log warning if compilation fails
+                    if (m_zdebug) log("Failed to compile regex in prefix filter: " + pattern);
+                    continue;
+                }
+            }
+            
+            entries.append(entry);
+        }
+        
+        if (!entries.isEmpty())
+        {
+            m_prefixFilterEntriesByBand[band] = entries;
+        }
+    }
+    
     m_filterCacheValid = true;
 }
 
@@ -14602,62 +14679,88 @@ bool MainWindow::callsignFiltered(DecodedText dt)
     // Prefix filter
     if (ui->cb_prefixFilter->currentIndex() > 0) {
         if (m_zdebug) log("callsignFiltered: Prefix filtering...");
-        QStringList const& filterLines = m_prefixFilterLinesCache;
-        // Linear scan for prefix match (cheaper than QRegExp with anchored ^band:)
-        QString const bandPrefix = m_currentBand.toUpper() + ":";
-        int filterIndex = -1;
-        for (int i = 0; i < filterLines.size(); ++i) {
-            if (filterLines[i].startsWith(bandPrefix)) { filterIndex = i; break; }
+
+        // Look up compiled filter entries for current band
+        auto it = m_prefixFilterEntriesByBand.find(m_currentBand.toUpper());
+        if (it == m_prefixFilterEntriesByBand.end()) {
+            it = m_prefixFilterEntriesByBand.find(m_currentBand);
         }
-        QStringList filterPrefixes;
+        if (it != m_prefixFilterEntriesByBand.end()) {
+            QList<PrefixFilterEntry> const& entries = it.value();
+            
+            if (entries.size() > 0) {
+                // Exclude mode: hide stations matching any filter
+                if (ui->cb_prefixFilter->currentIndex() == 2) {
+                    for (const auto& entry : entries) {
+                        bool matches = false;
+                        
+                        if (entry.type == PrefixFilterEntry::Entity) {
+                            // Entity name substring match
+                            QString entity_name = entry.text.trimmed().remove(0, 1);  // remove leading '+'
+                            if (looked_up.entity_name.toUpper().indexOf(entity_name.toUpper()) >= 0) {
+                                matches = true;
 
-        if (filterIndex > -1) {
-            QString filterLine = filterLines[filterIndex];
-            filterLine = filterLine.mid(filterLine.indexOf(":")+1, -1);
-            if (filterLine.trimmed().length() > 0)
-                filterPrefixes = filterLine.split(",");
-
-            if (filterPrefixes.size()>0) {
-                // Exclude
-                if (ui->cb_prefixFilter->currentIndex() == 2)
-                    for ( const auto& i : filterPrefixes  )
-                    {
-                            if (i.trimmed().startsWith("+")) {
-                                    if(looked_up.entity_name.toUpper().indexOf(i.trimmed().toUpper().remove(0,1)) >= 0) return true;
-                            } else {
-                                    if (dxCall.startsWith(i.trimmed())) return true;
                             }
-                    }
-                // Include
-                if (ui->cb_prefixFilter->currentIndex() == 1) {
-                    bool filtered = true;
-                    for ( const auto& i : filterPrefixes  )
-                    {
-                            if (i.trimmed().startsWith("+")) {
-                                    if(looked_up.entity_name.toUpper().indexOf(i.trimmed().toUpper().remove(0,1)) >= 0)
-                                        {
-                                            filtered = false;
-                                            break;
-                                        }
-                            } else {
-                                    if (dxCall.startsWith(i.trimmed()))
-                                    {
-                                        filtered = false;
-                                        break;
-                                    }
+                        } else if (entry.type == PrefixFilterEntry::Regex) {
+                            // Regex match on call prefix
+                            if (entry.regex_compiled.match(dxCall).hasMatch()) {
+                                matches = true;
                             }
+                        } else {
+                            // Literal prefix match
+                            if (dxCall.startsWith(entry.text.trimmed())) {
+                                matches = true;
+                            }
+                        }
+                        
+                        if (matches) return true;  // Matched in exclude mode = filtered out
                     }
-
-                    if (filtered) return true;
                 }
-
+                // Include mode: show only stations matching at least one filter
+                else if (ui->cb_prefixFilter->currentIndex() == 1) {
+                    bool filtered = true;  // assume filtered until we find a match
+                    
+                    for (const auto& entry : entries) {
+                        bool matches = false;
+                        
+                        if (entry.type == PrefixFilterEntry::Entity) {
+                            // Entity name substring match
+                            QString entity_name = entry.text.trimmed().remove(0, 1);  // remove leading '+'
+                            if (looked_up.entity_name.toUpper().indexOf(entity_name.toUpper()) >= 0) {
+                                matches = true;
+                            }
+                        } else if (entry.type == PrefixFilterEntry::Regex) {
+                            // Regex match on call prefix
+                            if (entry.regex_compiled.match(dxCall).hasMatch()) {
+                                matches = true;
+                            }
+                        } else {
+                            // Literal prefix match
+                            if (dxCall.startsWith(entry.text.trimmed())) {
+                                matches = true;
+                            }
+                        }
+                        
+                        if (matches) {
+                            filtered = false;
+                            break;
+                        }
+                    }
+                    
+                    if (filtered) return true;  // Didn't match any include filter = filtered out
+                }
             }
         }
     }
 
     //State filter
     if (ui->cb_stateFilter->currentIndex() > 0) {
-        QString state = stateLookup(dxCall);
+        // Strip /AG (Acting General) and /AE (Acting Extra) before lookup to get home state
+        QString callForStateLookup = dxCall;
+        if (dxCall.endsWith("/AG") || dxCall.endsWith("/AE")) {
+            callForStateLookup = dxCall.left(dxCall.length() - 3);  // Remove the /XX suffix
+        }
+        QString state = stateLookup(callForStateLookup);
         
         // If state lookup failed, handle based on filter mode
         if (state.isEmpty()) {

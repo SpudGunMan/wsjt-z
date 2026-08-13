@@ -76,7 +76,7 @@ set (PROJECT_MANUAL_DIRECTORY_URL https://groups.io/g/WSJT-Z)
 set (PROJECT_SAMPLES_URL https://sourceforge.net/projects/wsjt/files/)
 #set (PROJECT_SAMPLES_UPLOAD_DEST frs.sourceforge.net:/home/frs/project/wsjt/)
 # WSJT-Z mod version suffix shown in UI and package metadata.
-set (VERSION_Z "2.19.b4")
+set (VERSION_Z "2.19.b5")
 message (STATUS "******************************************************")
 message (STATUS "Building ${PROJECT_BUNDLE_NAME} ${VERSION_Z} for ${CMAKE_SYSTEM_NAME}-${PROJECT_ARCHITECTURE}")
 message (STATUS "******************************************************")
@@ -518,7 +518,6 @@ set (wsjt_FSRCS
   lib/mskrtd.f90
   lib/msk144signalquality.f90
   lib/msk144sim.f90
-  lib/mskrtd.f90
   lib/nuttal_window.f90
   lib/decode_msk144.f90
   lib/ft4/ft4sim.f90
