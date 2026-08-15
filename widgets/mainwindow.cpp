@@ -302,6 +302,39 @@ namespace
     return words.size () > 1 && words.at (1) == "RR73;";
   }
 
+  bool terminal_signoff_matches_active_branch (QString const& sender,
+                                             QString const& target,
+                                             QString const& active_call,
+                                             QString const& last_call,
+                                             QString const& selected_dx,
+                                             QString const& my_call,
+                                             QString const& base_call)
+  {
+    auto normalize = [] (QString const& token)
+      {
+        auto t = token;
+        t.remove ('<');
+        t.remove ('>');
+        return Radio::base_callsign (t);
+      };
+
+    auto const active = normalize (active_call);
+    auto const recent = normalize (last_call);
+    auto const selected = normalize (selected_dx);
+    auto const mine = normalize (my_call);
+    auto const base = normalize (base_call);
+
+    auto const sender_base = normalize (sender);
+    auto const target_base = normalize (target);
+
+    return (!sender_base.isEmpty ()
+            && (sender_base == active || sender_base == recent || sender_base == selected
+                || sender_base == mine || sender_base == base))
+      || (!target_base.isEmpty ()
+          && (target_base == active || target_base == recent || target_base == selected
+              || target_base == mine || target_base == base));
+  }
+
   int ms_minute_error ()
   {
     auto const& now = QDateTime::currentDateTimeUtc ();
@@ -6270,7 +6303,7 @@ void MainWindow::auto_sequence (DecodedText const& message, unsigned start_toler
         .arg(composite_rr73_for_me)
         .arg(raw_words.size() > 0 ? raw_words.at(0) : "N/A")
         .arg(raw_words.size() > 2 ? raw_words.at(2) : "N/A"));
-  bool terminal_signoff = is_73 || composite_rr73_detected;
+  bool terminal_signoff = composite_rr73_detected;
 
   bool is_OK=false;
   if(m_mode=="MSK144" && msg_no_hash.indexOf(ui->dxCallEntry->text()+" R ")>0) is_OK=true;
@@ -6316,6 +6349,11 @@ void MainWindow::auto_sequence (DecodedText const& message, unsigned start_toler
     QString hiscall;
     QString hisgrid;
     message.deCallAndGrid(/*out*/hiscall,hisgrid);
+    bool const active_branch_signoff = is_73
+      && terminal_signoff_matches_active_branch (message_words.value (2), message_words.value (3),
+                                                hiscall, m_lastCall, ui->dxCallEntry->text (),
+                                                m_config.my_callsign (), m_baseCall);
+    terminal_signoff = active_branch_signoff || composite_rr73_detected;
     bool addressed_to_me = message_words.at (2).contains (m_baseCall);
     bool tailender_ok = (m_config.processTailenders() || m_lastCall == hiscall || !m_bAutoReply);
     auto normalized_base = [](QString token)
@@ -8082,6 +8120,9 @@ void MainWindow::processMessage (DecodedText const& message, Qt::KeyboardModifie
       return;
     }
 
+    bool const active_signoff = terminal_signoff_matches_active_branch (message_words.value (2), message_words.value (3),
+                                                                      hiscall, m_lastCall, ui->dxCallEntry->text (),
+                                                                      m_config.my_callsign (), m_baseCall);
     bool bContestOK=(m_mode=="FT4" or m_mode=="FT8" or m_mode=="FT2" or m_mode=="Q65" or m_mode=="MSK144");
     if(message_words.size () > 4   // enough fields for a normal message
        && (message_words.at(2).contains(m_baseCall) || "DE" == message_words.at(2))
@@ -8154,10 +8195,11 @@ void MainWindow::processMessage (DecodedText const& message, Qt::KeyboardModifie
         auto word_3_as_number = word_3.toInt ();
         bool received_73 = (word_3_as_number == 73);
         bool received_rr73 = ("RR73" == word_3);
-        if (("RRR" == word_3
-             || (received_73 && m_QSOProgress >= ROGERS)
-             || received_rr73
-             || ("R" == word_3 && m_QSOProgress != REPORT))) {
+        if (active_signoff
+            && ("RRR" == word_3
+                || (received_73 && m_QSOProgress >= ROGERS)
+                || received_rr73
+                || ("R" == word_3 && m_QSOProgress != REPORT))) {
           if (m_zdebug) log(QString("processMessage terminal signoff branch: m_QSOProgress=%1 word_3=%2").arg(m_QSOProgress).arg(word_3));
           if((m_mode=="FT4" or m_mode=="FT2") and received_rr73) m_dateTimeRcvdRR73=QDateTime::currentDateTimeUtc();
           m_bTUmsg=false;
