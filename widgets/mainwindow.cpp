@@ -13952,7 +13952,6 @@ void MainWindow::on_cbAutoCQ_toggled(bool b)
           m_txFirst = newTxFirst;
           m_autoCQAlternateEvenOddNext = !newTxFirst;
         }
-        ui->cbFirst->setChecked(true);
         ui->cbAutoSeq->setChecked(true);
         ui->txrb6->setChecked(true);
         if (m_smartModeSwitch && ui->cb_autoModeSwitch->isChecked()) {
