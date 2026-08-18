@@ -14817,45 +14817,44 @@ bool MainWindow::callsignFiltered(DecodedText dt)
             } else {
                 if (m_zdebug) log("callsignFiltered: US State filtering: " + state);
 
-            QStringList const& filterLines = m_stateFilterLinesCache;
-            QString const bandPrefix = m_currentBand.toUpper() + ":";
-            int filterIndex = -1;
-            for (int i = 0; i < filterLines.size(); ++i) {
-                if (filterLines[i].startsWith(bandPrefix)) { filterIndex = i; break; }
-            }
-            QStringList filterPrefixes;
-            if (filterIndex > -1) {
-                QString filterLine = filterLines[filterIndex];
-                filterLine = filterLine.mid(filterLine.indexOf(":")+1, -1);
-                if (filterLine.trimmed().length() > 0)
-                    filterPrefixes = filterLine.split(",");
+                QStringList const& filterLines = m_stateFilterLinesCache;
+                QString const bandPrefix = m_currentBand.toUpper() + ":";
+                int filterIndex = -1;
+                for (int i = 0; i < filterLines.size(); ++i) {
+                    if (filterLines[i].startsWith(bandPrefix)) { filterIndex = i; break; }
+                }
+                QStringList filterPrefixes;
+                if (filterIndex > -1) {
+                    QString filterLine = filterLines[filterIndex];
+                    filterLine = filterLine.mid(filterLine.indexOf(":")+1, -1);
+                    if (filterLine.trimmed().length() > 0)
+                        filterPrefixes = filterLine.split(",");
 
-                if (filterPrefixes.size()>0) {
-                    // Exclude
-                    if (ui->cb_stateFilter->currentIndex() == 2)
-                        for ( const auto& i : filterPrefixes  )
-                        {
-                            if (state == i.trimmed()) return true;
-                        }
-                    // Include
-                    if (ui->cb_stateFilter->currentIndex() == 1) {
-                        bool filtered = true;
-                        for ( const auto& i : filterPrefixes  )
-                        {
-                                if (state == i.trimmed())
-                                {
-                                    filtered = false;
-                                    break;
-                                }
-                        }
+                    if (filterPrefixes.size()>0) {
+                        // Exclude
+                        if (ui->cb_stateFilter->currentIndex() == 2)
+                            for ( const auto& i : filterPrefixes  )
+                            {
+                                if (state == i.trimmed()) return true;
+                            }
+                        // Include
+                        if (ui->cb_stateFilter->currentIndex() == 1) {
+                            bool filtered = true;
+                            for ( const auto& i : filterPrefixes  )
+                            {
+                                    if (state == i.trimmed())
+                                    {
+                                        filtered = false;
+                                        break;
+                                    }
+                            }
 
-                            if (filtered) return true;
+                                if (filtered) return true;
+                            }
                         }
                     }
                 }
             }
-
-        }
 
     }
 
