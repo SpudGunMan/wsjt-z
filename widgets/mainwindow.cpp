@@ -14291,62 +14291,64 @@ bool MainWindow::callsignFiltered(DecodedText dt)
 
     //State filter
     if (ui->cb_stateFilter->currentIndex() > 0) {
-        // Strip /AG (Acting General) and /AE (Acting Extra) before lookup to get home state
-        QString callForStateLookup = dxCall;
-        if (dxCall.endsWith("/AG") || dxCall.endsWith("/AE")) {
-            callForStateLookup = dxCall.left(dxCall.length() - 3);  // Remove the /XX suffix
-        }
-        QString state = stateLookup(callForStateLookup);
-        
-        // If state lookup failed, handle based on filter mode
-        if (state.isEmpty()) {
-            // INCLUDE mode: filter out (hide) unknown states
-            if (ui->cb_stateFilter->currentIndex() == 1) {
-                if (m_zdebug) log("callsignFiltered: US State filtering: unknown state for " + dxCall);
-                return true;
+        QString country = looked_up.entity_name;
+        if  (country == "United States")  {
+            // Strip /AG (Acting General) and /AE (Acting Extra) before lookup to get home state
+            QString callForStateLookup = dxCall;
+            if (dxCall.endsWith("/AG") || dxCall.endsWith("/AE")) {
+                callForStateLookup = dxCall.left(dxCall.length() - 3);  // Remove the /XX suffix
             }
-            // EXCLUDE mode: let unknown states pass through
-        } else {
-            if (m_zdebug) log("callsignFiltered: US State filtering: " + state);
+            QString state = stateLookup(callForStateLookup);
+            
+            // If state lookup failed, handle based on filter mode
+            if (state.isEmpty()) {
+                // INCLUDE mode: filter out (hide) unknown states
+                if (ui->cb_stateFilter->currentIndex() == 1) {
+                    if (m_zdebug) log("callsignFiltered: US State filtering: unknown state for " + dxCall);
+                    return true;
+                }
+                // EXCLUDE mode: let unknown states pass through
+            } else {
+                if (m_zdebug) log("callsignFiltered: US State filtering: " + state);
 
-            QStringList const& filterLines = m_stateFilterLinesCache;
-            QString const bandPrefix = m_currentBand + ":";
-            int filterIndex = -1;
-            for (int i = 0; i < filterLines.size(); ++i) {
-                if (filterLines[i].startsWith(bandPrefix)) { filterIndex = i; break; }
-            }
-            QStringList filterPrefixes;
-            if (filterIndex > -1) {
-                QString filterLine = filterLines[filterIndex];
-                filterLine = filterLine.mid(filterLine.indexOf(":")+1, -1);
-                if (filterLine.trimmed().length() > 0)
-                    filterPrefixes = filterLine.split(",");
+                QStringList const& filterLines = m_stateFilterLinesCache;
+                QString const bandPrefix = m_currentBand + ":";
+                int filterIndex = -1;
+                for (int i = 0; i < filterLines.size(); ++i) {
+                    if (filterLines[i].startsWith(bandPrefix)) { filterIndex = i; break; }
+                }
+                QStringList filterPrefixes;
+                if (filterIndex > -1) {
+                    QString filterLine = filterLines[filterIndex];
+                    filterLine = filterLine.mid(filterLine.indexOf(":")+1, -1);
+                    if (filterLine.trimmed().length() > 0)
+                        filterPrefixes = filterLine.split(",");
 
-                if (filterPrefixes.size()>0) {
-                    // Exclude
-                    if (ui->cb_stateFilter->currentIndex() == 2)
-                        for ( const auto& i : filterPrefixes  )
-                        {
-                            if (state == i.trimmed()) return true;
+                    if (filterPrefixes.size()>0) {
+                        // Exclude
+                        if (ui->cb_stateFilter->currentIndex() == 2)
+                            for ( const auto& i : filterPrefixes  )
+                            {
+                                if (state == i.trimmed()) return true;
+                            }
+                        // Include
+                        if (ui->cb_stateFilter->currentIndex() == 1) {
+                            bool filtered = true;
+                            for ( const auto& i : filterPrefixes  )
+                            {
+                                    if (state == i.trimmed())
+                                    {
+                                        filtered = false;
+                                        break;
+                                    }
+                            }
+
+                                if (filtered) return true;
+                            }
                         }
-                    // Include
-                    if (ui->cb_stateFilter->currentIndex() == 1) {
-                        bool filtered = true;
-                        for ( const auto& i : filterPrefixes  )
-                        {
-                                if (state == i.trimmed())
-                                {
-                                    filtered = false;
-                                    break;
-                                }
-                        }
-
-                        if (filtered) return true;
                     }
                 }
             }
-
-        }
 
     }
 
