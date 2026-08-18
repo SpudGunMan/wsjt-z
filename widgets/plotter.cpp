@@ -1140,7 +1140,7 @@ void CPlotter::paintDecodeLabels(QPainter& painter)
     
     // Center the label text and background at x position (both use same centering)
     int labelX = x - textWidth / 2;
-    int labelY = 5;
+    int labelY = m_h - textHeight - 5;
     
     if (bgColor.alpha() > 0) {
       painter.fillRect(labelX, labelY, textWidth, textHeight, bgColor);
