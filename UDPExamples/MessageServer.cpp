@@ -397,6 +397,15 @@ void MessageServer::impl::parse_message (QHostAddress const& sender, port_type s
               }
               break;
 
+            case NetworkMessage::RotateLog:
+              {
+                if (check_status (in) != Fail)
+                  {
+                    Q_EMIT self_->rotate_log (client_key);
+                  }
+              }
+              break;
+
             default:
               // Ignore
               break;

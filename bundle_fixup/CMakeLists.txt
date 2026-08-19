@@ -210,12 +210,20 @@ if (APPLE OR WIN32)
           get_filename_component (bundle_app \"\${bundle_contents_dir}\" DIRECTORY)
           find_program (CODESIGN_EXECUTABLE codesign)
           if (CODESIGN_EXECUTABLE)
+            message (STATUS \"Signing bundle with entitlements: ${CMAKE_SOURCE_DIR}/Darwin/entitlements.plist\")
             execute_process (
-              COMMAND \"\${CODESIGN_EXECUTABLE}\" --force --deep --sign - --timestamp=none \"\${bundle_app}\"
+              COMMAND \"\${CODESIGN_EXECUTABLE}\" --force --deep --sign - --timestamp=none --entitlements \"${CMAKE_SOURCE_DIR}/Darwin/entitlements.plist\" \"\${bundle_app}\"
               RESULT_VARIABLE _codesign_result
-              OUTPUT_QUIET
+              OUTPUT_VARIABLE _codesign_output
               ERROR_VARIABLE _codesign_error
             )
+            message (STATUS \"codesign result: \${_codesign_result}\")
+            if (_codesign_output)
+              message (STATUS \"codesign output: \${_codesign_output}\")
+            endif ()
+            if (_codesign_error)
+              message (STATUS \"codesign error: \${_codesign_error}\")
+            endif ()
             if (NOT _codesign_result EQUAL 0)
               message (FATAL_ERROR \"codesign failed for bundle '\${bundle_app}': \${_codesign_error}\")
             endif ()

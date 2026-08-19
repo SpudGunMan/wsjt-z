@@ -59,6 +59,7 @@
 #include <QSqlError>
 #include "unfilteredview.h"
 #include "pskreporterwidget.h"
+#include "DXStationMap.h"
 
 #include "helper_functions.h"
 #include "revision_utils.hpp"
@@ -569,6 +570,17 @@ MainWindow::MainWindow(QDir const& temp_directory, bool multiple,
     m_pskReporterView->hide();
   }
 
+  // Initialize DXStationMap as a popup window
+  m_dxStationMap.reset(new DXStationMap {nullptr});
+  connect(this, &MainWindow::finished, m_dxStationMap.data(), &QWidget::close);
+  m_dxStationMap->setMyCall(m_config.my_callsign());
+  m_dxStationMap->setHomeGrid(m_config.my_grid());
+  m_dxStationMap->setDistanceInMiles(m_config.miles());
+  m_dxMapStartedUtc = QDateTime::currentDateTimeUtc();
+  m_dxMapLastLogUtc = QDateTime();
+  m_dxStationMap->setTickerStats(qso_total, qso_new, m_dxMapStartedUtc, m_dxMapLastLogUtc);
+  m_dxStationMap->hide();
+
   m_optimizingProgress.setWindowModality (Qt::WindowModal);
   m_optimizingProgress.setAutoReset (false);
   m_optimizingProgress.setMinimumDuration (15000); // only show after 15s delay
@@ -715,12 +727,18 @@ MainWindow::MainWindow(QDir const& temp_directory, bool multiple,
   connect (m_messageClient, &MessageClient::highlight_callsign, ui->decodedTextBrowser, &DisplayText::highlight_callsign);
   connect (m_messageClient, &MessageClient::switch_configuration, m_multi_settings, &MultiSettings::select_configuration);
   connect (m_messageClient, &MessageClient::configure, this, &MainWindow::remote_configure);
+  connect (m_messageClient, &MessageClient::rotate_log, this, [this] () {
+    this->rotate_wsjtx_log_adi (false);
+  });
 
   // Set up MessageServer to listen for incoming UDP messages on port 2237
   // This allows remote clients to send Configure and other commands to WSJT-X
   m_udp_server = new MessageServer {this, QApplication::applicationName (), version ()};
   connect (m_udp_server, &MessageServer::remote_configure, this, [this] (MessageServer::ClientKey const&, QString const& mode, quint32 frequency_tolerance, QString const& submode, bool fast_mode, quint32 tr_period, quint32 rx_df, QString const& dx_call, QString const& dx_grid, bool generate_messages, bool auto_cq_enabled, bool auto_call_enabled) {
     this->remote_configure (mode, frequency_tolerance, submode, fast_mode, tr_period, rx_df, dx_call, dx_grid, generate_messages, auto_cq_enabled, auto_call_enabled);
+  });
+  connect (m_udp_server, &MessageServer::rotate_log, this, [this] (MessageServer::ClientKey const&) {
+    this->rotate_wsjtx_log_adi (false);
   });
   
   // Only start listening if accept_udp_requests is enabled
@@ -1908,10 +1926,11 @@ void MainWindow::readSettings()
     ui->sbTR->setValue (m_settings->value ("TRPeriod_FST4", 60).toInt());
   }
   if (m_mode=="MSK144") {
-    ui->sbFtol->setValue (m_settings->value("Ftol_MSK144",50).toInt());
-    if (!(m_currentBand=="6m" or m_currentBand=="4m" or m_currentBand=="2m")) ui->sbTR->setValue (m_settings->value ("TRPeriod_MSK144", 30).toInt());
-    if (m_currentBand=="6m" or m_currentBand=="4m") ui->sbTR->setValue (m_settings->value ("TRPeriod_MSK144_6m", 15).toInt());
-    if (m_currentBand=="2m") ui->sbTR->setValue (m_settings->value ("TRPeriod_MSK144_2m", 30).toInt());
+    ui->sbFtol->setValue (m_settings->value("Ftol_MSK144",100).toInt());
+    auto const&curBand = ui->bandComboBox->currentText();
+    if (!(curBand=="6m" or curBand=="4m" or curBand=="2m")) ui->sbTR->setValue (m_settings->value ("TRPeriod_MSK144", 30).toInt());
+    if (curBand=="6m" or curBand=="4m") ui->sbTR->setValue (m_settings->value ("TRPeriod_MSK144_6m", 15).toInt());
+    if (curBand=="2m") ui->sbTR->setValue (m_settings->value ("TRPeriod_MSK144_2m", 30).toInt());
   }
   if (m_mode=="MSK144") m_bShMsgs=m_settings->value("ShMsgs_MSK144",false).toBool();
   if (m_mode=="Q65") m_bShMsgs=m_settings->value("ShMsgs_Q65",false).toBool();
@@ -2607,6 +2626,23 @@ void MainWindow::fastSink(qint64 frames)
       ui->decodedTextBrowser->displayDecodedText (decodedtext, m_config.my_callsign (), m_mode, m_config.DXCC(),
            m_logBook, m_currentBand, m_config.ppfx ());
     }
+    
+    // Plot on DXStationMap if calling ME
+    if (m_dxStationMap) {
+      QString dxCall, dxGrid;
+      if (isCallingForMe(decodedtext, dxCall, dxGrid)) {
+        PlottedStation s;
+        s.call = dxCall;
+        s.grid = dxGrid.toUpper().left(4);
+        s.snr = decodedtext.snr();
+        s.freqHz = decodedtext.frequencyOffset();
+        s.forMe = true;
+        s.isCQ = false;
+        s.period = 0;
+        m_dxStationMap->addStation(s);
+      }
+    }
+    
     m_bDecoded=true;
     auto_sequence (decodedtext, ui->sbFtol->value (), std::numeric_limits<unsigned>::max ());
     postDecode (true, decodedtext.string ());
@@ -3450,14 +3486,8 @@ bool MainWindow::eventFilter (QObject * object, QEvent * event)
       if (object == ui->EraseButton) {
         auto const *mouseEvent = static_cast<QMouseEvent const *> (event);
         if (mouseEvent->button() == Qt::RightButton) {
-          ui->tx1->clear();
-          ui->tx2->clear();
-          ui->tx3->clear();
-          ui->tx4->clear();
-          ui->tx5->clearEditText();
-          ui->dxCallEntry->clear();
-          ui->dxGridEntry->clear();
-          ui->txrb6->setChecked(true);
+          clearDX();
+          ui->tx5->clearEditText();  // match triple-click behavior
           if (ui->cbAutoCall->isChecked()) {
             ui->stopTxButton->click (); // halt any transmission
             if (m_zdebug) log("Tx stopped by right-click on Erase button");
@@ -3918,16 +3948,19 @@ void MainWindow::on_actionLocal_User_Guide_triggered()
 void MainWindow::on_actionWide_Waterfall_triggered()      //Display Waterfalls
 {
   m_wideGraph->showNormal();
+  m_wideGraph->raise();
 }
 
 void MainWindow::on_actionEcho_Graph_triggered()
 {
   m_echoGraph->showNormal();
+  m_echoGraph->raise();
 }
 
 void MainWindow::on_actionFast_Graph_triggered()
 {
   m_fastGraph->showNormal();
+  m_fastGraph->raise();
 }
 
 void MainWindow::on_actionSolve_FreqCal_triggered()
@@ -5988,6 +6021,22 @@ void MainWindow::readFromStdout()                             //readFromStdout
         if(!m_bBestSPArmed or (m_mode!="FT4" and m_mode!="FT2")) {
           ui->decodedTextBrowser2->displayDecodedText (decodedtext0, my_call, m_mode, dxcc,
                 m_logBook, m_currentBand, m_config.ppfx (), false, false, 0.0, bDisplayPoints, m_points, false, false, "", "", isFiltered);
+          
+          // Plot on DXStationMap if calling ME
+          if (m_dxStationMap) {
+            QString dxCall, dxGrid;
+            if (isCallingForMe(decodedtext0, dxCall, dxGrid)) {
+              PlottedStation s;
+              s.call = dxCall;
+              s.grid = dxGrid.toUpper().left(4);
+              s.snr = decodedtext0.snr();
+              s.freqHz = decodedtext0.frequencyOffset();
+              s.forMe = true;
+              s.isCQ = false;
+              s.period = 0;
+              m_dxStationMap->addStation(s);
+            }
+          }
         }
         m_QSOText = decodedtext.string ().trimmed ();
       }
@@ -6407,15 +6456,9 @@ void MainWindow::on_EraseButton_clicked ()
   }
 
   if (m_nEraseClicks >= 3) {
+    clearDX();
+    ui->tx5->clearEditText();  // match triple-click behavior
     ui->stopTxButton->click (); // halt any transmission
-    ui->tx1->clear();
-    ui->tx2->clear();
-    ui->tx3->clear();
-    ui->tx4->clear();
-    ui->tx5->clearEditText();
-    ui->dxCallEntry->clear();
-    ui->dxGridEntry->clear();
-    ui->txrb6->setChecked(true);
     if (m_zdebug) log("Auto-sequencing stopped by triple Erase click");
     m_nEraseClicks = 0;
   }
@@ -7241,6 +7284,11 @@ void MainWindow::guiUpdate()
     if(!m_monitoring and !m_diskData) ui->signal_meter_widget->setValue(0,0);
     m_sec0=nsec;
     displayDialFrequency ();
+    
+    // Enforce MAX_STATIONS hard limit on DXStationMap
+    if (m_dxStationMap) {
+      m_dxStationMap->expireStations();
+    }
   }
   m_iptt0=g_iptt;
   m_btxok0=m_btxok;
@@ -7424,6 +7472,24 @@ bool MainWindow::elide_tx2_not_allowed () const
     || ((m_mode.startsWith ("FT") || "MSK144" == m_mode || "Q65" == m_mode || "FST4" == m_mode)
         && Radio::is_77bit_nonstandard_callsign (my_callsign))
     || (my_callsign != m_baseCall && !shortList (my_callsign));
+}
+
+bool MainWindow::isCallingForMe (DecodedText const& dt, QString& call, QString& grid) const
+{
+  // Check addressee (word 1), not DX station (word 2)
+  QString myCall = dt.call ();
+  if (myCall.isEmpty ()) return false;
+  
+  // Handle hashed calls like <K1ABC> — strip angle brackets
+  if (myCall.startsWith ("<") && myCall.endsWith (">")) {
+    myCall = myCall.mid (1, myCall.length () - 2);
+  }
+  
+  if (Radio::base_callsign (myCall) != m_baseCall) return false;
+  
+  // Parse the DX station (word 2) and grid (word 3) for plotting
+  dt.deCallAndGrid (call, grid);
+  return !call.isEmpty () && !grid.isEmpty ();
 }
 
 void MainWindow::on_txrb1_doubleClicked ()
@@ -8184,6 +8250,22 @@ void MainWindow::processMessage (DecodedText const& message, Qt::KeyboardModifie
     if (!s2.contains(m_baseCall) or m_mode=="MSK144") {  // Taken care of elsewhere if for_us and slow mode
       ui->decodedTextBrowser2->displayDecodedText (message, m_config.my_callsign (), m_mode, m_config.DXCC (),
       m_logBook, m_currentBand, m_config.ppfx ());
+      
+      // Plot on DXStationMap if calling ME
+      if (m_dxStationMap) {
+        QString dxCall, dxGrid;
+        if (isCallingForMe(message, dxCall, dxGrid)) {
+          PlottedStation s;
+          s.call = dxCall;
+          s.grid = dxGrid.toUpper().left(4);
+          s.snr = message.snr();
+          s.freqHz = message.frequencyOffset();
+          s.forMe = true;
+          s.isCQ = false;
+          s.period = 0;
+          m_dxStationMap->addStation(s);
+        }
+      }
     }
     m_QSOText = s2;
   }
@@ -9068,13 +9150,14 @@ void MainWindow::cease_auto_Tx_after_QSO ()
 void MainWindow::on_logQSOButton_clicked()                 //Log QSO button
 {
       // Z
-    if (m_zdebug) log("on_logQSOButton_clicked!");
+    if (m_zdebug) log("on_logQSOButton_clicked! m_hisCall=[" + m_hisCall + "] m_lastCall=[" + m_lastCall + "]");
     if (!m_hisCall.size () || m_lastCall == m_hisCall) {
-        if (m_zdebug) log("on_logQSOButton_clicked: m_hisCall is empty, or callsign already logged. Exiting.");
+        if (m_zdebug) log("on_logQSOButton_clicked: EARLY RETURN - m_hisCall empty or already logged");
         clearDX();
         m_inQSOwith="";
         return;
     }
+    if (m_zdebug) log("on_logQSOButton_clicked: PROCEEDING - first QSO with " + m_hisCall);
 
   if (!m_hisCall.size ()) {
     MessageBox::warning_message (this, tr ("Warning:  DX Call field is empty."));
@@ -9129,6 +9212,7 @@ void MainWindow::on_logQSOButton_clicked()                 //Log QSO button
 
   // Z
   if (m_lastCall != m_hisCall) {
+      QString callLogged = m_hisCall;  // Save before initLogQSO triggers signal/slot that clears DX
       if (m_rptSent.isEmpty()) {
           m_rptSent = QString::number(ui->rptSpinBox->value());
           int n=m_rptSent.toInt();
@@ -9136,17 +9220,14 @@ void MainWindow::on_logQSOButton_clicked()                 //Log QSO button
       }
       m_logDlg->initLogQSO (m_hisCall, grid, m_mode, m_rptSent , m_rptRcvd,
                             m_dateTimeQSOOn, dateTimeQSOOff, m_freqNominal +
-                           ui->TxFreqSpinBox->value(), m_noSuffix, m_xSent, m_xRcvd);
+                           ui->TxFreqSpinBox->value(), m_noSuffix, m_xSent, m_xRcvd,
+                           ui->cbAutoCQ->isChecked() || ui->cbAutoCall->isChecked());
 
          if (m_config.rxTotxFreq()) on_pbT2R_clicked();
-         if (m_zdebug) log("Updating m_lastCall from " + m_lastCall + " to " + m_hisCall);
-         m_lastCall = m_hisCall;
+         if (m_zdebug) log("Updating m_lastCall from " + m_lastCall + " to " + callLogged);
+         m_lastCall = callLogged;
          if (ui->cbAutoCQ->isChecked() || ui->cbAutoCall->isChecked()) {
-             if (m_zdebug) log("QSO Logged: " + m_hisCall);
-             // initLogQSO already calls accept() when autoLog is on for contests
-             // (NA_VHF/EU_VHF/etc.). Calling accept() again double-runs the QSO
-             // pipeline (CabrilloLog::add_QSO + acceptQSO signal) and crashes
-             // intermittently. Hidden dialog == already auto-accepted.
+             if (m_zdebug) log("QSO Logged: " + callLogged);
              if (m_logDlg && !m_logDlg->isHidden()) m_logDlg->accept();
              if (ui->cbAutoCall->isChecked()) auto_tx_mode (false);
              resetAutoSwitch();
@@ -9178,13 +9259,30 @@ void MainWindow::acceptQSO (QDateTime const& QSO_date_off, QString const& call, 
                                    tr ("Cannot open \"%1\"").arg (m_logBook.path ()));
     }
 
+  // ── Plot logged QSO on DXStationMap ───────────────────────────────────────
+  if (m_dxStationMap) {
+    // Extract SNR from report_sent (e.g., "-09", "+05") — this is our report of their signal
+    int snr_for_logged = 0;
+    bool ok = false;
+    if (!rpt_sent.isEmpty()) {
+      snr_for_logged = rpt_sent.toInt(&ok);
+      if (!ok) snr_for_logged = 0;  // Default to 0 if parsing fails
+    }
+    m_dxStationMap->addLoggedStation(call, grid, dial_freq, snr_for_logged, mode);
+  }
+
   m_messageClient->qso_logged (QSO_date_off, call, grid, dial_freq, mode, rpt_sent, rpt_received
                                , tx_power, comments, name, QSO_date_on, operator_call, my_call, my_grid
                                , exchange_sent, exchange_rcvd, propmode);
   m_messageClient->logged_ADIF (ADIF);
 
   // Z
+  const auto nowUtc = QDateTime::currentDateTimeUtc();
   updateQsoCounter(true);
+  m_dxMapLastLogUtc = nowUtc;
+  if (m_dxStationMap) {
+    m_dxStationMap->setTickerStats(qso_total, qso_new, m_dxMapStartedUtc, m_dxMapLastLogUtc, 0.0);
+  }
   clearDX();
 
   // Log to N1MM Logger
@@ -10034,7 +10132,15 @@ void MainWindow::on_actionMSK144_triggered()
   m_bFastMode=true;
   m_bFast9=false;
   ui->sbTR->values ({5, 10, 15, 30});
-  ui->sbTR->setValue (m_settings->value ("TRPeriod_MSK144", 15).toInt());    // restore last used TRperiod
+  // Set TR period based on current band
+  auto const&curBand = ui->bandComboBox->currentText();
+  if (!(curBand=="6m" or curBand=="4m" or curBand=="2m")) {
+    ui->sbTR->setValue (m_settings->value ("TRPeriod_MSK144", 30).toInt());
+  } else if (curBand=="6m" or curBand=="4m") {
+    ui->sbTR->setValue (m_settings->value ("TRPeriod_MSK144_6m", 15).toInt());
+  } else if (curBand=="2m") {
+    ui->sbTR->setValue (m_settings->value ("TRPeriod_MSK144_2m", 30).toInt());
+  }
   QTimer::singleShot (50, [=] {on_sbTR_valueChanged (ui->sbTR->value());});
   m_bShMsgs=m_settings->value("ShMsgs_MSK144",false).toBool();
   ui->cbShMsgs->setChecked(m_bShMsgs);
@@ -10464,6 +10570,107 @@ void MainWindow::on_actionErase_wsjtx_log_adi_triggered()
   }
 }
 
+void MainWindow::rotate_wsjtx_log_adi(bool confirm)
+{
+  if (confirm)
+    {
+      int ret = MessageBox::query_message (this, tr ("Confirm Rotate"),
+                                           tr ("Rotate the current wsjtx_log.adi file to a timestamped backup and start a new log?"));
+      if (ret != MessageBox::Yes)
+        {
+          return;
+        }
+    }
+  else
+    {
+      // Rate limit remote rotations to prevent DoS via repeated UDP datagrams
+      auto now = QDateTime::currentDateTimeUtc ();
+      if (m_lastRotateLogUtc.isValid () && m_lastRotateLogUtc.secsTo (now) < 5)
+        {
+          if (m_zdebug)
+            {
+              log (tr ("Rotate: Rate limited, ignoring rotation request within 5 seconds"));
+            }
+          return;
+        }
+      m_lastRotateLogUtc = now;
+    }
+
+  QDir log_dir = m_config.writeable_data_dir ();
+  QFileInfo current_log {log_dir.absoluteFilePath ("wsjtx_log.adi")};
+  if (!current_log.exists ())
+    {
+      if (confirm)
+        {
+          MessageBox::warning_message (this, tr ("Rotate ADIF Log"), tr ("No wsjtx_log.adi file exists to rotate."));
+        }
+      else if (m_zdebug)
+        {
+          log (tr ("Rotate: No wsjtx_log.adi file exists to rotate."));
+        }
+      return;
+    }
+
+  QString timestamp = QDateTime::currentDateTimeUtc ().toString ("yyyyMMddTHHmmssZ");
+  QString rotated_name = QString {"wsjtx_log_%1.adi"}.arg (timestamp);
+  QString rotated_path = log_dir.absoluteFilePath (rotated_name);
+
+  // Handle duplicate filenames from rapid successive rotations (1s granularity)
+  for (int suffix = 1; QFile::exists (rotated_path); ++suffix)
+    {
+      rotated_name = QString {"wsjtx_log_%1_%2.adi"}.arg (timestamp).arg (suffix);
+      rotated_path = log_dir.absoluteFilePath (rotated_name);
+    }
+
+  if (!QFile::rename (current_log.absoluteFilePath (), rotated_path))
+    {
+      if (confirm)
+        {
+          MessageBox::warning_message (this, tr ("Rotate ADIF Log"), tr ("Failed to rotate the current ADIF log file."));
+        }
+      else if (m_zdebug)
+        {
+          log (tr ("Rotate: Failed to rotate the current ADIF log file."));
+        }
+      return;
+    }
+
+  QFile new_log {log_dir.absoluteFilePath ("wsjtx_log.adi")};
+  if (!new_log.open (QIODevice::WriteOnly | QIODevice::Text))
+    {
+      if (confirm)
+        {
+          MessageBox::warning_message (this, tr ("Rotate ADIF Log"), tr ("Failed to create a new ADIF log file."));
+        }
+      else if (m_zdebug)
+        {
+          log (tr ("Rotate: Failed to create a new ADIF log file."));
+        }
+      return;
+    }
+
+  QTextStream out {&new_log};
+  auto const created_timestamp = QDateTime::currentDateTimeUtc ().toString ("yyyyMMdd HHmmss");
+  auto const ver = version (true);
+  out << "ADIF Export\n"
+      << "<adif_ver:5>3.1.1\n"
+      << "<created_timestamp:15>" << created_timestamp << "\n"
+      << "<programid:6>WSJT-X\n"
+      << QString {"<programversion:%1>%2\n"}.arg (ver.size ()).arg (ver)
+      << "<eoh>" << Qt::endl;
+  new_log.close ();
+
+  qso_new = 0;
+  qso_total = 0;
+  updateQsoCounter (false);
+  m_config.rescan_logbook ();
+}
+
+void MainWindow::on_actionRotate_wsjtx_log_adi_triggered()
+{
+  rotate_wsjtx_log_adi (true);
+}
+
 void MainWindow::on_actionErase_WSPR_hashtable_triggered()
 {
   int ret = MessageBox::query_message(this, tr ("Confirm Erase"),
@@ -10536,14 +10743,26 @@ void MainWindow::band_changed (Frequency f)
   no_a7_decodes = true;
   QTimer::singleShot ((int(1500.0*m_TRperiod)), [=] {no_a7_decodes = false;});
 
+  auto const&curBand = ui->bandComboBox->currentText();
+  
   // Set the attenuation value if options are checked
   if (m_config.pwrBandTxMemory() && !m_tune) {
-    auto const&curBand = ui->bandComboBox->currentText();
     if (m_pwrBandTxMemory.contains(curBand)) {
       ui->outAttenuation->setValue(m_pwrBandTxMemory[curBand].toInt());
     }
     else {
       m_pwrBandTxMemory[curBand] = ui->outAttenuation->value();
+    }
+  }
+  
+  // Update sbTR based on band for MSK144 mode
+  if (m_mode == "MSK144") {
+    if (!(curBand=="6m" or curBand=="4m" or curBand=="2m")) {
+      ui->sbTR->setValue (m_settings->value ("TRPeriod_MSK144", 30).toInt());
+    } else if (curBand=="6m" or curBand=="4m") {
+      ui->sbTR->setValue (m_settings->value ("TRPeriod_MSK144_6m", 15).toInt());
+    } else if (curBand=="2m") {
+      ui->sbTR->setValue (m_settings->value ("TRPeriod_MSK144_2m", 30).toInt());
     }
   }
 
@@ -11407,14 +11626,15 @@ void MainWindow::on_sbTR_valueChanged(int value)
   statusUpdate ();
   // save last used parameters
   QTimer::singleShot (200, [=] {
+    auto const&curBand = ui->bandComboBox->currentText();
     if (m_mode=="Q65") m_settings->setValue ("TRPeriod_Q65", ui->sbTR->value ());
-    if (m_mode=="MSK144" && (!(m_currentBand=="6m" or m_currentBand=="4m" or m_currentBand=="2m"))) {
+    if (m_mode=="MSK144" && (!(curBand=="6m" or curBand=="4m" or curBand=="2m"))) {
       m_settings->setValue ("TRPeriod_MSK144", ui->sbTR->value ());
     }
-    if (m_mode=="MSK144" && (m_currentBand=="6m" or m_currentBand=="4m")) {
+    if (m_mode=="MSK144" && (curBand=="6m" or curBand=="4m")) {
       m_settings->setValue ("TRPeriod_MSK144_6m", ui->sbTR->value ());
     }
-    if (m_mode=="MSK144" && m_currentBand=="2m") {
+    if (m_mode=="MSK144" && curBand=="2m") {
       m_settings->setValue ("TRPeriod_MSK144_2m", ui->sbTR->value ());
     }
     if (m_mode=="FST4") m_settings->setValue ("TRPeriod_FST4", ui->sbTR->value ());
@@ -13911,6 +14131,7 @@ void MainWindow::sfox_tx() {
 void MainWindow::on_cbAutoCall_toggled(bool b)
 {
     if (b) {
+        ui->cb_autoCallNext->setChecked(false);
         ui->cbCQonly->setChecked(true);
         ui->cbCQonly->setEnabled(false);
         ui->cbAutoCQ->setChecked(false);
@@ -13940,6 +14161,7 @@ void MainWindow::on_cbAutoCall_toggled(bool b)
 void MainWindow::on_cbAutoCQ_toggled(bool b)
 {
     if (b) {
+        ui->cb_autoCallNext->setChecked(false);
         ui->cbAutoCall->setChecked(false);
         ui->cbAutoCall->setEnabled(false);
         if (ui->cb_autoModeSwitch->isChecked() && ui->cbAutoCQAlternateEvenOdd->isChecked()) {
@@ -13979,6 +14201,12 @@ void MainWindow::on_btn_addToIgnore_clicked( ) {
       {
         ui->pte_IgnoredStations->appendPlainText(candidate);
       }
+}
+
+void MainWindow::on_btn_addToPermIgnore_clicked()
+{
+    m_config.set_permIgnoreList(ui->pte_IgnoredStations->toPlainText());
+    showStatusMessage(tr("Added current ignore list to permanent ignore list"));
 }
 
 void MainWindow::on_btn_clearIgnore_clicked( ) {
@@ -15733,6 +15961,18 @@ void MainWindow::on_actionPSKReporter_triggered() {
         m_pskReporterView->setFont(m_config.decoded_text_font ());
         m_pskReporterView->raise ();
         m_pskReporterView->activateWindow ();
+    }
+}
+
+void MainWindow::on_actionDXStationMap_triggered() {
+    if (m_dxStationMap) {
+        if (m_dxStationMap->isVisible()) {
+            m_dxStationMap->hide();
+        } else {
+            m_dxStationMap->showNormal();
+            m_dxStationMap->raise();
+            m_dxStationMap->activateWindow();
+        }
     }
 }
 

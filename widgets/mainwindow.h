@@ -100,6 +100,7 @@ class WSPRBandHopping;
 // Z
 class UnfilteredView;
 class PSKReporterWidget;
+class DXStationMap;
 
 class HelpTextWindow;
 class WSPRNet;
@@ -260,6 +261,8 @@ private slots:
   void on_actionErase_ALL_TXT_triggered();
   void on_reset_cabrillo_log_action_triggered ();
   void on_actionErase_wsjtx_log_adi_triggered();
+  void on_actionRotate_wsjtx_log_adi_triggered();
+  void rotate_wsjtx_log_adi(bool confirm = true);
   void on_actionErase_WSPR_hashtable_triggered();
   void on_actionErase_list_of_Q65_callers_triggered();
   void on_actionExport_Cabrillo_log_triggered();
@@ -423,6 +426,7 @@ private slots:
      // Decode > Wideband DX Call search
      void on_actionFT8WidebandDXCallSearch_toggled(bool checked);
      void on_btn_addToIgnore_clicked();
+     void on_btn_addToPermIgnore_clicked();
      void on_btn_clearIgnore_clicked();
      void on_actionIgnore_station_triggered();
      void on_actionCall_next_triggered();
@@ -458,6 +462,7 @@ private slots:
     double watchdog();
      void on_actionUnfiltered_View_triggered();
      void on_actionPSKReporter_triggered();
+     void on_actionDXStationMap_triggered();
      void updateQsoCounter(bool increment);
      void on_txFirstCheckBox_toggled();
     void update_tx5(const QString &qsy_text);
@@ -499,6 +504,7 @@ private:
   void chkFT4();
   bool elide_tx1_not_allowed () const;
   bool elide_tx2_not_allowed () const;
+  bool isCallingForMe (DecodedText const&, QString& call, QString& grid) const;
   void readWidebandDecodes();
   void configActiveStations();
   void showQSYMessage(QString message);
@@ -767,10 +773,12 @@ private:
   bool    m_autoCQAlternateEvenOddNext = false;
   QScopedPointer<UnfilteredView> m_unfilteredView;
   QScopedPointer<PSKReporterWidget> m_pskReporterView;
+  QScopedPointer<DXStationMap> m_dxStationMap;
   QSet<QString> m_pskReporterReceivers;
   QThread * m_pskReporterThread;
   QDateTime m_ignoreListReset;
   QDateTime m_watchdogAnchorUtc;
+  QDateTime m_lastRotateLogUtc;
   qint64 m_msTxFirst;
   bool m_TxFirstLock = false;
   bool m_savedAutoCQfiltering = false;
@@ -786,6 +794,8 @@ private:
   bool m_AutoTxFreq = false;
   int qso_total = 0;
   int qso_new = 0;
+  QDateTime m_dxMapStartedUtc;
+  QDateTime m_dxMapLastLogUtc;
   QByteArray m_unfilteredViewGeometry;
   QByteArray m_pskReporterViewGeometry;
   
