@@ -49,7 +49,7 @@ Pre-built Windows installers and release notes are published on the GitHub **Rel
 - **Band-hopper** — schedule automatic band changes by time-of-day or activity
 
 ### Filtering & highlighting
-- **Ignored stations list** — silence specific calls or prefixes
+- **Ignored stations list** — silence specific calls or prefixes, with one-click save of the current list into the permanent list
 - **Prefix / state / continent / CQ-target filters** — include or exclude by call prefix, US state, continent, or directed-CQ target
 - **DXCC / Continent / CQ Zone / ITU Zone** worked-before alerts (per-band variants supported)
 - **New on band / new in mode / new for the year** highlighting
@@ -65,6 +65,8 @@ Pre-built Windows installers and release notes are published on the GitHub **Rel
 
 ### Integration & UX
 - **QRZ.com lookup panel** — name, address, grid, biography
+- **DX Station Map** — world-map window plotting stations calling you and your logged QSOs
+- **Log rotation** — archive `wsjtx_log.adi` with a timestamped name from the File menu, or remotely via a UDP `RotateLog` message
 - **Audio alerts** — configurable per-event sounds
 - **PSK Reporter integration** — spotting plus band-activity feedback highlighting
 - **UDP control server** — optional inbound UDP `Configure` requests (mode/frequency/DX call, Auto-CQ/Auto-Call) for companion apps. Disabled by default; enabling it (**Accept UDP requests**) opens an unauthenticated control surface on all interfaces that can key your transmitter, so only enable it on a trusted network
