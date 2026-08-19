@@ -1926,10 +1926,11 @@ void MainWindow::readSettings()
     ui->sbTR->setValue (m_settings->value ("TRPeriod_FST4", 60).toInt());
   }
   if (m_mode=="MSK144") {
-    ui->sbFtol->setValue (m_settings->value("Ftol_MSK144",50).toInt());
-    if (!(m_currentBand=="6m" or m_currentBand=="4m" or m_currentBand=="2m")) ui->sbTR->setValue (m_settings->value ("TRPeriod_MSK144", 30).toInt());
-    if (m_currentBand=="6m" or m_currentBand=="4m") ui->sbTR->setValue (m_settings->value ("TRPeriod_MSK144_6m", 15).toInt());
-    if (m_currentBand=="2m") ui->sbTR->setValue (m_settings->value ("TRPeriod_MSK144_2m", 30).toInt());
+    ui->sbFtol->setValue (m_settings->value("Ftol_MSK144",100).toInt());
+    auto const&curBand = ui->bandComboBox->currentText();
+    if (!(curBand=="6m" or curBand=="4m" or curBand=="2m")) ui->sbTR->setValue (m_settings->value ("TRPeriod_MSK144", 30).toInt());
+    if (curBand=="6m" or curBand=="4m") ui->sbTR->setValue (m_settings->value ("TRPeriod_MSK144_6m", 15).toInt());
+    if (curBand=="2m") ui->sbTR->setValue (m_settings->value ("TRPeriod_MSK144_2m", 30).toInt());
   }
   if (m_mode=="MSK144") m_bShMsgs=m_settings->value("ShMsgs_MSK144",false).toBool();
   if (m_mode=="Q65") m_bShMsgs=m_settings->value("ShMsgs_Q65",false).toBool();
@@ -10131,7 +10132,15 @@ void MainWindow::on_actionMSK144_triggered()
   m_bFastMode=true;
   m_bFast9=false;
   ui->sbTR->values ({5, 10, 15, 30});
-  ui->sbTR->setValue (m_settings->value ("TRPeriod_MSK144", 15).toInt());    // restore last used TRperiod
+  // Set TR period based on current band
+  auto const&curBand = ui->bandComboBox->currentText();
+  if (!(curBand=="6m" or curBand=="4m" or curBand=="2m")) {
+    ui->sbTR->setValue (m_settings->value ("TRPeriod_MSK144", 30).toInt());
+  } else if (curBand=="6m" or curBand=="4m") {
+    ui->sbTR->setValue (m_settings->value ("TRPeriod_MSK144_6m", 15).toInt());
+  } else if (curBand=="2m") {
+    ui->sbTR->setValue (m_settings->value ("TRPeriod_MSK144_2m", 30).toInt());
+  }
   QTimer::singleShot (50, [=] {on_sbTR_valueChanged (ui->sbTR->value());});
   m_bShMsgs=m_settings->value("ShMsgs_MSK144",false).toBool();
   ui->cbShMsgs->setChecked(m_bShMsgs);
@@ -10734,14 +10743,26 @@ void MainWindow::band_changed (Frequency f)
   no_a7_decodes = true;
   QTimer::singleShot ((int(1500.0*m_TRperiod)), [=] {no_a7_decodes = false;});
 
+  auto const&curBand = ui->bandComboBox->currentText();
+  
   // Set the attenuation value if options are checked
   if (m_config.pwrBandTxMemory() && !m_tune) {
-    auto const&curBand = ui->bandComboBox->currentText();
     if (m_pwrBandTxMemory.contains(curBand)) {
       ui->outAttenuation->setValue(m_pwrBandTxMemory[curBand].toInt());
     }
     else {
       m_pwrBandTxMemory[curBand] = ui->outAttenuation->value();
+    }
+  }
+  
+  // Update sbTR based on band for MSK144 mode
+  if (m_mode == "MSK144") {
+    if (!(curBand=="6m" or curBand=="4m" or curBand=="2m")) {
+      ui->sbTR->setValue (m_settings->value ("TRPeriod_MSK144", 30).toInt());
+    } else if (curBand=="6m" or curBand=="4m") {
+      ui->sbTR->setValue (m_settings->value ("TRPeriod_MSK144_6m", 15).toInt());
+    } else if (curBand=="2m") {
+      ui->sbTR->setValue (m_settings->value ("TRPeriod_MSK144_2m", 30).toInt());
     }
   }
 
@@ -11605,14 +11626,15 @@ void MainWindow::on_sbTR_valueChanged(int value)
   statusUpdate ();
   // save last used parameters
   QTimer::singleShot (200, [=] {
+    auto const&curBand = ui->bandComboBox->currentText();
     if (m_mode=="Q65") m_settings->setValue ("TRPeriod_Q65", ui->sbTR->value ());
-    if (m_mode=="MSK144" && (!(m_currentBand=="6m" or m_currentBand=="4m" or m_currentBand=="2m"))) {
+    if (m_mode=="MSK144" && (!(curBand=="6m" or curBand=="4m" or curBand=="2m"))) {
       m_settings->setValue ("TRPeriod_MSK144", ui->sbTR->value ());
     }
-    if (m_mode=="MSK144" && (m_currentBand=="6m" or m_currentBand=="4m")) {
+    if (m_mode=="MSK144" && (curBand=="6m" or curBand=="4m")) {
       m_settings->setValue ("TRPeriod_MSK144_6m", ui->sbTR->value ());
     }
-    if (m_mode=="MSK144" && m_currentBand=="2m") {
+    if (m_mode=="MSK144" && curBand=="2m") {
       m_settings->setValue ("TRPeriod_MSK144_2m", ui->sbTR->value ());
     }
     if (m_mode=="FST4") m_settings->setValue ("TRPeriod_FST4", ui->sbTR->value ());
