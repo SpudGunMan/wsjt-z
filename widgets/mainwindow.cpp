@@ -59,6 +59,7 @@
 #include <QSqlError>
 #include "unfilteredview.h"
 #include "pskreporterwidget.h"
+#include "DXStationMap.h"
 
 #include "helper_functions.h"
 #include "revision_utils.hpp"
@@ -568,6 +569,17 @@ MainWindow::MainWindow(QDir const& temp_directory, bool multiple,
     m_pskReporterView->setFont(m_config.decoded_text_font());
     m_pskReporterView->hide();
   }
+
+  // Initialize DXStationMap as a popup window
+  m_dxStationMap.reset(new DXStationMap {nullptr});
+  connect(this, &MainWindow::finished, m_dxStationMap.data(), &QWidget::close);
+  m_dxStationMap->setMyCall(m_config.my_callsign());
+  m_dxStationMap->setHomeGrid(m_config.my_grid());
+  m_dxStationMap->setDistanceInMiles(m_config.miles());
+  m_dxMapStartedUtc = QDateTime::currentDateTimeUtc();
+  m_dxMapLastLogUtc = QDateTime();
+  m_dxStationMap->setTickerStats(qso_total, qso_new, m_dxMapStartedUtc, m_dxMapLastLogUtc);
+  m_dxStationMap->hide();
 
   m_optimizingProgress.setWindowModality (Qt::WindowModal);
   m_optimizingProgress.setAutoReset (false);
@@ -2613,6 +2625,23 @@ void MainWindow::fastSink(qint64 frames)
       ui->decodedTextBrowser->displayDecodedText (decodedtext, m_config.my_callsign (), m_mode, m_config.DXCC(),
            m_logBook, m_currentBand, m_config.ppfx ());
     }
+    
+    // Plot on DXStationMap if calling ME
+    if (m_dxStationMap) {
+      QString dxCall, dxGrid;
+      if (isCallingForMe(decodedtext, dxCall, dxGrid)) {
+        PlottedStation s;
+        s.call = dxCall;
+        s.grid = dxGrid.toUpper().left(4);
+        s.snr = decodedtext.snr();
+        s.freqHz = decodedtext.frequencyOffset();
+        s.forMe = true;
+        s.isCQ = false;
+        s.period = 0;
+        m_dxStationMap->addStation(s);
+      }
+    }
+    
     m_bDecoded=true;
     auto_sequence (decodedtext, ui->sbFtol->value (), std::numeric_limits<unsigned>::max ());
     postDecode (true, decodedtext.string ());
@@ -5991,6 +6020,22 @@ void MainWindow::readFromStdout()                             //readFromStdout
         if(!m_bBestSPArmed or (m_mode!="FT4" and m_mode!="FT2")) {
           ui->decodedTextBrowser2->displayDecodedText (decodedtext0, my_call, m_mode, dxcc,
                 m_logBook, m_currentBand, m_config.ppfx (), false, false, 0.0, bDisplayPoints, m_points, false, false, "", "", isFiltered);
+          
+          // Plot on DXStationMap if calling ME
+          if (m_dxStationMap) {
+            QString dxCall, dxGrid;
+            if (isCallingForMe(decodedtext0, dxCall, dxGrid)) {
+              PlottedStation s;
+              s.call = dxCall;
+              s.grid = dxGrid.toUpper().left(4);
+              s.snr = decodedtext0.snr();
+              s.freqHz = decodedtext0.frequencyOffset();
+              s.forMe = true;
+              s.isCQ = false;
+              s.period = 0;
+              m_dxStationMap->addStation(s);
+            }
+          }
         }
         m_QSOText = decodedtext.string ().trimmed ();
       }
@@ -7238,6 +7283,11 @@ void MainWindow::guiUpdate()
     if(!m_monitoring and !m_diskData) ui->signal_meter_widget->setValue(0,0);
     m_sec0=nsec;
     displayDialFrequency ();
+    
+    // Enforce MAX_STATIONS hard limit on DXStationMap
+    if (m_dxStationMap) {
+      m_dxStationMap->expireStations();
+    }
   }
   m_iptt0=g_iptt;
   m_btxok0=m_btxok;
@@ -7421,6 +7471,24 @@ bool MainWindow::elide_tx2_not_allowed () const
     || ((m_mode.startsWith ("FT") || "MSK144" == m_mode || "Q65" == m_mode || "FST4" == m_mode)
         && Radio::is_77bit_nonstandard_callsign (my_callsign))
     || (my_callsign != m_baseCall && !shortList (my_callsign));
+}
+
+bool MainWindow::isCallingForMe (DecodedText const& dt, QString& call, QString& grid) const
+{
+  // Check addressee (word 1), not DX station (word 2)
+  QString myCall = dt.call ();
+  if (myCall.isEmpty ()) return false;
+  
+  // Handle hashed calls like <K1ABC> — strip angle brackets
+  if (myCall.startsWith ("<") && myCall.endsWith (">")) {
+    myCall = myCall.mid (1, myCall.length () - 2);
+  }
+  
+  if (Radio::base_callsign (myCall) != m_baseCall) return false;
+  
+  // Parse the DX station (word 2) and grid (word 3) for plotting
+  dt.deCallAndGrid (call, grid);
+  return !call.isEmpty () && !grid.isEmpty ();
 }
 
 void MainWindow::on_txrb1_doubleClicked ()
@@ -8181,6 +8249,22 @@ void MainWindow::processMessage (DecodedText const& message, Qt::KeyboardModifie
     if (!s2.contains(m_baseCall) or m_mode=="MSK144") {  // Taken care of elsewhere if for_us and slow mode
       ui->decodedTextBrowser2->displayDecodedText (message, m_config.my_callsign (), m_mode, m_config.DXCC (),
       m_logBook, m_currentBand, m_config.ppfx ());
+      
+      // Plot on DXStationMap if calling ME
+      if (m_dxStationMap) {
+        QString dxCall, dxGrid;
+        if (isCallingForMe(message, dxCall, dxGrid)) {
+          PlottedStation s;
+          s.call = dxCall;
+          s.grid = dxGrid.toUpper().left(4);
+          s.snr = message.snr();
+          s.freqHz = message.frequencyOffset();
+          s.forMe = true;
+          s.isCQ = false;
+          s.period = 0;
+          m_dxStationMap->addStation(s);
+        }
+      }
     }
     m_QSOText = s2;
   }
@@ -9174,13 +9258,30 @@ void MainWindow::acceptQSO (QDateTime const& QSO_date_off, QString const& call, 
                                    tr ("Cannot open \"%1\"").arg (m_logBook.path ()));
     }
 
+  // ── Plot logged QSO on DXStationMap ───────────────────────────────────────
+  if (m_dxStationMap) {
+    // Extract SNR from report_sent (e.g., "-09", "+05") — this is our report of their signal
+    int snr_for_logged = 0;
+    bool ok = false;
+    if (!rpt_sent.isEmpty()) {
+      snr_for_logged = rpt_sent.toInt(&ok);
+      if (!ok) snr_for_logged = 0;  // Default to 0 if parsing fails
+    }
+    m_dxStationMap->addLoggedStation(call, grid, dial_freq, snr_for_logged, mode);
+  }
+
   m_messageClient->qso_logged (QSO_date_off, call, grid, dial_freq, mode, rpt_sent, rpt_received
                                , tx_power, comments, name, QSO_date_on, operator_call, my_call, my_grid
                                , exchange_sent, exchange_rcvd, propmode);
   m_messageClient->logged_ADIF (ADIF);
 
   // Z
+  const auto nowUtc = QDateTime::currentDateTimeUtc();
   updateQsoCounter(true);
+  m_dxMapLastLogUtc = nowUtc;
+  if (m_dxStationMap) {
+    m_dxStationMap->setTickerStats(qso_total, qso_new, m_dxMapStartedUtc, m_dxMapLastLogUtc, 0.0);
+  }
   clearDX();
 
   // Log to N1MM Logger
@@ -15838,6 +15939,18 @@ void MainWindow::on_actionPSKReporter_triggered() {
         m_pskReporterView->setFont(m_config.decoded_text_font ());
         m_pskReporterView->raise ();
         m_pskReporterView->activateWindow ();
+    }
+}
+
+void MainWindow::on_actionDXStationMap_triggered() {
+    if (m_dxStationMap) {
+        if (m_dxStationMap->isVisible()) {
+            m_dxStationMap->hide();
+        } else {
+            m_dxStationMap->showNormal();
+            m_dxStationMap->raise();
+            m_dxStationMap->activateWindow();
+        }
     }
 }
 
