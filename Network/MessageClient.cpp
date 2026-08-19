@@ -401,6 +401,17 @@ void MessageClient::impl::parse_message (QByteArray const& msg)
               }
               break;
 
+            case NetworkMessage::RotateLog:
+              {
+                auto status = check_status (in);
+                TRACE_UDP ("RotateLog check_status result:" << status);
+                if (status != Fail)
+                  {
+                    Q_EMIT self_->rotate_log ();
+                  }
+              }
+              break;
+
               case NetworkMessage::AnnotationInfo: {
                 QByteArray dx_call;
                 bool sort_order_provided{false};

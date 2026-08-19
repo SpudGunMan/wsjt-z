@@ -260,6 +260,8 @@ private slots:
   void on_actionErase_ALL_TXT_triggered();
   void on_reset_cabrillo_log_action_triggered ();
   void on_actionErase_wsjtx_log_adi_triggered();
+  void on_actionRotate_wsjtx_log_adi_triggered();
+  void rotate_wsjtx_log_adi(bool confirm = true);
   void on_actionErase_WSPR_hashtable_triggered();
   void on_actionErase_list_of_Q65_callers_triggered();
   void on_actionExport_Cabrillo_log_triggered();
@@ -772,6 +774,7 @@ private:
   QThread * m_pskReporterThread;
   QDateTime m_ignoreListReset;
   QDateTime m_watchdogAnchorUtc;
+  QDateTime m_lastRotateLogUtc;
   qint64 m_msTxFirst;
   bool m_TxFirstLock = false;
   bool m_savedAutoCQfiltering = false;
