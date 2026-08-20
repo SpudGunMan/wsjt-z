@@ -37,8 +37,6 @@ PSKReporterWidget::PSKReporterWidget(QWidget *parent, Configuration * cfg, LogBo
     connect(m_refreshTimer, SIGNAL(timeout()), this, SLOT(refresh()));
     m_refreshTimer->start(5 * 60 * 1000);
 
-    ui->actionRefresh->setAutoRepeat(false);
-
     connect(networkManager, &QNetworkAccessManager::finished,
             this, &PSKReporterWidget::responseHandler);
 
@@ -69,11 +67,6 @@ void PSKReporterWidget::showEvent(QShowEvent * event)
 
 void PSKReporterWidget::refresh(bool init) {
     Q_UNUSED(init);
-    // Throttle manual refreshes by restarting the timer
-    if (!init && m_refreshTimer) {
-        m_refreshTimer->stop();
-        m_refreshTimer->start(5 * 60 * 1000);
-    }
     QUrlQuery query;
     query.addQueryItem("flowStartSeconds", "-3600");
     query.addQueryItem("callsign", m_config->my_callsign());

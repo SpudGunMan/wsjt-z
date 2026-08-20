@@ -35,7 +35,6 @@
       <property name="title">
        <string>&amp;View</string>
       </property>
-      <addaction name="actionRefresh"/>
      </widget>
      <addaction name="menuView"/>
     </widget>
@@ -100,22 +99,8 @@
     </widget>
    </item>
   </layout>
-  <action name="actionRefresh">
-   <property name="text">
-    <string>&amp;Refresh</string>
-   </property>
-   <property name="shortcut">
-    <string>Ctrl+R</string>
-   </property>
-  </action>
+
  </widget>
  <resources/>
- <connections>
-  <connection>
-   <sender>actionRefresh</sender>
-   <signal>triggered()</signal>
-   <receiver>PSKReporterWidget</receiver>
-   <slot>refresh()</slot>
-  </connection>
- </connections>
+ <connections/>
 </ui>
