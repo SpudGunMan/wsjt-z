@@ -253,15 +253,23 @@ jobs:
           # Create symlink in AppDir root for AppRun
           ln -sf "$(pwd)/AppDir/usr/bin/wsjtx" "AppDir/wsjtx"
           
-          # Also ensure wsjtx is in PATH for linuxdeploy to find it
-          export PATH="$(pwd)/AppDir/usr/bin:${PATH}"
+          # Copy binary to AppDir root so linuxdeploy can find it when parsing desktop file
+          cp -v wsjtx-build/wsjtx AppDir/wsjtx-bin
+          chmod +x AppDir/wsjtx-bin
           
-          # Run linuxdeploy
-          export PATH="${GITHUB_WORKSPACE}/linuxdeploy-tools:$PATH"
+          # Update the desktop file Exec to point to a path linuxdeploy will find
+          if [ -f AppDir/usr/share/applications/wsjtx.desktop ]; then
+            sed -i 's/^Exec=.*/Exec=wsjtx-bin/' AppDir/usr/share/applications/wsjtx.desktop
+          fi
+          
+          # Also ensure wsjtx is in PATH for linuxdeploy to find it
+          export PATH="$(pwd)/AppDir:$(pwd)/AppDir/usr/bin:${PATH}:${GITHUB_WORKSPACE}/linuxdeploy-tools"
+          
+          # Run linuxdeploy with the executable
           linuxdeploy-x86_64.AppImage \
             --appdir AppDir \
             --plugin qt \
-            --executable AppDir/usr/bin/wsjtx \
+            --executable AppDir/wsjtx-bin \
             --output appimage
           
           mv WSJT*.AppImage "wsjtz-${{ inputs.version }}-linux-x86_64.AppImage" || \
