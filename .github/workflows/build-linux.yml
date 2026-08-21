@@ -148,13 +148,6 @@ jobs:
             wsjtx-build/wsjtx
           retention-days: 30
 
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: wsjtx-linux-amd64
-          path: artifacts/
-          retention-days: 5
-
   build-appimage:
     permissions:
       contents: read
@@ -235,6 +228,13 @@ jobs:
           cp -v wsjtx-build/wsjtx AppDir/usr/bin/
           cp -v wsjtx-build/jt9 AppDir/usr/bin/
           
+          # Make binaries executable
+          chmod +x AppDir/usr/bin/wsjtx AppDir/usr/bin/jt9
+          
+          # Verify binaries exist and are executable
+          ls -lh AppDir/usr/bin/
+          file AppDir/usr/bin/wsjtx
+          
           # Copy desktop file
           if [ -f wsjtx.desktop ]; then
             cp -v wsjtx.desktop AppDir/usr/share/applications/
@@ -249,6 +249,9 @@ jobs:
           if [ -f AppDir/usr/share/applications/wsjtx.desktop ]; then
             sed -i 's/^Icon=.*/Icon=wsjtx/' AppDir/usr/share/applications/wsjtx.desktop
           fi
+          
+          # Create symlink in AppDir root for AppRun
+          ln -s usr/bin/wsjtx AppDir/wsjtx
           
           # Run linuxdeploy
           export PATH="${GITHUB_WORKSPACE}/linuxdeploy-tools:$PATH"
