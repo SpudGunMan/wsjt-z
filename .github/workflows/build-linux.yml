@@ -251,7 +251,10 @@ jobs:
           fi
           
           # Create symlink in AppDir root for AppRun
-          ln -s usr/bin/wsjtx AppDir/wsjtx
+          ln -sf "$(pwd)/AppDir/usr/bin/wsjtx" "AppDir/wsjtx"
+          
+          # Also ensure wsjtx is in PATH for linuxdeploy to find it
+          export PATH="$(pwd)/AppDir/usr/bin:${PATH}"
           
           # Run linuxdeploy
           export PATH="${GITHUB_WORKSPACE}/linuxdeploy-tools:$PATH"
