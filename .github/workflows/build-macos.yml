@@ -64,7 +64,6 @@ jobs:
           cmake -S . -B wsjtx-build \
             -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64" \
             -DWSJT_SKIP_MANPAGES=ON \
             -DWSJT_GENERATE_DOCS=OFF \
             -DCMAKE_Fortran_COMPILER="$GFORTRAN_BIN" \
@@ -86,7 +85,6 @@ jobs:
         run: |
           file wsjtx-build/jt9
           lipo -archs wsjtx-build/jt9 | grep -q arm64
-          lipo -archs wsjtx-build/jt9 | grep -q x86_64
 
       - name: Install and bundle app
         run: |
@@ -240,7 +238,7 @@ jobs:
           # Create DMG
           mkdir -p artifacts
           hdiutil create -volname "WSJT-Z" -srcfolder dmg_stage -ov -format UDZO \
-            "artifacts/wsjtz-${{ inputs.version }}-macos-universal.dmg"
+            "artifacts/wsjtz-${{ inputs.version }}-macos-arm64.dmg"
           
           # Verify DMG
           if [ ! -f "artifacts/wsjtz-${{ inputs.version }}-macos-arm64.dmg" ]; then
@@ -253,6 +251,6 @@ jobs:
       - name: Upload DMG
         uses: actions/upload-artifact@v4
         with:
-          name: wsjtz-${{ inputs.version }}-macos-universal
+          name: wsjtz-${{ inputs.version }}-macos-arm64
           path: artifacts/wsjtz-*.dmg
           retention-days: 30
