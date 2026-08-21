@@ -30,16 +30,7 @@ jobs:
     permissions:
       contents: read  # for checkout
       actions: write  # for cache and upload-artifact
-    strategy:
-      matrix:
-        include:
-          - runner: macos-latest
-            arch: arm64
-            dmg_name: wsjtz-${{ inputs.version }}-macos-arm64.dmg
-          - runner: macos-13
-            arch: x86_64
-            dmg_name: wsjtz-${{ inputs.version }}-macos-x86_64.dmg
-    runs-on: ${{ matrix.runner }}
+    runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
 
@@ -247,10 +238,10 @@ jobs:
           # Create DMG
           mkdir -p artifacts
           hdiutil create -volname "WSJT-Z" -srcfolder dmg_stage -ov -format UDZO \
-            "artifacts/${{ matrix.dmg_name }}"
+            "artifacts/wsjtz-${{ inputs.version }}-macos-arm64.dmg"
           
           # Verify DMG
-          if [ ! -f "artifacts/${{ matrix.dmg_name }}" ]; then
+          if [ ! -f "artifacts/wsjtz-${{ inputs.version }}-macos-arm64.dmg" ]; then
             echo "ERROR: DMG creation failed"
             exit 1
           fi
@@ -260,6 +251,6 @@ jobs:
       - name: Upload DMG
         uses: actions/upload-artifact@v4
         with:
-          name: wsjtz-${{ inputs.version }}-macos-${{ matrix.arch }}
+          name: wsjtz-${{ inputs.version }}-macos-arm64
           path: artifacts/wsjtz-*.dmg
           retention-days: 30
