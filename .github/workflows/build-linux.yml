@@ -139,17 +139,10 @@ jobs:
           path: wsjtx-build/${{ matrix.deb_name }}
           retention-days: 30
 
-      - name: Upload AppImage
-        uses: actions/upload-artifact@v4
-        with:
-          name: wsjtz-${{ inputs.version }}-linux-x86_64-appimage
-          path: wsjtz-${{ inputs.version }}-linux-x86_64.AppImage
-          retention-days: 30
-
       - name: Upload binaries
         uses: actions/upload-artifact@v4
         with:
-          name: wsjtx-${{ inputs.version }}-linux-x86_64-binaries
+          name: wsjtx-${{ inputs.version }}-linux-${{ matrix.distro }}-binaries
           path: |
             wsjtx-build/jt9
             wsjtx-build/wsjtx
@@ -250,6 +243,11 @@ jobs:
           # Copy icon
           if find icons -name "*wsjtx*" -type f 2>/dev/null | head -1 | xargs -I {} cp -v {} AppDir/usr/share/pixmaps/wsjtx.png 2>/dev/null; then
             true
+          fi
+          
+          # Fix desktop file icon entry to match actual icon filename
+          if [ -f AppDir/usr/share/applications/wsjtx.desktop ]; then
+            sed -i 's/^Icon=.*/Icon=wsjtx/' AppDir/usr/share/applications/wsjtx.desktop
           fi
           
           # Run linuxdeploy
