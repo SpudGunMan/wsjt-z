@@ -34,7 +34,13 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        container: ['ubuntu:24.04', 'ubuntu:26.04', 'debian:trixie']
+        include:
+          - container: 'ubuntu:24.04'
+            appimage: false
+          - container: 'ubuntu:26.04'
+            appimage: true
+          - container: 'debian:trixie'
+            appimage: false
     container:
       image: ${{ matrix.container }}
     steps:
@@ -131,6 +137,7 @@ jobs:
           ls -lh
 
       - name: Create AppImage
+        if: matrix.appimage
         run: |
           set -e
           
@@ -257,6 +264,7 @@ jobs:
           ls -lh *.AppImage && mv *.AppImage "wsjtz-${{ inputs.version }}-linux-x86_64.AppImage"
 
       - name: Verify AppImage
+        if: matrix.appimage
         run: |
           ls -lh wsjtz-${{ inputs.version }}-linux-x86_64.AppImage
           file wsjtz-${{ inputs.version }}-linux-x86_64.AppImage
@@ -265,7 +273,9 @@ jobs:
         run: |
           mkdir -p artifacts
           cp -v wsjtx-build/wsjtz-${{ inputs.version }}-linux-amd64.deb artifacts/
-          cp -v wsjtz-${{ inputs.version }}-linux-x86_64.AppImage artifacts/
+          if [ '${{ matrix.appimage }}' = 'true' ]; then
+            cp -v wsjtz-${{ inputs.version }}-linux-x86_64.AppImage artifacts/
+          fi
           cp -v wsjtx-build/jt9 artifacts/
           cp -v wsjtx-build/wsjtx artifacts/
           ls -lh artifacts
