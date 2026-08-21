@@ -176,14 +176,14 @@ jobs:
           ls -lh *.exe
 
       - name: Upload installer
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: wsjtz-${{ inputs.version }}-windows-x86_64-installer
           path: wsjtx-build/wsjtz-${{ inputs.version }}-*.exe
           retention-days: 30
 
       - name: Upload binaries
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: wsjtx-${{ inputs.version }}-windows-x86_64-binaries
           path: |
