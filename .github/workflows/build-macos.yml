@@ -30,16 +30,7 @@ jobs:
     permissions:
       contents: read  # for checkout
       actions: write  # for cache and upload-artifact
-    strategy:
-      matrix:
-        include:
-          - runner: macos-latest
-            arch: arm64
-            dmg_name: wsjtz-${{ inputs.version }}-macos-arm64.dmg
-          - runner: macos-13
-            arch: x86_64
-            dmg_name: wsjtz-${{ inputs.version }}-macos-x86_64.dmg
-    runs-on: ${{ matrix.runner }}
+    runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
 
