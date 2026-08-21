@@ -1,4 +1,22 @@
 == Changelog
+V2.0.19
+[fixes]
+- LogQSO dialog no longer hangs/ghosts on the first QSO with Auto-CQ/Auto-Call active; the first contact logs correctly with the callsign preserved through the signal/slot timing race, and retries remain blocked by the early-return check (PR #125, SpudGunMan).
+- Signal meter no longer changes width with the reading: the numeric label reserves enough minimum width for the largest value, so the bar stays put when the reading moves between one and two digits (PR #118, SpudGunMan).
+- Erase button right-click and triple-click now behave identically, both routing through the full QSO-state clear (clearDX). This also fixes a stale last-callsign bug in the erase paths. Note: in FT8 Hound mode, erasing now selects Tx1 instead of Tx6 (PR #137, SpudGunMan).
+- Auto Call Next (pounce) is now automatically unchecked when Auto-Call or Auto-CQ is enabled, completing the mutual exclusion that already existed in the other direction (PR #147, SpudGunMan).
+- MSK144: T/R period is now remembered per band group (HF, 6m/4m, 2m) consistently across mode entry, band changes, and the settings save path; Ftol default raised to 100 Hz; duplicate Fortran source entry removed from the build (PR #154, SpudGunMan).
+- Settings: Pwr column layout constraint restored to the Qt default (PR #146, SpudGunMan).
+
+[features]
+- DX Station Map: new world-map window that plots stations calling you and your logged QSOs on an azimuthal world map, with per-station tooltips and a bounded station list (PR #129, SpudGunMan).
+- Log rotation: new File menu action "Rotate wsjtx_log.adi" archives the current ADIF log with a timestamped name and starts a fresh one; also available remotely via a new UDP RotateLog message (type 17, documented in NetworkMessage.hpp) with collision-safe archive naming and a 5-second rate limit on the remote path. Includes a Python UDP example (PR #139, SpudGunMan).
+- Ignore tab: new button to save the current ignore list into the saved (permanent) list (PR #138, SpudGunMan).
+
+[tooling]
+- Data refresh: ALLCALL7.TXT (JTDX callsign DB, Dec 2025), cty.dat (AD1C, VER20260803), and USState.db updated; all verified against their parsers (PR #148, SpudGunMan).
+- macOS: hardware-access entitlements added for the app binary (PR #143, SpudGunMan) and Qt behavior patches for macOS (PR #142, SpudGunMan).
+
 V2.0.18
 [fixes]
 - Auto-sequence now replies to composite RR73 messages addressed to you as the secondary caller: the "selected DX is working someone else" suppression guard gained the composite-RR73 exemption that its two sibling guards already had, so a station sending you a report while signing off with your selected DX no longer has your reply suppressed (PR #112, SpudGunMan).
