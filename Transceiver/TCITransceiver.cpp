@@ -681,6 +681,12 @@ void TCITransceiver::onMessageReceived(const QString &str)
             printf (" cmdvfo0 timer2 start 210");
             tci_timer2_->start(210);
           }
+          // Async VFO updates from the SDR are authoritative even when no
+          // local transaction is in flight. Update the tracked state so the UI
+          // and downstream logic follow manual changes in the rig.
+          if (tci_Ready && !busy_rx_frequency_ && !rx_frequency_.isEmpty()) {
+            update_rx_frequency (string_to_frequency (rx_frequency_));
+          }
         }
         else if (args.at(0)==rx_ && args.at(1) == "1") {
           if (args.at(2).left(1) != "-") other_frequency_ = args.at(2);
@@ -701,6 +707,9 @@ void TCITransceiver::onMessageReceived(const QString &str)
           } else if (other_frequency_ != requested_other_frequency_ && tci_Ready && split_ && !tci_timer2_->isActive()) {
             printf (" cmdvfo1 timer2 start 210");
             tci_timer2_->start(210);
+          }
+          if (tci_Ready && !busy_other_frequency_ && !other_frequency_.isEmpty()) {
+            update_other_frequency (string_to_frequency (other_frequency_));
           }
         }
         break;
