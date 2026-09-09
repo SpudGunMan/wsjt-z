@@ -27,21 +27,29 @@ jobs:
       - name: Determine version
         id: version
         run: |
+          sanitize_version() {
+            local value="$1"
+            value="${value#refs/tags/}"
+            value="${value#v}"
+            printf '%s' "$value"
+          }
+
           if [ "${{ github.event_name }}" = "push" ] || [ "${{ github.event_name }}" = "release" ]; then
-            VERSION="${GITHUB_REF#refs/tags/v}"
+            VERSION=$(sanitize_version "${GITHUB_REF_NAME:-${GITHUB_REF}}")
           else
             VERSION="${{ inputs.version }}"
             if [ -z "$VERSION" ]; then
               # Extract VERSION_Z from CMakeLists.txt
               VERSION=$(grep 'set (VERSION_Z' CMakeLists.txt | sed 's/.*set (VERSION_Z "\(.*\)").*/\1/')
             fi
+            VERSION=$(sanitize_version "$VERSION")
           fi
-          
+
           if [ -z "$VERSION" ]; then
             echo "ERROR: Could not determine version"
             exit 1
           fi
-          
+
           echo "Building version: $VERSION"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
