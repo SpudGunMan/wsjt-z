@@ -686,6 +686,7 @@ void TCITransceiver::onMessageReceived(const QString &str)
           // and downstream logic follow manual changes in the rig.
           if (tci_Ready && !busy_rx_frequency_ && !rx_frequency_.isEmpty()) {
             update_rx_frequency (string_to_frequency (rx_frequency_));
+            update_complete (true);
           }
         }
         else if (args.at(0)==rx_ && args.at(1) == "1") {
@@ -710,6 +711,7 @@ void TCITransceiver::onMessageReceived(const QString &str)
           }
           if (tci_Ready && !busy_other_frequency_ && !other_frequency_.isEmpty()) {
             update_other_frequency (string_to_frequency (other_frequency_));
+            update_complete (true);
           }
         }
         break;
@@ -724,6 +726,8 @@ void TCITransceiver::onMessageReceived(const QString &str)
           else if (!requested_mode_.isEmpty() && requested_mode_ != mode_ && !band_change) {
             sendTextMessage(mode_to_command(requested_mode_));
           }
+          update_mode (get_mode ());
+          update_complete (true);
         }
         break;
       case Cmd_SplitEnable:
@@ -738,6 +742,8 @@ void TCITransceiver::onMessageReceived(const QString &str)
             tci_timer5_->start(210);  //was tci_timer2
             rig_split();
           }
+          update_split (split_);
+          update_complete (true);
         }
         break;
       case Cmd_Drive:
@@ -759,6 +765,7 @@ void TCITransceiver::onMessageReceived(const QString &str)
           else if (tci_Ready && !PTT_) {
             requested_PTT_ = PTT_;
             update_PTT(PTT_);
+            update_complete (true);
             power_ = 0; if (do_pwr_) update_power (0);
             swr_ = 0; if (do_pwr_) update_swr (0);
           }
