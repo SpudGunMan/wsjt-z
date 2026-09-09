@@ -1,10 +1,12 @@
 name: Build All Platforms
 
 permissions:
-  contents: read  # for checkout
+  contents: write  # needed for creating/updating releases and uploading release assets
   actions: write  # for cache and upload-artifact in called workflows
 
 on:
+  release:
+    types: [published]
   push:
     tags: ['v*']
   workflow_dispatch:
@@ -25,7 +27,7 @@ jobs:
       - name: Determine version
         id: version
         run: |
-          if [ "${{ github.event_name }}" = "push" ]; then
+          if [ "${{ github.event_name }}" = "push" ] || [ "${{ github.event_name }}" = "release" ]; then
             VERSION="${GITHUB_REF#refs/tags/v}"
           else
             VERSION="${{ inputs.version }}"
