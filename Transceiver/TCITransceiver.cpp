@@ -681,6 +681,13 @@ void TCITransceiver::onMessageReceived(const QString &str)
             printf (" cmdvfo0 timer2 start 210");
             tci_timer2_->start(210);
           }
+          // Async VFO updates from the SDR are authoritative even when no
+          // local transaction is in flight. Update the tracked state so the UI
+          // and downstream logic follow manual changes in the rig.
+          if (tci_Ready && !busy_rx_frequency_ && !rx_frequency_.isEmpty()) {
+            update_rx_frequency (string_to_frequency (rx_frequency_));
+            update_complete (true);
+          }
         }
         else if (args.at(0)==rx_ && args.at(1) == "1") {
           if (args.at(2).left(1) != "-") other_frequency_ = args.at(2);
@@ -702,6 +709,10 @@ void TCITransceiver::onMessageReceived(const QString &str)
             printf (" cmdvfo1 timer2 start 210");
             tci_timer2_->start(210);
           }
+          if (tci_Ready && !busy_other_frequency_ && !other_frequency_.isEmpty()) {
+            update_other_frequency (string_to_frequency (other_frequency_));
+            update_complete (true);
+          }
         }
         break;
       case Cmd_Mode:
@@ -715,6 +726,8 @@ void TCITransceiver::onMessageReceived(const QString &str)
           else if (!requested_mode_.isEmpty() && requested_mode_ != mode_ && !band_change) {
             sendTextMessage(mode_to_command(requested_mode_));
           }
+          update_mode (get_mode ());
+          update_complete (true);
         }
         break;
       case Cmd_SplitEnable:
@@ -729,6 +742,8 @@ void TCITransceiver::onMessageReceived(const QString &str)
             tci_timer5_->start(210);  //was tci_timer2
             rig_split();
           }
+          update_split (split_);
+          update_complete (true);
         }
         break;
       case Cmd_Drive:
@@ -750,6 +765,7 @@ void TCITransceiver::onMessageReceived(const QString &str)
           else if (tci_Ready && !PTT_) {
             requested_PTT_ = PTT_;
             update_PTT(PTT_);
+            update_complete (true);
             power_ = 0; if (do_pwr_) update_power (0);
             swr_ = 0; if (do_pwr_) update_swr (0);
           }
@@ -1134,18 +1150,17 @@ void TCITransceiver::do_frequency (Frequency f, MODE m, bool no_ignore)
       mysleep7(2000);
       // if (band_change) mysleep7(500);
       band_change2 = abs(rx_frequency_.toInt()-requested_rx_frequency_.toInt()) > 1000000;
-      if (!band_change2) update_rx_frequency (f);
-      //if (requested_rx_frequency_ == rx_frequency_) update_rx_frequency (f);
-      else {
-        printf("%s TCI failed set rxfreq:%s->%s\n",QDateTime::QDateTime::currentDateTimeUtc().toString("hh:mm:ss.zzz").toStdString().c_str(),rx_frequency_.toStdString().c_str(),requested_rx_frequency_.toStdString().c_str());
-        error_ = tr ("TCI failed set rxfreq");
-        CAT_TRACE("TCI failed set rxfreq.  Rx freq is:");
+      if (!band_change2) {
+        update_rx_frequency (f);
+      } else {
+        printf("%s TCI VFO update not confirmed yet:%s->%s\n",QDateTime::QDateTime::currentDateTimeUtc().toString("hh:mm:ss.zzz").toStdString().c_str(),rx_frequency_.toStdString().c_str(),requested_rx_frequency_.toStdString().c_str());
+        CAT_TRACE("TCI VFO update not confirmed yet.  Rx freq is:");
         CAT_TRACE(rx_frequency_);
-        CAT_TRACE("TCI failed set rxfreq.  Requested Rx freq is:");
+        CAT_TRACE("TCI VFO update not confirmed yet.  Requested Rx freq is:");
         CAT_TRACE(requested_rx_frequency_);
-        printf("rx_frequency is %s and requested_rx_frequency is %s\n",rx_frequency_.toStdString().c_str(),requested_rx_frequency_.toStdString().c_str());
-        tci_Ready = false;
-        throw error {tr ("TCI failed set rxfreq")};
+        // A slow or missed VFO acknowledgement is a transient condition. Keep
+        // the transceiver online and let asynchronous SDR updates remain the
+        // source of truth for the radio state.
       }
       busy_rx_frequency_ = false;
     } else update_rx_frequency (string_to_frequency (rx_frequency_));
@@ -1201,14 +1216,13 @@ void TCITransceiver::do_tx_frequency (Frequency tx, MODE mode, bool no_ignore)
         if(tx > 100000 && tx < 250000000000) sendTextMessage(cmd);
         mysleep2(1000);
         other_band_change = abs(other_frequency_.toInt()-requested_other_frequency_.toInt()) > 1000000;
-        if (!other_band_change) update_other_frequency (tx);
-       // if (requested_other_frequency_ == other_frequency_) update_other_frequency (tx);
-        else {
-          printf("%s TCI failed set txfreq:%s->%s\n",QDateTime::QDateTime::currentDateTimeUtc().toString("hh:mm:ss.zzz").toStdString().c_str(),other_frequency_.toStdString().c_str(),requested_other_frequency_.toStdString().c_str());
-          CAT_TRACE("TCI failed set txfreq");
-          //            error_ = tr ("TCI failed set txfreq");
-          //            tci_Ready = false;
-          //            throw error {tr ("TCI failed set txfreq")};
+        if (!other_band_change) {
+          update_other_frequency (tx);
+        } else {
+          printf("%s TCI TX VFO update not confirmed yet:%s->%s\n",QDateTime::QDateTime::currentDateTimeUtc().toString("hh:mm:ss.zzz").toStdString().c_str(),other_frequency_.toStdString().c_str(),requested_other_frequency_.toStdString().c_str());
+          CAT_TRACE("TCI TX VFO update not confirmed yet");
+          // A delayed transceiver acknowledgement should not force the rig
+          // offline; asynchronous VFO messages remain authoritative.
         }
         busy_other_frequency_ = false;
       } else update_other_frequency (string_to_frequency (other_frequency_));
