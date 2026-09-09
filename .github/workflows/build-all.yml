@@ -85,6 +85,18 @@ jobs:
         with:
           path: all-artifacts
 
+      - name: Normalize release asset names
+        run: |
+          mkdir -p release-assets
+
+          find all-artifacts -type f | while IFS= read -r file; do
+            artifact_dir="${file#all-artifacts/}"
+            artifact_dir="${artifact_dir%%/*}"
+            asset_name="${artifact_dir}-$(basename "$file")"
+
+            cp -v "$file" "release-assets/$asset_name"
+          done
+
       - name: List artifacts
         run: |
           echo "=== All Build Artifacts ==="
@@ -94,7 +106,7 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v1
         with:
-          files: all-artifacts/**/*
+          files: release-assets/*
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
