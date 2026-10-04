@@ -579,19 +579,41 @@ MainWindow::MainWindow(QDir const& temp_directory, bool multiple,
   ui->sbTR_FST4W->values ({120, 300, 900, 1800});
   ui->decodedTextBrowser->set_configuration (&m_config, true);
   ui->decodedTextBrowser2->set_configuration (&m_config);
-  // Z
-     ui->decodedTextBrowser2->addAction(ui->actionIgnore_station);
-     ui->decodedTextBrowser2->addAction(ui->actionCall_next);
-     ui->decodedTextBrowser2->addAction(ui->actionClear);
-     ui->decodedTextBrowser2->addAction(ui->actionSet_Rx_Freq);
-     ui->decodedTextBrowser2->addAction(ui->actionQRZ_Lookup);
-     ui->decodedTextBrowser2->addAction(ui->actionCopy);
-     ui->decodedTextBrowser->addAction(ui->actionIgnore_station);
-     ui->decodedTextBrowser->addAction(ui->actionCall_next);
-     ui->decodedTextBrowser->addAction(ui->actionClear);
-     ui->decodedTextBrowser->addAction(ui->actionSet_Rx_Freq);
-     ui->decodedTextBrowser->addAction(ui->actionQRZ_Lookup);
-     ui->decodedTextBrowser->addAction(ui->actionCopy);
+  ui->decodedTextBrowser->setContextMenuPolicy(Qt::ActionsContextMenu);
+  ui->decodedTextBrowser2->setContextMenuPolicy(Qt::ActionsContextMenu);
+
+  auto * add_to_queue_action = new QAction {tr ("&Add to Queue"), this};
+  connect (add_to_queue_action, &QAction::triggered, this, [this] {
+      QTextCursor cursor;
+      if (ui->decodedTextBrowser->hasFocus()) {
+          cursor = ui->decodedTextBrowser->textCursor();
+      } else if (ui->decodedTextBrowser2->hasFocus()) {
+          cursor = ui->decodedTextBrowser2->textCursor();
+      } else {
+          return;
+      }
+
+      auto line = cursor.block().text().trimmed();
+      if (!line.isEmpty()) {
+          addToQueueFromSelection(line, Qt::NoModifier);
+      }
+    });
+
+  ui->decodedTextBrowser2->addAction(add_to_queue_action);
+  ui->decodedTextBrowser2->addAction(ui->actionIgnore_station);
+  ui->decodedTextBrowser2->addAction(ui->actionCall_next);
+  ui->decodedTextBrowser2->addAction(ui->actionClear);
+  ui->decodedTextBrowser2->addAction(ui->actionSet_Rx_Freq);
+  ui->decodedTextBrowser2->addAction(ui->actionQRZ_Lookup);
+  ui->decodedTextBrowser2->addAction(ui->actionCopy);
+
+  ui->decodedTextBrowser->addAction(add_to_queue_action);
+  ui->decodedTextBrowser->addAction(ui->actionIgnore_station);
+  ui->decodedTextBrowser->addAction(ui->actionCall_next);
+  ui->decodedTextBrowser->addAction(ui->actionClear);
+  ui->decodedTextBrowser->addAction(ui->actionSet_Rx_Freq);
+  ui->decodedTextBrowser->addAction(ui->actionQRZ_Lookup);
+  ui->decodedTextBrowser->addAction(ui->actionCopy);
   ui->decodedTextBrowser->setBandActivity(true);
 
   if (m_config.psk_reporter_band_activity()) {
@@ -915,6 +937,8 @@ MainWindow::MainWindow(QDir const& temp_directory, bool multiple,
   connect(txMsgButtonGroup,SIGNAL(buttonClicked(int)),SLOT(set_ntx(int)));
   connect (ui->decodedTextBrowser, &DisplayText::selectCallsign, this, &MainWindow::doubleClickOnCall2);
   connect (ui->decodedTextBrowser2, &DisplayText::selectCallsign, this, &MainWindow::doubleClickOnCall);
+  connect (ui->decodedTextBrowser, &DisplayText::addToQueue, this, &MainWindow::addToQueueFromSelection);
+  connect (ui->decodedTextBrowser2, &DisplayText::addToQueue, this, &MainWindow::addToQueueFromSelection);
   connect (ui->houndQueueTextBrowser, &DisplayText::selectCallsign, this, &MainWindow::doubleClickOnFoxQueue);
   connect (ui->foxTxListTextBrowser, &DisplayText::selectCallsign, this, &MainWindow::doubleClickOnFoxInProgress);
   connect (ui->decodedTextBrowser, &DisplayText::erased, this, &MainWindow::band_activity_cleared);
@@ -13708,6 +13732,45 @@ void MainWindow::refreshHoundQueueDisplay()
   }
 }
 
+void MainWindow::addToQueueFromSelection(QString const& line, Qt::KeyboardModifiers modifiers)
+{
+  if (line.isEmpty()) return;
+
+  auto candidate = line.trimmed().remove("TU; ");
+  if (candidate.length() < 6) return;
+
+  DecodedText message {candidate};
+  QString callsign;
+  QString grid;
+  message.deCallAndGrid(callsign, grid);
+  callsign = callsign.trimmed();
+  grid = grid.trimmed();
+
+  if (callsign.isEmpty() || grid.isEmpty()) return;
+  if (callsign.length() < 3 || callsign.contains(QRegularExpression("[^A-Za-z0-9/\\-]"))) return;
+  int const maxQueueDepth = qMax(1, qMin(MAX_HOUNDS_IN_QUEUE, m_Nslots));
+  if (m_houndQueue.size() >= maxQueueDepth) return;
+  if (ui->houndQueueTextBrowser->toPlainText().contains(callsign + " ")) return;
+
+  QString rpt = message.report();
+  if (rpt.isEmpty()) rpt = QStringLiteral("+00");
+
+  QString t1 = (callsign + "          ").mid(0, 12) + rpt;
+  QString with_grid = t1 + " " + grid;
+
+  if (modifiers == Qt::AltModifier) {
+    m_houndQueue.prepend(with_grid);
+    ui->houndQueueTextBrowser->insertText(t1 + "\n", QColor{}, QColor{}, callsign, "", QTextCursor::Start);
+  } else {
+    m_houndQueue.enqueue(with_grid);
+    ui->houndQueueTextBrowser->insertText(t1, QColor{}, QColor{}, callsign, "", QTextCursor::End);
+  }
+
+  QTextCursor cursor = ui->houndQueueTextBrowser->textCursor();
+  cursor.setPosition(0);
+  ui->houndQueueTextBrowser->setTextCursor(cursor);
+}
+
 void MainWindow::doubleClickOnFoxQueue(Qt::KeyboardModifiers modifiers)
 {
   if(modifiers==9999) return;                               //Silence compiler warning
@@ -15940,6 +16003,50 @@ void MainWindow::ZProcess ()
     {
         clearPounceState();
         if (m_zdebug) log("ZProcess: EXIT (Transmitting)");
+        return;
+    }
+
+    if (!m_transmitting && m_QSOProgress == CALLING && SpecOp::FOX != m_specOp && !m_houndQueue.isEmpty()) {
+        int const stackDepth = qMax(1, qMin<int>(m_Nslots, MAX_HOUNDS_IN_QUEUE));
+        QStringList batch;
+        while (!m_houndQueue.isEmpty() && batch.size() < stackDepth) {
+            auto queued = m_houndQueue.dequeue();
+            auto call = queued.mid(0, 12).trimmed();
+            auto rpt = queued.mid(12, 3).trimmed();
+            auto grid = queued.mid(16, 4).trimmed();
+            if (call.isEmpty() || grid.isEmpty()) {
+                refreshHoundQueueDisplay();
+                continue;
+            }
+            if (rpt.isEmpty()) rpt = QStringLiteral("+00");
+            batch << queued;
+        }
+
+        if (batch.isEmpty()) {
+            refreshHoundQueueDisplay();
+            return;
+        }
+
+        for (int i = batch.size() - 1; i > 0; --i) {
+            m_houndQueue.prepend(batch.at(i));
+        }
+
+        auto queued = batch.constFirst();
+        auto call = queued.mid(0, 12).trimmed();
+        auto rpt = queued.mid(12, 3).trimmed();
+        auto grid = queued.mid(16, 4).trimmed();
+        if (rpt.isEmpty()) rpt = QStringLiteral("+00");
+        m_nextCall = call;
+        m_nextRpt = rpt;
+        m_nextGrid = grid;
+        ui->dxCallEntry->setText(call);
+        ui->dxGridEntry->setText(grid);
+        ui->rptSpinBox->setValue(rpt.mid(1).toInt());
+        refreshHoundQueueDisplay();
+        useNextCall();
+        on_txb1_clicked();
+        auto_tx_mode(true);
+        ui->cb_autoCallNext->setChecked(false);
         return;
     }
 

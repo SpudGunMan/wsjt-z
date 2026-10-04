@@ -174,6 +174,7 @@ public slots:
   void guiUpdate();
   void doubleClickOnCall (Qt::KeyboardModifiers);
   void doubleClickOnCall2(Qt::KeyboardModifiers);
+  void addToQueueFromSelection(QString const& line, Qt::KeyboardModifiers modifiers);
   void doubleClickOnFoxQueue(Qt::KeyboardModifiers);
   void doubleClickOnFoxInProgress(Qt::KeyboardModifiers modifiers);
   void readFromStdout();

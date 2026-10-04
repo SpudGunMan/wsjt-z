@@ -37,6 +37,7 @@ DisplayText::DisplayText(QWidget *parent)
   : QTextEdit(parent)
   , m_config {nullptr}
   , erase_action_ {new QAction {tr ("&Erase"), this}}
+  , add_to_queue_action_ {new QAction {tr ("&Add to Queue"), this}}
   , high_volume_ {false}
   , modified_vertical_scrollbar_max_ {-1}
   , isBandActivity {false}
@@ -51,13 +52,14 @@ DisplayText::DisplayText(QWidget *parent)
   // max lines to limit heap usage
   document ()->setMaximumBlockCount (5000);
 
-  // context menu erase action
-  setContextMenuPolicy (Qt::CustomContextMenu);
-  connect (this, &DisplayText::customContextMenuRequested, [this] (QPoint const& position) {
-      auto * menu = createStandardContextMenu (position);
-      menu->addAction (erase_action_);
-      menu->exec (mapToGlobal (position));
-      delete menu;
+  // explicit context menu actions
+  setContextMenuPolicy (Qt::DefaultContextMenu);
+  connect (add_to_queue_action_, &QAction::triggered, this, [this] {
+      auto line = textCursor().block().text().trimmed();
+      if (!line.isEmpty())
+        {
+          Q_EMIT addToQueue (line, Qt::NoModifier);
+        }
     });
   connect (erase_action_, &QAction::triggered, this, &DisplayText::erase);
 }
@@ -99,15 +101,31 @@ void DisplayText::mouseDoubleClickEvent(QMouseEvent *e)
  // Z
  void DisplayText::mousePressEvent(QMouseEvent *mouseEvent) {
      QTextCursor textCursor = cursorForPosition(mouseEvent->pos());
+     textCursor.select(QTextCursor::LineUnderCursor);
+     setTextCursor(textCursor);
+
      if (Qt::RightButton == mouseEvent->button()) {
-         textCursor.select(QTextCursor::LineUnderCursor);
-         setTextCursor(textCursor);
-     } else {
-         textCursor.select(QTextCursor::LineUnderCursor);
-         setTextCursor(textCursor);
-     Q_EMIT leftClick(mouseEvent->modifiers());
+         return;
      }
+
+     Q_EMIT leftClick(mouseEvent->modifiers());
  }
+
+void DisplayText::contextMenuEvent(QContextMenuEvent *event)
+{
+  auto cursor = cursorForPosition(event->pos());
+  cursor.select(QTextCursor::LineUnderCursor);
+  setTextCursor(cursor);
+
+  auto line = cursor.block().text().trimmed();
+  add_to_queue_action_->setEnabled(!line.isEmpty());
+
+  auto * menu = createStandardContextMenu(event->pos());
+  menu->addAction(add_to_queue_action_);
+  menu->addAction(erase_action_);
+  menu->exec(event->globalPos());
+  delete menu;
+}
 
 void DisplayText::insertLineSpacer(QString const& line)
 {

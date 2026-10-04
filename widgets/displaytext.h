@@ -46,6 +46,7 @@ public:
   bool m_bDisplayPoints;
 
   Q_SIGNAL void selectCallsign (Qt::KeyboardModifiers);
+  Q_SIGNAL void addToQueue (QString const& line, Qt::KeyboardModifiers);
   // Z
   Q_SIGNAL void leftClick (Qt::KeyboardModifiers);
 void log(QString s);
@@ -65,6 +66,7 @@ private:
   void mouseDoubleClickEvent (QMouseEvent *) override;
   // Z
   void mousePressEvent(QMouseEvent *) override;
+  void contextMenuEvent(QContextMenuEvent *event) override;
   void enterEvent(QEvent *event) override;
   void leaveEvent(QEvent *event) override;
 
@@ -83,6 +85,7 @@ private:
                          , QString const& currentMode, QString extra);
   QFont char_font_;
   QAction * erase_action_;
+  QAction * add_to_queue_action_;
 
   QHash<QString, QPair<QColor, QColor>> highlighted_calls_;
   bool high_volume_;
