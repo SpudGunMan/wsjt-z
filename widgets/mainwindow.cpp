@@ -7479,11 +7479,6 @@ void MainWindow::startTx2()
     t=ui->tx6->text();
     if(t.mid(0,1)=="#") snr=t.mid(1,5).toDouble();
     if(snr>0.0 or snr < -50.0) snr=99.0;
-    if((m_ntx==6 or m_ntx==7) and m_config.force_call_1st() and
-       ui->respondComboBox->currentIndex()==0) {
-      ui->cbAutoSeq->setChecked(true);
-      ui->respondComboBox->setCurrentIndex(1);
-    }
     transmit (snr);
     ui->signal_meter_widget->setValue(0,0);
     if(m_mode=="Echo" and !m_tune) m_bTransmittedEcho=true;
