@@ -130,8 +130,8 @@ double constexpr TCITransceiver::m_twoPi;
 
 void TCITransceiver::register_transceivers (logger_type *, TransceiverFactory::Transceivers * registry, unsigned id1, unsigned id2)
 {
-  (*registry)[TCI_transceiver_1_name] = TransceiverFactory::Capabilities {id1, TransceiverFactory::Capabilities::tci, true};
-  (*registry)[TCI_transceiver_2_name] = TransceiverFactory::Capabilities {id2, TransceiverFactory::Capabilities::tci, true};
+  (*registry)[TCI_transceiver_1_name] = TransceiverFactory::Capabilities {id1, TransceiverFactory::Capabilities::tci, true, false, false, false};
+  (*registry)[TCI_transceiver_2_name] = TransceiverFactory::Capabilities {id2, TransceiverFactory::Capabilities::tci, true, false, false, false};
 }
 
 static constexpr quint32 AudioHeaderSize = 16u*sizeof(quint32);
