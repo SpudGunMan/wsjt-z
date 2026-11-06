@@ -32,6 +32,9 @@ namespace
       , OmniRigOneId
       , OmniRigTwoId
     };
+
+  constexpr int tci_poll_interval_mask {0xFFFF};
+  constexpr int default_tci_poll_interval_seconds {2};
 }
 
 TransceiverFactory::TransceiverFactory ()
@@ -94,8 +97,16 @@ std::unique_ptr<Transceiver> TransceiverFactory::create (ParameterPack const& pa
       {
         std::unique_ptr<TransceiverBase> basic_transceiver;
 
+        auto tci_poll_interval = params.poll_interval;
+        auto poll_seconds = tci_poll_interval & tci_poll_interval_mask;
+        if (poll_seconds <= 0)
+          {
+            poll_seconds = default_tci_poll_interval_seconds;
+          }
+        tci_poll_interval = (tci_poll_interval & ~tci_poll_interval_mask) | poll_seconds;
+
         // wrap the basic Transceiver object instance with a decorator object that talks to TCI Commander
-        result.reset (new TCITransceiver {&logger_, std::move (basic_transceiver), "0", params.tci_port, PTT_method_CAT == params.ptt_type, params.poll_interval});
+        result.reset (new TCITransceiver {&logger_, std::move (basic_transceiver), "0", params.tci_port, PTT_method_CAT == params.ptt_type, tci_poll_interval});
         if (target_thread)
           {
             result->moveToThread (target_thread);
@@ -107,8 +118,16 @@ std::unique_ptr<Transceiver> TransceiverFactory::create (ParameterPack const& pa
       {
         std::unique_ptr<TransceiverBase> basic_transceiver;
 
+        auto tci_poll_interval = params.poll_interval;
+        auto poll_seconds = tci_poll_interval & tci_poll_interval_mask;
+        if (poll_seconds <= 0)
+          {
+            poll_seconds = default_tci_poll_interval_seconds;
+          }
+        tci_poll_interval = (tci_poll_interval & ~tci_poll_interval_mask) | poll_seconds;
+
         // wrap the basic Transceiver object instance with a decorator object that talks to TCI Commander
-        result.reset (new TCITransceiver {&logger_, std::move (basic_transceiver), "1", params.tci_port, PTT_method_CAT == params.ptt_type, params.poll_interval});
+        result.reset (new TCITransceiver {&logger_, std::move (basic_transceiver), "1", params.tci_port, PTT_method_CAT == params.ptt_type, tci_poll_interval});
         if (target_thread)
           {
             result->moveToThread (target_thread);

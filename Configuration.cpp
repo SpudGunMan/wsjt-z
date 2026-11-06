@@ -278,6 +278,10 @@ namespace
   constexpr quint32 qrg_magic {0xadbccbdb};
   constexpr quint32 qrg_version {101}; // M.mm
   constexpr quint32 qrg_version_100 {100};
+
+  // TCI stores option flags in high bits of poll_interval.
+  // Keep the UI spin box bound to the low 16-bit second value only.
+  constexpr int tci_poll_interval_mask {0xFFFF};
 }
 
 
@@ -1814,7 +1818,9 @@ void Configuration::impl::initialize_models ()
       ui_->force_RTS_combo_box->setCurrentIndex (0);
     }
   ui_->TX_audio_source_button_group->button (rig_params_.audio_source)->setChecked (true);
-  ui_->CAT_poll_interval_spin_box->setValue (rig_params_.poll_interval);
+  ui_->CAT_poll_interval_spin_box->setValue (
+    is_tci_ ? (rig_params_.poll_interval & tci_poll_interval_mask)
+            : rig_params_.poll_interval);
   ui_->opCallEntry->setText (opCall_);
   ui_->udp_server_line_edit->setEnabled(false);
   ui_->udp_server_line_edit->setText (udp_server_name_);
@@ -2677,7 +2683,19 @@ TransceiverFactory::ParameterPack Configuration::impl::gather_rig_data ()
   result.force_rts = ui_->force_RTS_combo_box->isEnabled () && ui_->force_RTS_combo_box->currentIndex () > 0;
   result.rts_high = ui_->force_RTS_combo_box->isEnabled () && 1 == ui_->force_RTS_combo_box->currentIndex ();
   result.poll_interval = ui_->CAT_poll_interval_spin_box->value ();
-  if (is_tci_ && ui_->tci_audio_check_box->isChecked ()) result.poll_interval |= tci__audio;
+  if (is_tci_)
+    {
+      auto const tci_flags = rig_params_.poll_interval & ~tci_poll_interval_mask;
+      result.poll_interval = tci_flags | (result.poll_interval & tci_poll_interval_mask);
+      if (ui_->tci_audio_check_box->isChecked ())
+        {
+          result.poll_interval |= tci__audio;
+        }
+      else
+        {
+          result.poll_interval &= ~tci__audio;
+        }
+    }
   result.ptt_type = static_cast<TransceiverFactory::PTTMethod> (ui_->PTT_method_button_group->checkedId ());
   result.ptt_port = ui_->PTT_port_combo_box->currentText ();
   result.audio_source = static_cast<TransceiverFactory::TXAudioSource> (ui_->TX_audio_source_button_group->checkedId ());
