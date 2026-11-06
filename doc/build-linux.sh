@@ -8,7 +8,8 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 # 0) Base tools
 sudo apt-get update
-sudo apt-get install -y build-essential cmake ninja-build pkg-config g++ gfortran libboost-all-dev libfftw3-dev libhamlib-dev libhamlib-utils libusb-1.0-0-dev libudev-dev portaudio19-dev qtbase5-dev qtchooser qt5-qmake qtbase5-dev-tools libqt5serialport5-dev qtmultimedia5-dev qttools5-dev libqt5websockets5-dev asciidoctor ccache libqt5multimedia5-plugins 
+sudo apt install -y libhamlib4t64 ccache libhamlib-dev libhamlib-utils
+sudo apt-get install -y build-essential cmake ninja-build pkg-config g++ gfortran libboost-all-dev libfftw3-dev libusb-1.0-0-dev libudev-dev portaudio19-dev qtbase5-dev qtchooser qt5-qmake qtbase5-dev-tools libqt5serialport5-dev qtmultimedia5-dev qttools5-dev libqt5websockets5-dev asciidoctor ccache libqt5multimedia5-plugins 
 
 # 1) Find Qt5 qmake
 QT5_QMAKE="$(command -v qmake || command -v qmake-qt5 || true)"
