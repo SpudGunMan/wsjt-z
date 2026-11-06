@@ -139,7 +139,7 @@ static constexpr quint32 AudioHeaderSize = 16u*sizeof(quint32);
 TCITransceiver::TCITransceiver (logger_type * logger, std::unique_ptr<TransceiverBase> wrapped,QString const& rignr,
                                QString const& address, bool use_for_ptt,
                                int poll_interval, QObject * parent)
-  : PollingTransceiver {logger, poll_interval, parent}
+  : PollingTransceiver {logger, poll_interval & 0xFFFF, parent}
   , wrapped_ {std::move (wrapped)}
   , rx_ {rignr}
   , server_ {address}
