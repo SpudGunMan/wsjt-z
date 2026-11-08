@@ -100,6 +100,9 @@ jobs:
           git clone --depth 1 --branch "${{ inputs.hamlib_branch }}" \
             https://github.com/Hamlib/Hamlib.git hamlib-src
           cd hamlib-src
+          if ! grep -q '^#include <assert.h>' lib/precise_time.c; then
+            sed -i '/#include <windows.h>/a #include <assert.h>' lib/precise_time.c
+          fi
           ./bootstrap
           ./configure \
             --prefix="${WORKSPACE}/hamlib-prefix" \
