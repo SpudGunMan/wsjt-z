@@ -62,7 +62,7 @@ jobs:
             mingw-w64-x86_64-qt5-activeqt
             mingw-w64-x86_64-fftw
             mingw-w64-x86_64-boost
-            mingw-w64-x86_64-libusb
+            mingw-w64-ucrt-x86_64-libusb
             mingw-w64-x86_64-portaudio
             mingw-w64-x86_64-pkg-config
             mingw-w64-x86_64-nsis
