@@ -62,6 +62,7 @@ jobs:
             mingw-w64-ucrt-x86_64-qt5-activeqt
             mingw-w64-ucrt-x86_64-fftw
             mingw-w64-ucrt-x86_64-boost
+            mingw-w64-ucrt-x86_64-hamlib
             mingw-w64-ucrt-x86_64-libusb
             mingw-w64-ucrt-x86_64-portaudio
             mingw-w64-ucrt-x86_64-pkg-config
@@ -95,7 +96,6 @@ jobs:
 
       - name: Build Hamlib from source
         if: steps.hamlib-check.outcome == 'failure' && steps.hamlib-cache.outputs.cache-hit != 'true'
-        continue-on-error: true
         run: |
           WORKSPACE=$(cygpath "${GITHUB_WORKSPACE}")
           git clone --depth 1 --branch "${{ inputs.hamlib_branch }}" \
