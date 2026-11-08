@@ -44,30 +44,30 @@ jobs:
 
       - uses: msys2/setup-msys2@v2
         with:
-          msystem: MINGW64
+          msystem: UCRT64
           update: true
           cache: true
           install: >-
             git make tar
-            mingw-w64-x86_64-gcc
-            mingw-w64-x86_64-gcc-fortran
-            mingw-w64-x86_64-cmake
-            mingw-w64-x86_64-ninja
-            mingw-w64-x86_64-qt5-base
-            mingw-w64-x86_64-qt5-multimedia
-            mingw-w64-x86_64-qt5-serialport
-            mingw-w64-x86_64-qt5-svg
-            mingw-w64-x86_64-qt5-tools
-            mingw-w64-x86_64-qt5-websockets
-            mingw-w64-x86_64-qt5-activeqt
-            mingw-w64-x86_64-fftw
-            mingw-w64-x86_64-boost
+            mingw-w64-ucrt-x86_64-gcc
+            mingw-w64-ucrt-x86_64-gcc-fortran
+            mingw-w64-ucrt-x86_64-cmake
+            mingw-w64-ucrt-x86_64-ninja
+            mingw-w64-ucrt-x86_64-qt5-base
+            mingw-w64-ucrt-x86_64-qt5-multimedia
+            mingw-w64-ucrt-x86_64-qt5-serialport
+            mingw-w64-ucrt-x86_64-qt5-svg
+            mingw-w64-ucrt-x86_64-qt5-tools
+            mingw-w64-ucrt-x86_64-qt5-websockets
+            mingw-w64-ucrt-x86_64-qt5-activeqt
+            mingw-w64-ucrt-x86_64-fftw
+            mingw-w64-ucrt-x86_64-boost
             mingw-w64-ucrt-x86_64-libusb
-            mingw-w64-x86_64-portaudio
-            mingw-w64-x86_64-pkg-config
-            mingw-w64-x86_64-nsis
-            mingw-w64-x86_64-7zip
-            mingw-w64-x86_64-ruby
+            mingw-w64-ucrt-x86_64-portaudio
+            mingw-w64-ucrt-x86_64-pkg-config
+            mingw-w64-ucrt-x86_64-nsis
+            mingw-w64-ucrt-x86_64-7zip
+            mingw-w64-ucrt-x86_64-ruby
             autoconf automake libtool
 
       - name: Install asciidoctor (Ruby gem)
@@ -78,7 +78,7 @@ jobs:
         continue-on-error: true
         run: |
           pkg-config --modversion hamlib
-          ls /mingw64/lib/libhamlib.* 2>/dev/null || true
+          ls /ucrt64/lib/libhamlib.* 2>/dev/null || true
 
       - name: Cache Hamlib build
         id: hamlib-cache
@@ -91,7 +91,7 @@ jobs:
       - name: Update pkg-config (required for Hamlib)
         if: steps.hamlib-check.outcome == 'failure' && steps.hamlib-cache.outputs.cache-hit != 'true'
         run: |
-          pacman -S --noconfirm mingw-w64-x86_64-pkgconf
+          pacman -S --noconfirm mingw-w64-ucrt-x86_64-pkgconf
 
       - name: Build Hamlib from source
         if: steps.hamlib-check.outcome == 'failure' && steps.hamlib-cache.outputs.cache-hit != 'true'
@@ -118,7 +118,7 @@ jobs:
           if [ -d "${WORKSPACE}/hamlib-prefix" ]; then
             echo "HAMLIB_PREFIX=${WORKSPACE}/hamlib-prefix" >> $GITHUB_ENV
           else
-            echo "HAMLIB_PREFIX=/mingw64" >> $GITHUB_ENV
+            echo "HAMLIB_PREFIX=/ucrt64" >> $GITHUB_ENV
           fi
 
       - name: Install OmniRig
@@ -138,7 +138,7 @@ jobs:
 
       - name: Fix dumpcpp name (MSYS2 ships dumpcpp-qt5, CMake expects dumpcpp)
         run: |
-          ln -sf /mingw64/bin/dumpcpp-qt5.exe /mingw64/bin/dumpcpp.exe
+          ln -sf /ucrt64/bin/dumpcpp-qt5.exe /ucrt64/bin/dumpcpp.exe
 
       - name: Configure
         run: |
