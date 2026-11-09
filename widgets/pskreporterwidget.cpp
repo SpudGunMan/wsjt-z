@@ -79,6 +79,7 @@ void PSKReporterWidget::refresh(bool init) {
     query.addQueryItem("senderCallsign", m_config->my_callsign());
     query.addQueryItem("callsign", m_config->my_callsign());
     query.addQueryItem("appcontact", "wsjt-z@github");
+    query.addQueryItem("rronly", "1");
     QUrl url("https://retrieve.pskreporter.info/query");
     url.setQuery(query);
     QNetworkRequest networkRequest(url);
