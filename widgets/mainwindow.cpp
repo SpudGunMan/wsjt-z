@@ -2216,7 +2216,13 @@ void MainWindow::set_application_font (QFont const& font)
 {
   qApp->setFont (font);
   // Z
-  qApp->setStyleSheet (qApp->styleSheet () + "* {" + font_as_stylesheet (font) + '}');
+  auto style_sheet = qApp->styleSheet ();
+  if (!m_application_font_style_sheet_rule_.isEmpty ())
+    {
+      style_sheet.remove (m_application_font_style_sheet_rule_);
+    }
+  m_application_font_style_sheet_rule_ = "* {" + font_as_stylesheet (font) + '}';
+  qApp->setStyleSheet (style_sheet + m_application_font_style_sheet_rule_);
   if (m_config.largerTabWidget()) ui->tabWidget->setMaximumHeight(1000);
   for (auto& widget : qApp->topLevelWidgets ())
     {
